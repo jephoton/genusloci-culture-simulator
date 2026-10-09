@@ -12,13 +12,13 @@
 - **`world/`** — builds a per-city World file (entities, affinity edges, heatmaps, archetypes). Cached server-side only.
 - **`sim/`** — pure, deterministic TypeScript engine running in a Web Worker. Never calls the network.
 - **`actions/`** — typed command schema shared by the UI toolbar and the co-pilot.
-- **`agents/`** — Claude co-pilot (tool use), persona interviews, scene naming.
+- **`agents/`** — LLM co-pilot (tool use, provider-agnostic via Vercel AI SDK; DeepSeek primary), persona interviews, scene naming.
 - **`ui/`** — Next.js app: deck.gl/MapLibre map, phylogeny, inspector, chat.
 
 ## Boundaries
 
 - Qloo response data must **never** be committed to the repo (Qloo terms). Fixtures in the repo are synthetic.
-- Secrets live in environment variables only (`QLOO_API_KEY`, `ANTHROPIC_API_KEY`).
+- Secrets live in environment variables only (`QLOO_API_KEY`, `DEEPSEEK_API_KEY`, fallback provider keys).
 - Sim ticks make zero API calls; the server is stateless apart from caches.
 
 ## Commands

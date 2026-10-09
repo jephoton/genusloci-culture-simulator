@@ -6,13 +6,13 @@
 
 ## 1. One-liner
 
-*Every city's culture is a living species.* Genus Loci is a god-game sandbox of a real city's cultural ecosystem. Thousands of agents carry taste genomes built from real Qloo entities. Venues compete for their attention, and scenes are born, split, migrate and go extinct. You poke the city (close a venue, open one, bring in migrants, throw a festival) and watch the ecosystem respond. A Claude co-pilot can do everything the toolbar does, explain what happened, and let you interview individual residents.
+*Every city's culture is a living species.* Genus Loci is a god-game sandbox of a real city's cultural ecosystem. Thousands of agents carry taste genomes built from real Qloo entities. Venues compete for their attention, and scenes are born, split, migrate and go extinct. You poke the city (close a venue, open one, bring in migrants, throw a festival) and watch the ecosystem respond. An AI co-pilot can do everything the toolbar does, explain what happened, and let you interview individual residents.
 
 ## 2. Hackathon constraints that shape the design
 
 | Constraint | Design consequence |
 |---|---|
-| Must be agentic (agent framework, agentic tool, or Qloo inside an agent) | A Claude tool-use co-pilot drives the same action layer as the UI; persona agents; scene-naming agent. |
+| Must be agentic (agent framework, agentic tool, or Qloo inside an agent) | An LLM tool-use co-pilot drives the same action layer as the UI; persona agents; scene-naming agent. |
 | "If it works the same without Qloo, you're building the wrong thing" | The simulation's rules are the Qloo graph: every adoption and drift follows a Qloo affinity edge, and the baseline is calibrated against Qloo heatmaps. |
 | Hosted, publicly usable demo; no video | Must be self-explanatory: guided first scenario, instant prebuilt cities, judges can try their own city. |
 | Public repo + OSS license | MIT. **No Qloo response data committed** (Qloo terms); World files are cached server-side only. |
@@ -58,7 +58,7 @@
 ┌───────────▼───────────────────────────▼───────────────┐
 │  Next.js route handlers (Vercel)                      │
 │  World builder ── Qloo client (cache, throttle)       │
-│  Agent runtime ── Claude API (tool use)               │
+│  Agent runtime ── LLM via AI SDK (tool use)           │
 │  World cache (server-side blob/KV store)              │
 └───────────────────────────────────────────────────────┘
 ```
@@ -72,7 +72,7 @@
 | `sim/` engine | Pure, deterministic `step(state, actions, rng) → state`. No DOM, no network. Kept portable (could move to Rust/WASM later; not planned). | World file only |
 | `sim/worker` | Hosts the engine in a Web Worker; snapshots for rewind and forks; emits digests. | `sim/` |
 | `actions/` | One command schema used by the toolbar and the co-pilot. Validation and serialisation. | — |
-| `agents/` | Co-pilot loop, persona interview, scene naming. Server-side. | Claude API, `qloo/`, action schema |
+| `agents/` | Co-pilot loop, persona interview, scene naming. Server-side. | LLM providers (via AI SDK), `qloo/`, action schema |
 | `ui/` | Map, panels, toolbar, chat. | worker, actions, agents API |
 
 Co-pilot simulation tools execute **client-side**: the server agent loop emits a tool call, the browser runs it against the worker, and the result is posted back. The simulation lives only in the browser; the server stays stateless apart from caches.
@@ -118,13 +118,14 @@ The worker logs every action with its tick, so runs can be replayed and the co-p
 
 ## 9. Agents
 
-- **Co-pilot** (Claude tool-use loop, server-side, streamed):
+- **Co-pilot** (LLM tool-use loop, server-side, streamed):
   - **Qloo tools:** `search_entity`, `get_related`, `get_heatmap`, `get_audiences`. These are validated wrappers; the agent can only reference IDs that actually resolved.
   - **Sim tools** (executed in the browser): `get_world_summary` (compact digest: top scenes, venue health, recent events, recent user actions), all action commands, `get_metrics`, `compare_runs`, `inspect(id)`.
   - **Behaviour:** turns the question into a scenario, runs it with a baseline fork, reports with numbers from the sim and named Qloo entities, and is honest about uncertainty.
 - **Persona interview:** a single-agent context (genome, history, scene, home cell) → first-person chat. Grounded; must not invent tastes outside its genome.
 - **Scene namer:** a small, cheap LLM call per new lineage.
-- **Models:** latest Claude models. A capable model for the co-pilot; a fast, cheap one for personas and naming. Exact IDs to be confirmed via the claude-api skill at implementation time.
+- **Models (provider-agnostic, see decision 0003):** all LLM calls go through the Vercel AI SDK using OpenAI-compatible providers, so swapping is a config change. **Primary: DeepSeek API** (open-weight, low cost) for the co-pilot. **Fallback chain** on rate limits or errors: free tiers of Groq → Cerebras → OpenRouter → Gemini. Two tiers: a larger tool-calling model for the co-pilot, a small fast model for personas and scene naming. Exact models and limits to be verified in the Phase 1 spike.
+- **Open-model robustness:** keep the co-pilot tool set small and strictly typed (zod); validate every tool call and return structured errors so the model can retry; cap the loop's steps.
 - **Abuse/cost guard:** per-IP rate limits and a daily budget cap on LLM calls in the public demo.
 
 ## 10. Stack and hosting
@@ -133,13 +134,14 @@ The worker logs every action with its tick, so runs can be replayed and the co-p
 - Rendering: deck.gl + MapLibre GL (free vector tiles, no paid map key if possible).
 - Sim: Web Worker with typed arrays. Validation: zod.
 - Server cache: Vercel Blob or KV (decided in the plan).
-- Secrets: `QLOO_API_KEY` and `ANTHROPIC_API_KEY` as Vercel environment variables only; `.env.example` in the repo.
+- LLM: Vercel AI SDK; DeepSeek primary, free-tier fallback chain (decision 0003).
+- Secrets: `QLOO_API_KEY`, `DEEPSEEK_API_KEY` and fallback provider keys as Vercel environment variables only; `.env.example` in the repo.
 - License: MIT.
 
 ## 11. Error handling
 
 - **Qloo:** retry with backoff on 429/5xx; treat empty 200 responses as possible invalid params and log them; resumable world builds; fall back to a cached World file.
-- **LLM:** streaming with timeouts; the co-pilot degrades to "toolbar only" with a clear notice if the budget is exhausted or the API is down.
+- **LLM:** streaming with timeouts; the co-pilot degrades to "toolbar only" with a clear notice if the budget is exhausted or every provider in the fallback chain is down.
 - **Sim:** validate actions before applying them; the worker catches errors and reports them without killing the UI; World files are checked against their schema version on load.
 
 ## 12. Testing
