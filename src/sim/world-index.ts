@@ -54,7 +54,7 @@ export function compileWorld(world: World, maxNearby = 12): CompiledWorld {
 
   const rows: Map<number, number>[] = Array.from({ length: n }, () => new Map());
   for (const e of world.edges) {
-    if (e.source === e.target) continue;
+    if (e.source === e.target || e.weight <= 0) continue;
     const row = rows[e.source];
     row.set(e.target, Math.max(row.get(e.target) ?? 0, e.weight));
   }
