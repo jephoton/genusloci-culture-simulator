@@ -7,6 +7,7 @@ import type { FrameStore } from "@/render/frame-store";
 import { agentHomePosition, type CityLayout, hash01, LANDMARK_RADIUS } from "@/render/layout";
 import { outingPhase, staggerOf } from "@/render/outing-path";
 import { sceneHuesOf, sceneRgb } from "@/render/palette";
+import { nearestNode, RouteBook, routePolyline, samplePolyline } from "@/render/routes";
 import { venueViewsOf } from "@/render/venues";
 import type { Frame } from "@/sim/frame";
 import type { World } from "@/world/schema";
@@ -18,6 +19,48 @@ const BLEND_S = 0.35;
 /** Agents who stay in adopt their new colour at this phase of the week. */
 const STAY_COMMIT_AT = 0.5;
 const ease = (k: number) => k * k * (3 - 2 * k);
+/** Fraction of a leg spent blending between the agent's own position (or home) and the street route. */
+const JOIN = 0.1;
+/** The route cache is dropped when it grows past this many routes; routes rebuild lazily. */
+const MAX_ROUTES = 20_000;
+
+type Route = { poly: Float32Array; cum: Float32Array; total: number };
+/** One route book per layout, plus the street routes (home node → venue node) built on it. */
+type Streets = { graph: CityLayout["graph"]; book: RouteBook; routes: Map<string, Route> };
+
+/**
+ * Street route from the road node nearest home to the road node nearest the venue, shared by every
+ * agent of the same block heading to the same venue (one shortest-path tree per venue). Each agent
+ * walks on from its end to its own spot by the venue (see `alongRoute`).
+ */
+function routeOf(streets: Streets, hx: number, hz: number, vx: number, vz: number): Route {
+  const g = streets.graph;
+  const start = nearestNode(g, hx, hz);
+  const end = nearestNode(g, vx, vz);
+  const key = `${start}|${end}`;
+  let route = streets.routes.get(key);
+  if (!route) {
+    const poly = start >= 0 && end >= 0
+      ? routePolyline(streets.book, [g.nodeX[start], g.nodeZ[start]], [g.nodeX[end], g.nodeZ[end]])
+      : Float32Array.from([hx, hz, vx, vz]);
+    route = { poly, ...samplePolyline.prepare(poly) };
+    if (streets.routes.size >= MAX_ROUTES) streets.routes.clear();
+    streets.routes.set(key, route);
+  }
+  return route;
+}
+
+/** Point at fraction f of the walk along `route` and then straight on to the spot (sx, sz), by arc length. */
+function alongRoute(route: Route, sx: number, sz: number, f: number): [number, number] {
+  const { poly } = route;
+  const ex = poly[poly.length - 2];
+  const ez = poly[poly.length - 1];
+  const hop = Math.hypot(sx - ex, sz - ez);
+  const d = f * (route.total + hop);
+  if (d <= route.total) return samplePolyline.at(poly, route.cum, route.total > 0 ? d / route.total : 0);
+  const k = hop > 0 ? (d - route.total) / hop : 1;
+  return [ex + (sx - ex) * k, ez + (sz - ez) * k];
+}
 
 type Motion = {
   /** Where the agent was when this week's frame arrived (normally home). */
@@ -29,6 +72,8 @@ type Motion = {
   homeX: Float32Array;
   homeZ: Float32Array;
   going: Uint8Array;
+  /** Street route this week (only meaningful when going). */
+  route: (Route | null)[];
   stagger: Float32Array;
   curX: Float32Array;
   curZ: Float32Array;
@@ -63,6 +108,7 @@ function createMotion(slots: number): Motion {
     homeX: new Float32Array(slots),
     homeZ: new Float32Array(slots),
     going: new Uint8Array(slots),
+    route: new Array<Route | null>(slots).fill(null),
     stagger: Float32Array.from({ length: slots }, (_, i) => staggerOf(i)),
     curX: new Float32Array(slots),
     curZ: new Float32Array(slots),
@@ -88,8 +134,9 @@ function createMotion(slots: number): Motion {
 
 /**
  * One glowing figure per agent slot. Each tick (week) plays as a night out: agents leave home in
- * staggered waves, gather at their venue, then walk home. A changed scene colour is adopted when the
- * agent arrives at the venue where it changed (or mid-week if it stayed in), with a pop and a flash.
+ * staggered waves, walk the streets to their venue, gather there, then walk home the same way. A
+ * changed scene colour is adopted when the agent arrives at the venue where it changed (or mid-week
+ * if it stayed in), with a pop and a flash.
  */
 export function Crowd({
   world, layout, frames, slots, tickMs,
@@ -102,6 +149,7 @@ export function Crowd({
 }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const motion = useRef<Motion | null>(null);
+  const streetsRef = useRef<Streets | null>(null);
 
   useLayoutEffect(() => {
     const mesh = meshRef.current;
@@ -131,6 +179,11 @@ export function Crowd({
     m.last = now;
 
     if (frame !== m.frame) {
+      let streets = streetsRef.current;
+      if (!streets || streets.graph !== layout.graph) {
+        streets = { graph: layout.graph, book: new RouteBook(layout.graph), routes: new Map() };
+        streetsRef.current = streets;
+      }
       // The first frame and any epoch change (init, rewind) snap colours with no pops.
       const snap = m.frame === null || m.frame.epoch !== frame.epoch;
       const venues = venueViewsOf(frame, layout, world);
@@ -170,6 +223,9 @@ export function Crowd({
           const r = scale * LANDMARK_RADIUS[kind] + 1 + hash01(i * 5 + 2) * 2;
           m.venueX[i] = vx + r * Math.cos(a);
           m.venueZ[i] = vz + r * Math.sin(a);
+          m.route[i] = routeOf(streets, hx, hz, vx, vz);
+        } else {
+          m.route[i] = null;
         }
         if (!m.placed[i] || snap) {
           m.curX[i] = hx;
@@ -198,14 +254,22 @@ export function Crowd({
       let x: number;
       let z: number;
       let arrived: boolean;
-      if (m.going[i]) {
+      const route = m.route[i];
+      if (m.going[i] && route) {
         const { out, back } = outingPhase(t, m.stagger[i]);
-        const eo = ease(out);
-        const eb = ease(back);
-        x = m.fromX[i] + (m.venueX[i] - m.fromX[i]) * eo;
-        z = m.fromZ[i] + (m.venueZ[i] - m.fromZ[i]) * eo;
-        x += (m.homeX[i] - x) * eb;
-        z += (m.homeZ[i] - z) * eb;
+        if (back > 0) {
+          // Walk the route backwards, then step off it to the front door.
+          [x, z] = alongRoute(route, m.venueX[i], m.venueZ[i], 1 - ease(back));
+          const k = ease(Math.max(0, (back - (1 - JOIN)) / JOIN));
+          x += (m.homeX[i] - x) * k;
+          z += (m.homeZ[i] - z) * k;
+        } else {
+          // Blend from wherever the agent was into the route, so a rewind or late frame never snaps.
+          [x, z] = alongRoute(route, m.venueX[i], m.venueZ[i], ease(out));
+          const k = ease(Math.min(1, out / JOIN));
+          x = m.fromX[i] + (x - m.fromX[i]) * k;
+          z = m.fromZ[i] + (z - m.fromZ[i]) * k;
+        }
         arrived = out >= 1;
       } else {
         const e = ease(Math.min(1, t / 0.3));
