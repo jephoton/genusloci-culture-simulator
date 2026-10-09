@@ -35,6 +35,13 @@ describe("compileWorld", () => {
     expect(edgeWeight(cw, 1, 1)).toBe(0);
   });
 
+  it("drops zero-weight edges so drift only follows real affinity", () => {
+    const w = world();
+    w.edges.push({ source: 1, target: 2, weight: 0 });
+    const c = compileWorld(w);
+    expect(c.edgeOffsets[2] - c.edgeOffsets[1]).toBe(0);
+  });
+
   it("indexes venues with cell and capacity", () => {
     expect(Array.from(cw.venues)).toEqual([2]);
     expect(cw.venueCell[0]).toBe(1);
