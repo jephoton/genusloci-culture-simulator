@@ -46,6 +46,15 @@
   - Verified in the browser: recognisable London, simulation runs, no console errors.
   - 189 tests passing.
 
+## Queued (user feedback 2026-10-10; do these next)
+1. **Speed:** 1 wk/s is the maximum: at 1 wk/s agents already move almost straight to their venues each tick. Offer only speeds at or below 1 (e.g. ⅛, ¼, ½, 1).
+2. **Start-up signal:** the first weeks are a burst of auto-opened venues. Add effects that show *where scenes are forming*, e.g. a scene-coloured glow or aura over each emerging scene's territory, so the burst reads as "scenes crystallising here" rather than random booms.
+3. **Ecosystem readability and product alignment:**
+   - Venues do auto-close (health below a threshold for several weeks), but it's rare and easy to miss; make closures visible and legible.
+   - Design a promoter flow for "where should I host what?": e.g. a scene's demand map, suggested locations or venues for an event or headliner, and comparing candidate spots.
+   - See `docs/pitch-and-demo.md`.
+4. **5b-2:** name scenes from their dominant Qloo tags (plus a mock-Latin binomial) so scenes are self-explanatory.
+
 ## Next
 1. Request the Qloo hackathon API key if not already done (issued manually; takes days).
 2. Plan 5b (juice + field guide): effects director (shockwave/fisheye, rise/sink, beacons, colour waves), specimen cards, phylogeny, Latin names, remaining tools.
