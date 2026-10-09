@@ -2,7 +2,7 @@
 
 <!-- generated: maintained by agents -->
 
-**Phase:** Plan 2 complete (sim ecology), on branch `feat/plan-02-sim-ecology`. Next: Plan 3 (Qloo spike) once the key arrives; Plan 5 (UI) can start on the fixture meanwhile.
+**Phase:** Plan 2 complete (sim ecology), merged to `main`. Next: Plan 3 (Qloo spike) once the key arrives; Plan 5 (UI) can start on the fixture meanwhile.
 
 ## Done
 - Concept, name (**Genus Loci**), design spec, roadmap. Repo: https://github.com/jephoton/genusloci-culture-simulator (public, MIT).
