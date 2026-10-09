@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { CityCanvas } from "@/render/CityCanvas";
-import { buildLayout, nearestCell } from "@/render/layout";
+import { type CityLayout, nearestCell } from "@/render/layout";
 import type { SimConfig } from "@/sim/config";
 import { Hud } from "@/ui/Hud";
 import { TimelineBar } from "@/ui/TimelineBar";
@@ -18,8 +18,7 @@ const DEMO_CONFIG: Partial<SimConfig> = { nAgents: 4000, agentReserve: 500 };
 const AGENT_SLOTS = 4500;
 const EVENT = { duration: 3, reachKm: 25, capacity: 3000 } as const;
 
-function Game({ world, attribution }: { world: World; attribution: string | null }) {
-  const layout = useMemo(() => buildLayout(world), [world]);
+function Game({ world, layout, attribution }: { world: World; layout: CityLayout; attribution: string | null }) {
   const sim = useSimulation(world, DEMO_SEED, DEMO_CONFIG);
   const { act } = sim;
   const [tool, setTool] = useState<Tool>({ kind: "select" });
@@ -105,5 +104,5 @@ export default function GameShell() {
   if (!city) {
     return <div className="grid h-dvh place-items-center bg-[#07080b] text-zinc-400">Mapping the streets…</div>;
   }
-  return <Game world={city.world} attribution={city.attribution} />;
+  return <Game world={city.world} layout={city.layout} attribution={city.attribution} />;
 }
