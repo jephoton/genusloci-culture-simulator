@@ -4,7 +4,7 @@ import { useFrame } from "@react-three/fiber";
 import { type RefObject, useLayoutEffect, useRef } from "react";
 import * as THREE from "three";
 import type { FrameStore } from "@/render/frame-store";
-import { agentHomePosition, type CityLayout, hash01, LANDMARK_RADIUS, LANDMARK_SCALE } from "@/render/layout";
+import { agentHomePosition, type CityLayout, hash01, LANDMARK_RADIUS } from "@/render/layout";
 import { sceneHues, sceneRgb } from "@/render/palette";
 import { venueViews } from "@/render/venues";
 import type { Frame } from "@/sim/frame";
@@ -88,10 +88,10 @@ export function Crowd({
         let tx: number;
         let tz: number;
         if (v >= 0 && v < venues.length) {
-          const { position: [vx, vz], kind } = venues[v];
+          const { position: [vx, vz], kind, scale } = venues[v];
           const a = hash01(i * 3 + 1) * Math.PI * 2;
           // Stand just outside the landmark body, whatever its size.
-          const r = LANDMARK_SCALE * LANDMARK_RADIUS[kind] + 1 + hash01(i * 5 + 2) * 2;
+          const r = scale * LANDMARK_RADIUS[kind] + 1 + hash01(i * 5 + 2) * 2;
           tx = vx + r * Math.cos(a);
           tz = vz + r * Math.sin(a);
         } else {

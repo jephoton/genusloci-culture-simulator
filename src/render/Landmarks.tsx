@@ -93,21 +93,23 @@ function Landmark({ view, hues, selected, onSelect }: { view: VenueView; hues: F
   const [r, g, b] = view.dominantScene >= 0 ? sceneRgb(hues, view.dominantScene) : NEUTRAL_SIGN;
   const glow = view.open ? 0.5 + 2.2 * view.health : 0.04;
   const sign: Rgb = [r * glow, g * glow, b * glow];
+  const pillar = (24 * LANDMARK_SCALE) / view.scale;
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
     onSelect(view.slot);
   };
   return (
-    <group position={[x, view.open ? 0 : CLOSED_SINK, z]} scale={LANDMARK_SCALE} onClick={onClick}>
+    <group position={[x, view.open ? 0 : CLOSED_SINK, z]} scale={view.scale} onClick={onClick}>
       <Body kind={view.kind} sign={sign} />
       {view.isEvent && view.open && (
-        <mesh position-y={12}>
-          <cylinderGeometry args={[0.35, 0.35, 24, 12, 1, true]} />
+        // The pillar keeps its full-scale height on shrunken pads.
+        <mesh position-y={pillar / 2}>
+          <cylinderGeometry args={[0.35, 0.35, pillar, 12, 1, true]} />
           <meshBasicMaterial color={sign} toneMapped={false} transparent opacity={0.55} />
         </mesh>
       )}
       {selected && (
-        <mesh rotation-x={-Math.PI / 2} position-y={0.06 - (view.open ? 0 : CLOSED_SINK) / LANDMARK_SCALE}>
+        <mesh rotation-x={-Math.PI / 2} position-y={0.06 - (view.open ? 0 : CLOSED_SINK) / view.scale}>
           <ringGeometry args={[3.6, 4.1, 48]} />
           <meshBasicMaterial color={[2, 2, 2]} toneMapped={false} />
         </mesh>
