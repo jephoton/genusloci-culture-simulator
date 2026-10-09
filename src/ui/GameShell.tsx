@@ -4,20 +4,21 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CityCanvas } from "@/render/CityCanvas";
 import { buildLayout, nearestCell } from "@/render/layout";
 import type { SimConfig } from "@/sim/config";
-import { demoWorld } from "@/ui/demo-world";
 import { Hud } from "@/ui/Hud";
 import { TimelineBar } from "@/ui/TimelineBar";
 import { type Tool, Toolbar } from "@/ui/Toolbar";
 import { useSimulation } from "@/ui/useSimulation";
 import { VenuePanel } from "@/ui/VenuePanel";
+import type { World } from "@/world/schema";
+import { Attribution } from "@/ui/Attribution";
+import { useCityWorld } from "@/ui/useCityWorld";
 
 const DEMO_SEED = 7;
 const DEMO_CONFIG: Partial<SimConfig> = { nAgents: 4000, agentReserve: 500 };
 const AGENT_SLOTS = 4500;
 const EVENT = { duration: 3, reachKm: 25, capacity: 3000 } as const;
 
-export default function GameShell() {
-  const world = useMemo(() => demoWorld(), []);
+function Game({ world, attribution }: { world: World; attribution: string | null }) {
   const layout = useMemo(() => buildLayout(world), [world]);
   const sim = useSimulation(world, DEMO_SEED, DEMO_CONFIG);
   const { act } = sim;
@@ -83,6 +84,7 @@ export default function GameShell() {
         onSpeed={sim.setSpeed}
         onRewind={(t) => void sim.rewind(t)}
       />
+      {attribution && <Attribution />}
       {sim.status === "loading" && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center text-zinc-400">Growing the city…</div>
       )}
@@ -94,4 +96,14 @@ export default function GameShell() {
       )}
     </div>
   );
+}
+
+const CITY = "london";
+
+export default function GameShell() {
+  const city = useCityWorld(CITY);
+  if (!city) {
+    return <div className="grid h-dvh place-items-center bg-[#07080b] text-zinc-400">Mapping the streets…</div>;
+  }
+  return <Game world={city.world} attribution={city.attribution} />;
 }
