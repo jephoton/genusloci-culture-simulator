@@ -1,12 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { homeScene, sceneAnchor } from "@/render/anchors";
+import type { FlyTo } from "@/render/CameraDirector";
 import { CityCanvas } from "@/render/CityCanvas";
+import type { FrameChange } from "@/render/effects/diff";
+import type { Focus } from "@/render/focus";
 import type { GhostSpec } from "@/render/Ghost";
 import { type CityLayout, nearestCell, type XZ } from "@/render/layout";
 import { chooseVenueEntity } from "@/render/placement";
+import { venueViewsOf } from "@/render/venues";
 import type { SimConfig } from "@/sim/config";
+import type { Frame } from "@/sim/frame";
 import { Hud } from "@/ui/Hud";
+import { SceneLegend } from "@/ui/SceneLegend";
 import { TimelineBar } from "@/ui/TimelineBar";
 import { type Toast, Toasts } from "@/ui/Toasts";
 import { isPlacing, type Tool, Toolbar } from "@/ui/Toolbar";
@@ -23,6 +30,10 @@ const AGENT_SLOTS = 2800;
 const EVENT = { duration: 3, reachKm: 25, capacity: 3000 } as const;
 const MAX_TOASTS = 4;
 const TOAST_MS = 4000;
+/** Big-moment toasts from the simulation come at most this often; extras collapse into the newest. */
+const ANNOUNCE_GAP_MS = 1500;
+
+type Notify = (message: string, anchor?: XZ) => void;
 
 /** A stack of short-lived toasts, and `notify` to add one. */
 function useToasts() {
@@ -36,7 +47,7 @@ function useToasts() {
       pending.clear();
     };
   }, []);
-  const notify = useCallback((message: string, anchor?: XZ) => {
+  const notify = useCallback<Notify>((message, anchor) => {
     const id = nextId.current++;
     setToasts((ts) => [...ts, { id, message, anchor }].slice(-MAX_TOASTS));
     const timer = setTimeout(() => {
@@ -48,22 +59,130 @@ function useToasts() {
   return { toasts, notify };
 }
 
+/** `notify`, throttled to one toast per ANNOUNCE_GAP_MS; while waiting, only the newest message is kept. */
+function useAnnounce(notify: Notify): Notify {
+  const lastAt = useRef(-Infinity);
+  const pending = useRef<{ message: string; anchor?: XZ } | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+  return useCallback<Notify>(
+    (message, anchor) => {
+      const wait = lastAt.current + ANNOUNCE_GAP_MS - performance.now();
+      if (wait <= 0 && !timer.current) {
+        lastAt.current = performance.now();
+        notify(message, anchor);
+        return;
+      }
+      pending.current = { message, anchor };
+      timer.current ??= setTimeout(() => {
+        timer.current = null;
+        const next = pending.current;
+        pending.current = null;
+        if (!next) return;
+        lastAt.current = performance.now();
+        notify(next.message, next.anchor);
+      }, Math.max(0, wait));
+    },
+    [notify],
+  );
+}
+
+const placementKey = (entity: number, cell: number) => `${entity}:${cell}`;
+
 function Game({ world, layout, attribution }: { world: World; layout: CityLayout; attribution: string | null }) {
   const sim = useSimulation(world, DEMO_SEED, DEMO_CONFIG);
-  const { act } = sim;
+  const { act, frames } = sim;
   const [tool, setTool] = useState<Tool>({ kind: "select" });
   const [selected, setSelected] = useState<number | null>(null);
+  /** Focus set by selecting a venue or clicking a legend row; `hovered` (a legend row) wins while set. */
+  const [pinned, setPinned] = useState<Focus>(null);
+  const [hovered, setHovered] = useState<number | null>(null);
   const { toasts, notify } = useToasts();
+  const announce = useAnnounce(notify);
+  const flyRef = useRef<FlyTo | null>(null);
+  /** Placements the player made that the frame feed hasn't shown yet, so they aren't announced twice. */
+  const placed = useRef(new Set<string>());
+
+  const clearFocus = useCallback(() => {
+    setPinned(null);
+    setHovered(null);
+    setSelected(null);
+  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       setTool({ kind: "select" });
-      setSelected(null);
+      clearFocus();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+  }, [clearFocus]);
+
+  const flyTo = useCallback(([x, z]: XZ) => {
+    flyRef.current = { x, z, at: performance.now() };
   }, []);
+
+  // A pinned scene that has merged or died stops being a focus.
+  const live = sim.digest?.scenes;
+  const pinnedLive = pinned?.kind === "scene" && live && !live.some((s) => s.id === pinned.id) ? null : pinned;
+  const focus = useMemo<Focus>(() => (hovered !== null ? { kind: "scene", id: hovered } : pinnedLive), [hovered, pinnedLive]);
+
+  const onVenueClick = useCallback((slot: number) => {
+    setSelected(slot);
+    setPinned({ kind: "venue", slot });
+  }, []);
+
+  const onPinScene = useCallback(
+    (id: number) => {
+      if (pinnedLive?.kind === "scene" && pinnedLive.id === id) {
+        setPinned(null);
+        return;
+      }
+      setPinned({ kind: "scene", id });
+      setSelected(null);
+      const frame = frames.current.current;
+      const anchor = frame ? sceneAnchor(frame, layout, id) : null;
+      if (anchor) flyTo(anchor);
+    },
+    [flyTo, frames, layout, pinnedLive],
+  );
+
+  const onFrameChanges = useCallback(
+    (changes: FrameChange[], frame: Frame) => {
+      const views = venueViewsOf(frame, layout, world);
+      for (const c of changes) {
+        if (c.kind === "venueOpened" || c.kind === "eventStarted" || c.kind === "venueClosed") {
+          const view = views[c.slot];
+          if (!view) continue;
+          if (c.kind === "venueClosed") {
+            announce(`${view.name} closed`, view.position);
+            continue;
+          }
+          // The player's own placements were confirmed when they were made.
+          if (placed.current.delete(placementKey(view.entity, frame.venueCell[c.slot]))) continue;
+          if (c.kind === "eventStarted") {
+            announce(`${view.name} is playing tonight`, view.position);
+          } else {
+            const scene = homeScene(frame, frame.venueCell[c.slot]);
+            announce(scene >= 0 ? `${view.name} opened (demand from Scene ${scene})` : `${view.name} opened`, view.position);
+          }
+        } else if (c.kind === "sceneBorn") {
+          const anchor = sceneAnchor(frame, layout, c.scene) ?? undefined;
+          announce(c.parent === null ? `A new scene formed: Scene ${c.scene}` : `Scene ${c.scene} split off from Scene ${c.parent}`, anchor);
+        } else if (c.kind === "sceneEnded") {
+          if (c.into === null) announce(`Scene ${c.scene} faded away`);
+          else announce(`Scene ${c.scene} merged into Scene ${c.into}`, sceneAnchor(frame, layout, c.into) ?? undefined);
+        }
+      }
+    },
+    [announce, layout, world],
+  );
 
   const onGroundClick = useCallback(
     (x: number, z: number) => {
@@ -71,21 +190,27 @@ function Game({ world, layout, attribution }: { world: World; layout: CityLayout
       const anchor: XZ = [x, z];
       if (tool.kind === "open" && tool.venueKind !== null) {
         const entity = chooseVenueEntity(world, tool.venueKind, cell);
+        const key = placementKey(entity, cell);
         setTool({ kind: "select" });
+        placed.current.add(key);
         void act({ type: "openVenue", entity, cell }).then((ok) => {
           if (ok) notify(`Opened a ${kindWord(world.entities[entity].kind ?? "other")} in ${areaName(layout, x, z)}`, anchor);
+          else placed.current.delete(key);
         });
       } else if (tool.kind === "event" && tool.entity !== null) {
         const entity = tool.entity;
+        const key = placementKey(entity, cell);
         setTool({ kind: "select" });
+        placed.current.add(key);
         void act({ type: "scheduleEvent", entity, cell, ...EVENT }).then((ok) => {
           if (ok) notify(`${world.entities[entity].name} is playing tonight`, anchor);
+          else placed.current.delete(key);
         });
       } else if (tool.kind === "select") {
-        setSelected(null);
+        clearFocus();
       }
     },
-    [act, layout, notify, tool, world],
+    [act, clearFocus, layout, notify, tool, world],
   );
 
   let ghost: GhostSpec | null = null;
@@ -97,25 +222,39 @@ function Game({ world, layout, attribution }: { world: World; layout: CityLayout
       <CityCanvas
         world={world}
         layout={layout}
-        frames={sim.frames}
+        frames={frames}
         frame={sim.frame}
         agentSlots={AGENT_SLOTS}
         tickMs={1000 / sim.speed}
         selectedVenue={selected}
-        onVenueClick={setSelected}
+        onVenueClick={onVenueClick}
         onGroundClick={onGroundClick}
         cursor={isPlacing(tool) ? "crosshair" : "default"}
         ghost={ghost}
+        focus={focus}
+        flyTo={flyRef}
+        onFrameChanges={onFrameChanges}
       />
       <Hud city={world.city.name} digest={sim.digest} tick={sim.frame?.tick ?? 0} />
       <Toolbar world={world} digest={sim.digest} tool={tool} onTool={setTool} />
-      <VenuePanel
-        world={world}
-        frame={sim.frame}
-        slot={selected}
-        onCloseVenue={(venue) => void act({ type: "closeVenue", venue })}
-        onDismiss={() => setSelected(null)}
-      />
+      <div className="pointer-events-none absolute right-4 top-24 flex max-h-[calc(100dvh-12rem)] w-72 flex-col gap-3">
+        <VenuePanel
+          world={world}
+          frame={sim.frame}
+          slot={selected}
+          onCloseVenue={(venue) => void act({ type: "closeVenue", venue })}
+          onDismiss={clearFocus}
+        />
+        <SceneLegend
+          digest={sim.digest}
+          frame={sim.frame}
+          pinned={pinnedLive?.kind === "scene" ? pinnedLive.id : null}
+          focused={focus !== null}
+          onHover={setHovered}
+          onPin={onPinScene}
+          onClear={clearFocus}
+        />
+      </div>
       <TimelineBar
         tick={sim.frame?.tick ?? 0}
         earliest={sim.frame?.earliestTick ?? 0}
@@ -126,7 +265,7 @@ function Game({ world, layout, attribution }: { world: World; layout: CityLayout
         onSpeed={sim.setSpeed}
         onRewind={(t) => void sim.rewind(t)}
       />
-      <Toasts toasts={toasts} />
+      <Toasts toasts={toasts} onSelect={(t) => t.anchor && flyTo(t.anchor)} />
       {attribution && <Attribution />}
       {sim.status === "loading" && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center text-zinc-400">Growing the city…</div>

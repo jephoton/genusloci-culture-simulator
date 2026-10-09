@@ -15,7 +15,7 @@ export function VenuePanel({
   const open = frame.venueOpen[slot] === 1;
   const isEvent = frame.venueExpires[slot] >= 0;
   return (
-    <aside className="panel pointer-events-auto absolute right-4 top-24 w-72 space-y-3 p-4">
+    <aside aria-label="Venue" className="panel pointer-events-auto w-full space-y-3 p-4">
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-[11px] uppercase tracking-widest text-zinc-400">{isEvent ? "Event" : (entity.kind ?? "venue").replace("_", " ")}</p>

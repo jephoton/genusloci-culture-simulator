@@ -1,8 +1,9 @@
 "use client";
 
 import { useFrame } from "@react-three/fiber";
-import { type RefObject, useLayoutEffect, useRef } from "react";
+import { type RefObject, useEffect, useLayoutEffect, useRef } from "react";
 import * as THREE from "three";
+import { agentInFocus, type Focus } from "@/render/focus";
 import type { FrameStore } from "@/render/frame-store";
 import { agentHomePosition, type CityLayout, hash01, LANDMARK_RADIUS } from "@/render/layout";
 import { outingPhase, staggerOf } from "@/render/outing-path";
@@ -23,6 +24,12 @@ const ease = (k: number) => k * k * (3 - 2 * k);
 const JOIN = 0.1;
 /** The route cache is dropped when it grows past this many routes; routes rebuild lazily. */
 const MAX_ROUTES = 20_000;
+/** Under a focus, agents outside it keep this fraction of their brightness. */
+const UNFOCUSED_LIT = 0.12;
+/** Under a focus, agents in it are drawn this much larger. */
+const FOCUSED_SIZE = 1.3;
+/** Time constant of the fade into and out of focus. */
+const FOCUS_S = 0.2;
 
 type Route = { poly: Float32Array; cum: Float32Array; total: number };
 /** One route book per layout, plus the street routes (home node → venue node) built on it. */
@@ -94,6 +101,9 @@ type Motion = {
   /** Scene id per slot in the last frame, and when it last changed (performance.now ms). */
   scene: Int32Array;
   changedAt: Float64Array;
+  /** Brightness (1 = full) and emphasis (0–1, towards FOCUSED_SIZE) under the current focus, eased. */
+  lit: Float32Array;
+  emphasis: Float32Array;
   frame: Frame | null;
   startedAt: number;
   last: number;
@@ -126,6 +136,8 @@ function createMotion(slots: number): Motion {
     tgtB: new Float32Array(slots),
     scene: new Int32Array(slots).fill(-1),
     changedAt: new Float64Array(slots).fill(-Infinity),
+    lit: new Float32Array(slots).fill(1),
+    emphasis: new Float32Array(slots),
     frame: null,
     startedAt: 0,
     last: 0,
@@ -136,18 +148,24 @@ function createMotion(slots: number): Motion {
  * One glowing figure per agent slot. Each tick (week) plays as a night out: agents leave home in
  * staggered waves, walk the streets to their venue, gather there, then walk home the same way. A
  * changed scene colour is adopted when the agent arrives at the venue where it changed (or mid-week
- * if it stayed in), with a pop and a flash.
+ * if it stayed in), with a pop and a flash. Under a focus, agents outside it fade nearly to black and
+ * those in it grow a little.
  */
 export function Crowd({
-  world, layout, frames, slots, tickMs,
+  world, layout, frames, slots, tickMs, focus,
 }: {
   world: World;
   layout: CityLayout;
   frames: RefObject<FrameStore>;
   slots: number;
   tickMs: number;
+  focus: Focus;
 }) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
+  const focusRef = useRef<Focus>(focus);
+  useEffect(() => {
+    focusRef.current = focus;
+  }, [focus]);
   const motion = useRef<Motion | null>(null);
   const streetsRef = useRef<Streets | null>(null);
 
@@ -241,6 +259,8 @@ export function Crowd({
 
     const t = Math.min(1, (now - m.startedAt) / Math.max(1, tickMs));
     const blend = 1 - Math.exp(-dt / BLEND_S);
+    const focusBlend = 1 - Math.exp(-dt / FOCUS_S);
+    const f = focusRef.current;
     const arr = mesh.instanceMatrix.array as Float32Array;
     const col = mesh.instanceColor;
     for (let i = 0; i < n; i++) {
@@ -292,10 +312,15 @@ export function Crowd({
       const since = now - m.changedAt[i];
       const pop = 1 + 1.2 * Math.exp(-since / 220);
       const flash = 1.5 * Math.exp(-since / 160);
-      col?.setXYZ(i, m.curR[i] + flash, m.curG[i] + flash, m.curB[i] + flash);
-      arr[o] = pop;
-      arr[o + 5] = pop;
-      arr[o + 10] = pop;
+      const member = agentInFocus(f, frame.scene[i], frame.attendance[i]);
+      m.lit[i] += ((member ? 1 : UNFOCUSED_LIT) - m.lit[i]) * focusBlend;
+      m.emphasis[i] += ((f && member ? 1 : 0) - m.emphasis[i]) * focusBlend;
+      const lit = m.lit[i];
+      col?.setXYZ(i, (m.curR[i] + flash) * lit, (m.curG[i] + flash) * lit, (m.curB[i] + flash) * lit);
+      const size = pop * (1 + (FOCUSED_SIZE - 1) * m.emphasis[i]);
+      arr[o] = size;
+      arr[o + 5] = size;
+      arr[o + 10] = size;
       arr[o + 12] = x;
       arr[o + 13] = FIGURE_Y + 0.15 * Math.sin(now * 0.004 + i);
       arr[o + 14] = z;

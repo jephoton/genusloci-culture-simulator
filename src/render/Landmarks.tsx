@@ -3,6 +3,7 @@
 import { type ThreeEvent, useFrame } from "@react-three/fiber";
 import { type ReactNode, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { type Focus, venueInFocus } from "@/render/focus";
 import { type CityLayout, LANDMARK_RADIUS, LANDMARK_SCALE } from "@/render/layout";
 import { type Rgb, sceneHuesOf, sceneRgb } from "@/render/palette";
 import { type VenueView, venueViewsOf } from "@/render/venues";
@@ -30,8 +31,10 @@ const BURIED = -6;
 const DYING_HEALTH = 0.15;
 const BEACON_PERIOD_MS = 1500;
 const BEACON_HZ = 1.2;
+/** Under a focus, venues outside it keep this fraction of their light. */
+const UNFOCUSED_LIT = 0.3;
 
-type Anim = { y: number; vy: number; last: number; open: boolean; openedAt: number; flicker: number; lit: number };
+type Anim = { y: number; vy: number; last: number; open: boolean; openedAt: number; flicker: number; lit: number; focus: number };
 
 /** Per-landmark materials, recoloured every animation frame. */
 export type Materials = { neon: THREE.MeshBasicMaterial; body: THREE.MeshStandardMaterial; band: THREE.MeshBasicMaterial };
@@ -122,7 +125,16 @@ export function Body({ kind, mats: { neon, body, band } }: { kind: VenueKind; ma
   }
 }
 
-function Landmark({ view, hues, selected, onSelect }: { view: VenueView; hues: Float32Array; selected: boolean; onSelect: (slot: number) => void }) {
+function Landmark({
+  view, hues, selected, inFocus, onSelect,
+}: {
+  view: VenueView;
+  hues: Float32Array;
+  selected: boolean;
+  /** False when a focus is active and this venue is outside it: it dims. */
+  inFocus: boolean;
+  onSelect: (slot: number) => void;
+}) {
   const [x, z] = view.position;
   const base = view.dominantScene >= 0 ? sceneRgb(hues, view.dominantScene) : NEUTRAL_SIGN;
   const [r, g, b] = base;
@@ -166,6 +178,7 @@ function Landmark({ view, hues, selected, onSelect }: { view: VenueView; hues: F
         openedAt: view.open ? now : -Infinity,
         flicker: 1,
         lit: view.open ? 1 : CLOSED_LIT,
+        focus: inFocus ? 1 : UNFOCUSED_LIT,
       };
       anim.current = a;
     }
@@ -193,23 +206,25 @@ function Landmark({ view, hues, selected, onSelect }: { view: VenueView; hues: F
       flickerTarget = n - Math.floor(n) >= 0.5 ? 1 : 0.35;
     }
     a.flicker += (flickerTarget - a.flicker) * (1 - Math.exp(-dt / 0.04));
-    mats.neon.color.setRGB(sign[0] * a.flicker, sign[1] * a.flicker, sign[2] * a.flicker);
+    a.focus += ((inFocus ? 1 : UNFOCUSED_LIT) - a.focus) * (1 - Math.exp(-dt / 0.2));
+    const neon = a.flicker * a.focus;
+    mats.neon.color.setRGB(sign[0] * neon, sign[1] * neon, sign[2] * neon);
 
     // Body glow and roofline band in the sign colour; closing dims them smoothly, never to black.
     a.lit += ((view.open ? 1 : CLOSED_LIT) - a.lit) * (1 - Math.exp(-dt / 0.3));
-    const glowBody = BODY_EMISSIVE * a.lit;
+    const glowBody = BODY_EMISSIVE * a.lit * a.focus;
     mats.body.emissive.setRGB(base[0] * glowBody, base[1] * glowBody, base[2] * glowBody);
-    const glowBand = BAND * a.lit * a.flicker;
+    const glowBand = BAND * a.lit * a.flicker * a.focus;
     mats.band.color.setRGB(base[0] * glowBand, base[1] * glowBand, base[2] * glowBand);
 
     // Event beacon: a pulsing pillar and a ground ring that expands and fades every BEACON_PERIOD_MS.
     if (pillarRef.current) {
-      pillarRef.current.opacity = 0.18 + 0.22 * (0.5 + 0.5 * Math.sin((now / 1000) * BEACON_HZ * Math.PI * 2));
+      pillarRef.current.opacity = (0.18 + 0.22 * (0.5 + 0.5 * Math.sin((now / 1000) * BEACON_HZ * Math.PI * 2))) * a.focus;
     }
     if (waveRef.current && waveMatRef.current) {
       const phase = (now % BEACON_PERIOD_MS) / BEACON_PERIOD_MS;
       waveRef.current.scale.setScalar(1 + 7 * phase);
-      waveMatRef.current.opacity = (1 - phase) * (1 - phase);
+      waveMatRef.current.opacity = (1 - phase) * (1 - phase) * a.focus;
     }
   });
 
@@ -265,12 +280,13 @@ function Landmark({ view, hues, selected, onSelect }: { view: VenueView; hues: F
 }
 
 export function Landmarks({
-  world, layout, frame, selected, onSelect,
+  world, layout, frame, selected, focus, onSelect,
 }: {
   world: World;
   layout: CityLayout;
   frame: Frame | null;
   selected: number | null;
+  focus: Focus;
   onSelect: (slot: number) => void;
 }) {
   const views = useMemo(() => (frame ? venueViewsOf(frame, layout, world) : []), [frame, layout, world]);
@@ -278,7 +294,7 @@ export function Landmarks({
   return (
     <group>
       {views.map((v) => (
-        <Landmark key={v.slot} view={v} hues={hues} selected={selected === v.slot} onSelect={onSelect} />
+        <Landmark key={v.slot} view={v} hues={hues} selected={selected === v.slot} inFocus={venueInFocus(focus, v)} onSelect={onSelect} />
       ))}
     </group>
   );

@@ -3,11 +3,12 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { type RefObject, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { diffFrames } from "@/render/effects/diff";
+import { sceneAnchor } from "@/render/anchors";
+import { diffFrames, type FrameChange } from "@/render/effects/diff";
 import { EffectsDirector } from "@/render/effects/director";
 import type { ShockwaveEffect } from "@/render/effects/ShockwaveEffect";
 import type { FrameStore } from "@/render/frame-store";
-import { agentHomePosition, type CityLayout } from "@/render/layout";
+import type { CityLayout } from "@/render/layout";
 import { type Rgb, sceneHuesOf, sceneRgb } from "@/render/palette";
 import { venueViewsOf } from "@/render/venues";
 import type { Frame } from "@/sim/frame";
@@ -16,35 +17,26 @@ import type { World } from "@/world/schema";
 const MAX_RIPPLES = 12;
 const NEUTRAL: Rgb = [0.9, 0.85, 0.75];
 
-/** Mean home position of a scene's members (computed only when a scene event needs an anchor). */
-function sceneAnchor(frame: Frame, layout: CityLayout, scene: number): [number, number] | null {
-  let x = 0;
-  let z = 0;
-  let n = 0;
-  for (let i = 0; i < frame.scene.length; i++) {
-    if (frame.scene[i] !== scene || !frame.alive[i]) continue;
-    const [hx, hz] = agentHomePosition(layout, frame.homeCell[i], i);
-    x += hx;
-    z += hz;
-    n++;
-  }
-  return n > 0 ? [x / n, z / n] : null;
-}
-
 /**
  * Runs the effects director: diffs each new frame, then feeds the shockwave effect (world → screen)
- * and draws ground ripples.
+ * and draws ground ripples. The same changes go to `onChanges` (for toasts).
  */
 export function Effects({
-  world, layout, frames, shockwave,
+  world, layout, frames, shockwave, onChanges,
 }: {
   world: World;
   layout: CityLayout;
   frames: RefObject<FrameStore>;
   shockwave: ShockwaveEffect;
+  /** Called once per new frame that has visible changes. */
+  onChanges?: (changes: FrameChange[], frame: Frame) => void;
 }) {
   const director = useMemo(() => new EffectsDirector(), []);
   const lastFrame = useRef<Frame | null>(null);
+  const onChangesRef = useRef(onChanges);
+  useEffect(() => {
+    onChangesRef.current = onChanges;
+  }, [onChanges]);
   const ripplesRef = useRef<THREE.InstancedMesh>(null);
   const camera = useThree((s) => s.camera);
   const size = useThree((s) => s.size);
@@ -84,6 +76,7 @@ export function Effects({
             return s >= 0 ? sceneRgb(hues, s) : NEUTRAL;
           },
         });
+        onChangesRef.current?.(changes, frame);
       }
       lastFrame.current = frame;
     }
