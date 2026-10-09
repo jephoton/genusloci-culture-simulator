@@ -12,7 +12,8 @@ import type { World } from "@/world/schema";
 
 const FIGURE_Y = 0.6;
 const GLOW = 1.6;
-const scratch = new THREE.Color();
+/** Time constant of the colour blend towards a new scene colour. */
+const BLEND_S = 0.35;
 
 type Motion = {
   fromX: Float32Array;
@@ -22,8 +23,19 @@ type Motion = {
   curX: Float32Array;
   curZ: Float32Array;
   placed: Uint8Array;
+  /** Current (displayed) and target colours, before the pop flash. */
+  curR: Float32Array;
+  curG: Float32Array;
+  curB: Float32Array;
+  tgtR: Float32Array;
+  tgtG: Float32Array;
+  tgtB: Float32Array;
+  /** Scene id per slot in the last frame, and when it last changed (performance.now ms). */
+  scene: Int32Array;
+  changedAt: Float64Array;
   frame: Frame | null;
   startedAt: number;
+  last: number;
 };
 
 function createMotion(slots: number): Motion {
@@ -35,12 +47,24 @@ function createMotion(slots: number): Motion {
     curX: new Float32Array(slots),
     curZ: new Float32Array(slots),
     placed: new Uint8Array(slots),
+    curR: new Float32Array(slots),
+    curG: new Float32Array(slots),
+    curB: new Float32Array(slots),
+    tgtR: new Float32Array(slots),
+    tgtG: new Float32Array(slots),
+    tgtB: new Float32Array(slots),
+    scene: new Int32Array(slots).fill(-1),
+    changedAt: new Float64Array(slots).fill(-Infinity),
     frame: null,
     startedAt: 0,
+    last: 0,
   };
 }
 
-/** One glowing figure per agent slot: each tick it eases from where it was to its venue (or home). */
+/**
+ * One glowing figure per agent slot: each tick it eases from where it was to its venue (or home).
+ * Colours blend towards the agent's scene colour; an agent that switches scene pops and flashes white.
+ */
 export function Crowd({
   world, layout, frames, slots, tickMs,
 }: {
@@ -63,6 +87,7 @@ export function Crowd({
       mesh.setColorAt(i, black);
     }
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    mesh.instanceColor?.setUsage(THREE.DynamicDrawUsage);
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     motion.current = createMotion(slots);
@@ -76,14 +101,34 @@ export function Crowd({
     const now = performance.now();
     const n = Math.min(slots, frame.alive.length);
 
+    const dt = Math.min(0.1, Math.max(0, (now - m.last) / 1000));
+    m.last = now;
+
     if (frame !== m.frame) {
+      // The first frame and any epoch change (init, rewind) snap colours with no pops.
+      const snap = m.frame === null || m.frame.epoch !== frame.epoch;
       const venues = venueViewsOf(frame, layout, world);
       const hues = sceneHuesOf(frame.lineageParents);
       for (let i = 0; i < n; i++) {
         if (!frame.alive[i]) {
           m.placed[i] = 0;
+          m.scene[i] = -1;
+          m.changedAt[i] = -Infinity;
           continue;
         }
+        const [cr, cg, cb] = sceneRgb(hues, frame.scene[i]);
+        m.tgtR[i] = cr * GLOW;
+        m.tgtG[i] = cg * GLOW;
+        m.tgtB[i] = cb * GLOW;
+        if (snap || !m.placed[i]) {
+          m.curR[i] = m.tgtR[i];
+          m.curG[i] = m.tgtG[i];
+          m.curB[i] = m.tgtB[i];
+          m.changedAt[i] = -Infinity;
+        } else if (m.scene[i] !== frame.scene[i]) {
+          m.changedAt[i] = now;
+        }
+        m.scene[i] = frame.scene[i];
         const v = frame.attendance[i];
         let tx: number;
         let tz: number;
@@ -106,17 +151,16 @@ export function Crowd({
         m.fromZ[i] = m.curZ[i];
         m.toX[i] = tx;
         m.toZ[i] = tz;
-        const [r, g, b] = sceneRgb(hues, frame.scene[i]);
-        mesh.setColorAt(i, scratch.setRGB(r * GLOW, g * GLOW, b * GLOW));
       }
-      if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
       m.frame = frame;
       m.startedAt = now;
     }
 
     const k = Math.min(1, (now - m.startedAt) / Math.max(1, tickMs * 0.85));
     const e = k * k * (3 - 2 * k);
+    const blend = 1 - Math.exp(-dt / BLEND_S);
     const arr = mesh.instanceMatrix.array as Float32Array;
+    const col = mesh.instanceColor;
     for (let i = 0; i < n; i++) {
       const o = i * 16;
       if (!frame.alive[i]) {
@@ -129,15 +173,23 @@ export function Crowd({
       const z = m.fromZ[i] + (m.toZ[i] - m.fromZ[i]) * e;
       m.curX[i] = x;
       m.curZ[i] = z;
-      arr[o] = 1;
-      arr[o + 5] = 1;
-      arr[o + 10] = 1;
+      m.curR[i] += (m.tgtR[i] - m.curR[i]) * blend;
+      m.curG[i] += (m.tgtG[i] - m.curG[i]) * blend;
+      m.curB[i] += (m.tgtB[i] - m.curB[i]) * blend;
+      const since = now - m.changedAt[i];
+      const pop = 1 + 1.2 * Math.exp(-since / 220);
+      const flash = 1.5 * Math.exp(-since / 160);
+      col?.setXYZ(i, m.curR[i] + flash, m.curG[i] + flash, m.curB[i] + flash);
+      arr[o] = pop;
+      arr[o + 5] = pop;
+      arr[o + 10] = pop;
       arr[o + 12] = x;
       arr[o + 13] = FIGURE_Y + 0.15 * Math.sin(now * 0.004 + i);
       arr[o + 14] = z;
       arr[o + 15] = 1;
     }
     mesh.instanceMatrix.needsUpdate = true;
+    if (col) col.needsUpdate = true;
   });
 
   return (
