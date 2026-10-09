@@ -10,7 +10,9 @@ import type { VenueKind, World } from "@/world/schema";
 
 const BODY = "#151821";
 const NEUTRAL_SIGN: Rgb = [0.9, 0.85, 0.75];
-const CLOSED_SINK = -1.6;
+const CLOSED_SINK = -3.5;
+/** Landmarks are drawn larger than life so they read as places at city zoom. */
+const LANDMARK_SCALE = 2.2;
 
 function Body({ kind, sign }: { kind: VenueKind; sign: Rgb }): ReactNode {
   const body = <meshStandardMaterial color={BODY} roughness={0.8} />;
@@ -96,7 +98,7 @@ function Landmark({ view, hues, selected, onSelect }: { view: VenueView; hues: F
     onSelect(view.slot);
   };
   return (
-    <group position={[x, view.open ? 0 : CLOSED_SINK, z]} onClick={onClick}>
+    <group position={[x, view.open ? 0 : CLOSED_SINK, z]} scale={LANDMARK_SCALE} onClick={onClick}>
       <Body kind={view.kind} sign={sign} />
       {view.isEvent && view.open && (
         <mesh position-y={12}>
@@ -105,7 +107,7 @@ function Landmark({ view, hues, selected, onSelect }: { view: VenueView; hues: F
         </mesh>
       )}
       {selected && (
-        <mesh rotation-x={-Math.PI / 2} position-y={0.06 - (view.open ? 0 : CLOSED_SINK)}>
+        <mesh rotation-x={-Math.PI / 2} position-y={0.06 - (view.open ? 0 : CLOSED_SINK) / LANDMARK_SCALE}>
           <ringGeometry args={[3.6, 4.1, 48]} />
           <meshBasicMaterial color={[2, 2, 2]} toneMapped={false} />
         </mesh>

@@ -34,12 +34,12 @@ export function Ground({ layout, onGroundClick }: { layout: CityLayout; onGround
       </mesh>
       {water && (
         <mesh geometry={water} position-y={0.02}>
-          <meshStandardMaterial color="#0a1726" roughness={0.25} metalness={0.3} />
+          <meshStandardMaterial color="#0f2a45" emissive="#0b2440" emissiveIntensity={0.6} roughness={0.2} metalness={0.4} />
         </mesh>
       )}
       {parks && (
         <mesh geometry={parks} position-y={0.03}>
-          <meshStandardMaterial color="#0d1c12" roughness={1} />
+          <meshStandardMaterial color="#10301b" emissive="#0c2614" emissiveIntensity={0.5} roughness={1} />
         </mesh>
       )}
     </group>

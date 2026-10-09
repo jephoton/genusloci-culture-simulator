@@ -36,10 +36,10 @@ export function CityCanvas(props: CityCanvasProps) {
       <Canvas
         dpr={[1, 2]}
         gl={{ powerPreference: "high-performance" }}
-        camera={{ position: [x, size * 0.45, z + size * 0.55], fov: 42, near: 0.5, far: size * 8 }}
+        camera={{ position: [x, size * 0.16, z + size * 0.2], fov: 42, near: 0.5, far: size * 8 }}
       >
         <color attach="background" args={["#07080b"]} />
-        <fog attach="fog" args={["#07080b", size * 0.7, size * 2.2]} />
+        <fog attach="fog" args={["#07080b", size * 0.25, size * 1.1]} />
         <ambientLight intensity={0.35} color="#9aa7ff" />
         <directionalLight position={[x + size, size, z + size * 0.4]} intensity={0.6} color="#b8c4ff" />
         <Ground layout={layout} onGroundClick={props.onGroundClick} />
@@ -52,8 +52,10 @@ export function CityCanvas(props: CityCanvasProps) {
           target={[x, 0, z]}
           enableDamping
           dampingFactor={0.08}
+          zoomSpeed={2.5}
+          screenSpacePanning={false}
           maxPolarAngle={Math.PI * 0.43}
-          minDistance={size * 0.04}
+          minDistance={8}
           maxDistance={size * 1.6}
         />
         <EffectComposer>
