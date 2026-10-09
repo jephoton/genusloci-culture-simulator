@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { Timeline } from "@/sim/timeline";
 import { SimClient, type WorkerLike } from "@/sim/worker/client";
 import { SimHost } from "@/sim/worker/host";
 import type { WorkerMessage, WorkerRequest } from "@/sim/worker/protocol";
@@ -25,6 +26,10 @@ function streamingWorker() {
 }
 
 describe("SimClient frames", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("delivers pushed frames to onFrame listeners until unsubscribed", async () => {
     const { worker, tick } = streamingWorker();
     const client = new SimClient(worker);
@@ -40,5 +45,22 @@ describe("SimClient frames", () => {
     const { frame } = await client.frame("main");
     expect(frame.tick).toBe(3);
     expect(await client.pause()).toEqual({ playing: false });
+  });
+
+  it("delivers a stopped message to onStopped listeners when the play loop fails", async () => {
+    const { worker, tick } = streamingWorker();
+    const client = new SimClient(worker);
+    await client.init(makeTinyWorld(), 1, { nAgents: 200, agentReserve: 0 });
+    const stopped: { timeline: string; error: string }[] = [];
+    const frames: number[] = [];
+    client.onFrame((f) => frames.push(f.tick));
+    client.onStopped((m) => stopped.push(m));
+    await client.play("main", 8);
+    vi.spyOn(Timeline.prototype, "advance").mockImplementationOnce(() => {
+      throw new Error("tick exploded");
+    });
+    tick();
+    expect(stopped).toEqual([{ kind: "stopped", timeline: "main", error: "tick exploded" }]);
+    expect(frames).toEqual([]);
   });
 });
