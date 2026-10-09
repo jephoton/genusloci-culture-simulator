@@ -5,7 +5,8 @@ import { buildOverpassQuery, parseOverpass } from "@/geo/overpass";
 
 // Usage: pnpm build:geo <city-slug>   (e.g. london)
 // One Overpass request per run; please don't loop this (Overpass fair-use policy).
-const ENDPOINT = "https://overpass-api.de/api/interpreter";
+// Override with OVERPASS_URL to use a public mirror when the main instance is overloaded.
+const ENDPOINT = process.env.OVERPASS_URL ?? "https://overpass-api.de/api/interpreter";
 const USER_AGENT = "GenusLoci/0.1 (Qloo hackathon; https://github.com/jephoton/genusloci-culture-simulator)";
 
 async function main() {
