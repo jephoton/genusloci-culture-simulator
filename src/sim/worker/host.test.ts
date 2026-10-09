@@ -44,6 +44,14 @@ describe("SimHost", () => {
     expect(send(host, { type: "dispose", timeline: "main" }).ok).toBe(false);
   });
 
+  it("rejects an invalid init config and keeps the previous timeline", () => {
+    const host = new SimHost();
+    send(host, { type: "init", world: makeTinyWorld(), seed: 1, config });
+    ok(send(host, { type: "run", timeline: "main", ticks: 2 }));
+    expect(send(host, { type: "init", world: makeTinyWorld(), seed: 1, config: { sceneEvery: 0 } }).ok).toBe(false);
+    expect(ok(send(host, { type: "digest", timeline: "main" })).digest.tick).toBe(2);
+  });
+
   it("returns errors instead of throwing", () => {
     const host = new SimHost();
     expect(send(host, { type: "init", world: { nope: true }, seed: 1 }).ok).toBe(false);

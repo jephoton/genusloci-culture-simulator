@@ -1,5 +1,5 @@
 import { parseAction } from "@/sim/actions/schema";
-import { DEFAULT_CONFIG } from "@/sim/config";
+import { DEFAULT_CONFIG, parseConfigOverrides } from "@/sim/config";
 import { digest } from "@/sim/digest";
 import { Timeline } from "@/sim/timeline";
 import {
@@ -34,7 +34,7 @@ export class SimHost {
   private execute(cmd: WorkerCommand): CommandResult {
     switch (cmd.type) {
       case "init": {
-        const t = Timeline.create(parseWorld(cmd.world), { ...DEFAULT_CONFIG, ...cmd.config }, cmd.seed);
+        const t = Timeline.create(parseWorld(cmd.world), { ...DEFAULT_CONFIG, ...parseConfigOverrides(cmd.config ?? {}) }, cmd.seed);
         this.timelines.clear();
         this.forks = 0;
         this.timelines.set(MAIN_TIMELINE, t);

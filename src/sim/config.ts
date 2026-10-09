@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 export type SimConfig = {
   nAgents: number;
   friendsPerAgent: number;
@@ -84,3 +86,54 @@ export const DEFAULT_CONFIG: SimConfig = {
   autoOpen: true,
   autoOpenScore: 2,
 };
+
+const int = (min: number, max?: number) => (max === undefined ? z.number().int().min(min) : z.number().int().min(min).max(max));
+const unit = z.number().min(0).max(1);
+const nonNeg = z.number().min(0);
+
+/** Runtime validation for every SimConfig field; the type check below keeps it in sync with SimConfig. */
+export const SimConfigSchema = z.object({
+  nAgents: int(1, 20000),
+  friendsPerAgent: int(0, 50),
+  initialGenes: int(1, 32),
+  outingRate: unit,
+  beta: nonNeg,
+  distPenaltyPerKm: nonNeg,
+  friendBonus: nonNeg,
+  reinforce: unit,
+  adoptBase: unit,
+  socialWeight: nonNeg,
+  initialAdoptWeight: unit,
+  driftRate: unit,
+  decayRate: unit,
+  minWeight: unit,
+  healthAlpha: unit,
+  closeThreshold: unit,
+  closeAfterTicks: int(1),
+  graceTicks: int(0),
+  maxNearby: int(1, 64),
+  venueReserve: int(0, 1000),
+  agentReserve: int(0, 20000),
+  maxEvents: int(0, 64),
+  sceneEvery: int(1, 520),
+  maxScenes: int(1, 64),
+  minSceneSize: int(1),
+  newSceneThreshold: unit,
+  sceneSample: int(0, 20000),
+  kmeansIters: int(1, 20),
+  splitShare: unit,
+  mergeShare: unit,
+  autoOpen: z.boolean(),
+  autoOpenScore: nonNeg,
+});
+
+// Compile-time guard: the schema's output type must be exactly SimConfig.
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+const _schemaMatchesConfig: Equal<z.infer<typeof SimConfigSchema>, SimConfig> = true;
+void _schemaMatchesConfig;
+
+/** Validates untrusted config overrides (unknown keys rejected, explicit undefined dropped). Throws on invalid input. */
+export function parseConfigOverrides(json: unknown): Partial<SimConfig> {
+  const parsed = SimConfigSchema.partial().strict().parse(json);
+  return Object.fromEntries(Object.entries(parsed).filter(([, v]) => v !== undefined)) as Partial<SimConfig>;
+}
