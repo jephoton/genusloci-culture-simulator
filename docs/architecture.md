@@ -9,6 +9,7 @@
 ## Components
 
 - **`qloo/`** — server-side Qloo client (`https://hackathon.api.qloo.com`, `X-Api-Key`). Validates, caches, throttles.
+- **`geo/`** — OpenStreetMap pipeline: `geometry.ts` (simplify, clip, ring assembly), `overpass.ts` (query + parser → World `geo`), `cities.ts` (registry), `geo-file.ts` (file schema). Prebuilt city geometry lives in `public/geo/<city>.json` under ODbL (decision 0006); the app shows OSM attribution.
 - **`world/`** — builds a per-city World file (entities, affinity edges, heatmaps, archetypes). Cached server-side only.
 - **`sim/`** — pure, deterministic TypeScript engine (no network, no DOM), hosted in a Web Worker:
   - `state.ts` + `venue-table.ts` — agent slots with an `alive` mask; per-state venue table; expired event slots are reused (decision 0004)
@@ -44,3 +45,4 @@
 - `pnpm test:watch` — watch mode
 - `pnpm bench:sim` — simulation tick-rate benchmark (target ≥ 10 ticks/sec at 5,000 agents)
 - `pnpm calibrate` — baseline fidelity and ecology report on the synthetic fixture
+- `pnpm build:geo <city>` — fetch a city's roads, water and parks from Overpass into `public/geo/<city>.json` (one request per run; don't loop)

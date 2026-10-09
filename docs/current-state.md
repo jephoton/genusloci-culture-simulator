@@ -2,7 +2,7 @@
 
 <!-- generated: maintained by agents -->
 
-**Phase:** Plan 5a complete (playable city). Next: Plan 5b (juice + field guide); Plan 3 (Qloo spike) as soon as the key arrives.
+**Phase:** Plan 4a complete (real London streets from OpenStreetMap). Next: Plan 5b (juice + field guide); Plan 3 (Qloo spike) as soon as the key arrives.
 
 ## Done
 - Concept, name (**Genus Loci**), design spec, roadmap. Repo: https://github.com/jephoton/genusloci-culture-simulator (public, MIT).
@@ -36,11 +36,26 @@
   - Toolbar (open venue, throw event), venue panel (close), timeline (play, speed, rewind), HUD.
   - Verified in the browser: everything works, no console errors.
   - 167 tests passing; tsc, lint and build clean.
+- **Plan 4a (real streets):**
+  - OSM Overpass pipeline (`pnpm build:geo`), `public/geo/london.json` (14,217 roads, 51 water, 1,453 parks, ≈ 1 MB, ODbL).
+  - Synthetic population over real geography: density from street length, neighbourhood-clustered scenes.
+  - The game loads London, with a fallback to Synthville and OSM attribution.
+  - Layout retuned for real street grain:
+    - London `buildLayout` ≈ 0.86 s (was 6.3 s), 3,682 buildings;
+    - adaptive per-pad landmark scale, with 91% of pads fitting at ≥ 1.0 and 68 cramped pads, mostly in parks and by the Thames.
+  - Verified in the browser: recognisable London, simulation runs, no console errors.
+  - 189 tests passing.
 
 ## Next
 1. Request the Qloo hackathon API key if not already done (issued manually; takes days).
 2. Plan 5b (juice + field guide): effects director (shockwave/fisheye, rise/sink, beacons, colour waves), specimen cards, phylogeny, Latin names, remaining tools.
 3. Plan 3 (Qloo spike + client) as soon as the key arrives.
+
+## Carry into Plan 5b (from Plan 4a)
+- **Layout on the main thread:** ≈ 0.8 s on London. Move it to a worker or precompute it per city.
+- **Building shapes:** dense London buildings are small footprints with the unchanged height range, so they can look spiky. Tune the height distribution by footprint.
+- **Placeholder names:** venues are still "Cluster N Venue M" until Qloo data (Plan 4) or Latin naming (5b).
+- **Synthville density:** now ≈ 8.7k buildings (edge buildings shrink to fit). Make the candidate count depend on the city's area if it looks too dense.
 
 ## Carry into Plan 5b (from the Plan 5a final review)
 - **Frame sequencing:** add `seq` and `epoch` to `Frame`. Bump `epoch` on init and rewind, and mark `refresh` frames as jumps, so the effects director only diffs consecutive frames of the same epoch.
