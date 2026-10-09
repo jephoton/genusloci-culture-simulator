@@ -19,10 +19,14 @@
   - `calibration.ts` — Spearman fidelity against Qloo heatmaps
   - `digest.ts` — compact serialisable summary for the UI and co-pilot
   - `timeline.ts` — snapshots, exact rewind (snapshot + action-log replay), fork
-  - `worker/` — Web Worker host (zod-validated config and actions), protocol, promise-based `SimClient`
+  - `frame.ts` — transferable per-tick render `Frame`
+  - `worker/` — Web Worker host (zod-validated config and actions; play/pause loop pushing frames), protocol, promise-based `SimClient` with `onFrame`
   - `config.ts` — `SimConfig`, defaults, zod `SimConfigSchema`
+- **`render/`** — React Three Fiber night diorama (decision 0005, [UI spec](superpowers/specs/2026-10-09-genusloci-ui-design.md)):
+  - pure, tested prep: `layout.ts` (cells, landmark pads, procedural buildings that avoid roads, water, parks and pads), `palette.ts` (scene hues by lineage), `venues.ts` (per-slot landmark views), `geometry.ts` (street ribbons, polygons)
+  - scene: `CityCanvas` (camera, MapControls, bloom and vignette), `Ground`, `Streets`, `Buildings` (instanced, window-light shader), `Landmarks` (per venue kind, neon sign = dominant scene, health = brightness), `Crowd` (instanced agents eased between ticks)
+- **`ui/`** — `useSimulation` (worker lifecycle, pushed frames in a ref plus state, actions, rewind), `GameShell` (composition and tools), `Hud`, `Toolbar`, `TimelineBar`, `VenuePanel`; `ClientGame` loads it client-only (`next/dynamic` with `ssr: false`)
 - **`agents/`** — LLM co-pilot (tool use, provider-agnostic via Vercel AI SDK; DeepSeek primary), persona interviews, scene naming.
-- **`ui/`** — Next.js app: deck.gl/MapLibre map, phylogeny, inspector, chat.
 
 ## Boundaries
 
@@ -33,7 +37,7 @@
 ## Commands (verified 2026-10-09)
 
 - `pnpm install` — install dependencies
-- `pnpm dev` — run the Next.js dev server
+- `pnpm dev` — run the Next.js dev server; the game is at `/` (browser preview config: `.claude/launch.json` → `web`)
 - `pnpm build` — production build (Next.js 16)
 - `pnpm lint` — ESLint
 - `pnpm test` — run all unit tests (Vitest; config in `vitest.config.mts`)
