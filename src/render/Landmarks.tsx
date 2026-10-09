@@ -10,7 +10,15 @@ import type { Frame } from "@/sim/frame";
 import type { VenueKind, World } from "@/world/schema";
 
 const BODY = "#151821";
+const GALLERY_BODY = "#2a2d36";
+/** Sign colour of a venue with no dominant scene: a neutral warm white. */
 const NEUTRAL_SIGN: Rgb = [0.9, 0.85, 0.75];
+/** Bodies glow faintly in the sign colour, so every landmark reads as a lit object. */
+const BODY_EMISSIVE = 0.18;
+/** Strength of the lit band near the roofline, relative to the sign colour. */
+const BAND = 0.6;
+/** Closed venues keep this fraction of their body and band light: dim, but visible. */
+const CLOSED_LIT = 0.15;
 const CLOSED_SINK = -3.5;
 /** The stadium is modelled with a 4.4-unit ring; it is drawn shrunk to LANDMARK_RADIUS.stadium so it fits a pad. */
 const STADIUM_SHRINK = LANDMARK_RADIUS.stadium / 4.4;
@@ -23,19 +31,23 @@ const DYING_HEALTH = 0.15;
 const BEACON_PERIOD_MS = 1500;
 const BEACON_HZ = 1.2;
 
-type Anim = { y: number; vy: number; last: number; open: boolean; openedAt: number; flicker: number };
+type Anim = { y: number; vy: number; last: number; open: boolean; openedAt: number; flicker: number; lit: number };
+
+/** Per-landmark materials, recoloured every animation frame. */
+type Materials = { neon: THREE.MeshBasicMaterial; body: THREE.MeshStandardMaterial; band: THREE.MeshBasicMaterial };
 
 /**
  * The neon parts share one material per landmark (`neon`), so the sign colour and its dying flicker
- * are set in one place, every animation frame.
+ * are set in one place. The body glows faintly in the sign colour (`body`), and a thin lit band runs
+ * just under the roofline (`band`).
  */
-function Body({ kind, neon }: { kind: VenueKind; neon: THREE.Material }): ReactNode {
-  const body = <meshStandardMaterial color={BODY} roughness={0.8} />;
+function Body({ kind, mats: { neon, body, band } }: { kind: VenueKind; mats: Materials }): ReactNode {
   switch (kind) {
     case "club":
       return (
         <>
-          <mesh position-y={1.2}><boxGeometry args={[3.2, 2.4, 3.2]} />{body}</mesh>
+          <mesh position-y={1.2} material={body}><boxGeometry args={[3.2, 2.4, 3.2]} /></mesh>
+          <mesh position-y={2.15} material={band}><boxGeometry args={[3.24, 0.1, 3.24]} /></mesh>
           <mesh position={[0, 2.0, 1.62]} material={neon}><boxGeometry args={[2.6, 0.3, 0.05]} /></mesh>
           <mesh position-y={2.45} material={neon}><boxGeometry args={[3.3, 0.08, 3.3]} /></mesh>
         </>
@@ -43,7 +55,8 @@ function Body({ kind, neon }: { kind: VenueKind; neon: THREE.Material }): ReactN
     case "bar":
       return (
         <>
-          <mesh position-y={0.8}><boxGeometry args={[2.6, 1.6, 2.4]} />{body}</mesh>
+          <mesh position-y={0.8} material={body}><boxGeometry args={[2.6, 1.6, 2.4]} /></mesh>
+          <mesh position-y={1.52} material={band}><boxGeometry args={[2.64, 0.08, 2.44]} /></mesh>
           <mesh position={[0, 1.25, 1.45]}><boxGeometry args={[2.8, 0.1, 0.8]} /><meshStandardMaterial color="#3a1f2b" /></mesh>
           <mesh position={[0, 1.45, 1.23]} material={neon}><boxGeometry args={[1.6, 0.28, 0.05]} /></mesh>
         </>
@@ -51,51 +64,58 @@ function Body({ kind, neon }: { kind: VenueKind; neon: THREE.Material }): ReactN
     case "cafe":
       return (
         <>
-          <mesh position-y={0.65}><cylinderGeometry args={[1.4, 1.4, 1.3, 20]} />{body}</mesh>
-          <mesh position-y={1.75}><coneGeometry args={[1.7, 0.9, 20]} />{body}</mesh>
+          <mesh position-y={0.65} material={body}><cylinderGeometry args={[1.4, 1.4, 1.3, 20]} /></mesh>
+          <mesh position-y={1.75} material={body}><coneGeometry args={[1.7, 0.9, 20]} /></mesh>
+          <mesh position-y={1.12} material={band}><cylinderGeometry args={[1.42, 1.42, 0.08, 20, 1, true]} /></mesh>
           <mesh position-y={1.3} rotation-x={Math.PI / 2} material={neon}><torusGeometry args={[1.45, 0.06, 8, 32]} /></mesh>
         </>
       );
     case "restaurant":
       return (
         <>
-          <mesh position-y={0.75}><boxGeometry args={[3.2, 1.5, 2.4]} />{body}</mesh>
-          <mesh position-y={2.1} rotation-y={Math.PI / 4}><coneGeometry args={[2.4, 1.2, 4]} />{body}</mesh>
+          <mesh position-y={0.75} material={body}><boxGeometry args={[3.2, 1.5, 2.4]} /></mesh>
+          <mesh position-y={2.1} rotation-y={Math.PI / 4} material={body}><coneGeometry args={[2.4, 1.2, 4]} /></mesh>
+          <mesh position-y={1.42} material={band}><boxGeometry args={[3.24, 0.08, 2.44]} /></mesh>
           <mesh position={[0, 1.2, 1.23]} material={neon}><boxGeometry args={[1.8, 0.3, 0.05]} /></mesh>
         </>
       );
     case "gallery":
       return (
         <>
-          <mesh position-y={1.3}><boxGeometry args={[3, 2.6, 3]} /><meshStandardMaterial color="#2a2d36" roughness={0.6} /></mesh>
+          <mesh position-y={1.3} material={body}><boxGeometry args={[3, 2.6, 3]} /></mesh>
+          <mesh position-y={2.45} material={band}><boxGeometry args={[3.04, 0.1, 3.04]} /></mesh>
           <mesh position-y={0.05} material={neon}><boxGeometry args={[3.1, 0.06, 3.1]} /></mesh>
         </>
       );
     case "music_venue":
       return (
         <>
-          <mesh rotation-z={Math.PI / 2}><cylinderGeometry args={[2, 2, 5, 20]} />{body}</mesh>
+          <mesh rotation-z={Math.PI / 2} material={body}><cylinderGeometry args={[2, 2, 5, 20]} /></mesh>
+          <mesh position-y={1.99} material={band}><boxGeometry args={[5.02, 0.06, 0.3]} /></mesh>
           <mesh position={[0, 1.1, 2.02]} material={neon}><boxGeometry args={[3, 0.5, 0.05]} /></mesh>
         </>
       );
     case "shop":
       return (
         <>
-          <mesh position-y={0.7}><boxGeometry args={[1.8, 1.4, 1.8]} />{body}</mesh>
+          <mesh position-y={0.7} material={body}><boxGeometry args={[1.8, 1.4, 1.8]} /></mesh>
+          <mesh position-y={1.32} material={band}><boxGeometry args={[1.84, 0.08, 1.84]} /></mesh>
           <mesh position={[0, 1.15, 0.93]} material={neon}><boxGeometry args={[1.2, 0.22, 0.05]} /></mesh>
         </>
       );
     case "stadium":
       return (
         <group scale={STADIUM_SHRINK}>
-          <mesh position-y={0.8} rotation-x={Math.PI / 2}><torusGeometry args={[3.4, 1, 10, 32]} />{body}</mesh>
+          <mesh position-y={0.8} rotation-x={Math.PI / 2} material={body}><torusGeometry args={[3.4, 1, 10, 32]} /></mesh>
+          <mesh position-y={1.78} rotation-x={Math.PI / 2} material={band}><torusGeometry args={[3.4, 0.08, 6, 48]} /></mesh>
           <mesh position-y={1.6} rotation-x={Math.PI / 2} material={neon}><torusGeometry args={[4.2, 0.08, 8, 48]} /></mesh>
         </group>
       );
     default:
       return (
         <>
-          <mesh position-y={1.1}><boxGeometry args={[2.2, 2.2, 2.2]} />{body}</mesh>
+          <mesh position-y={1.1} material={body}><boxGeometry args={[2.2, 2.2, 2.2]} /></mesh>
+          <mesh position-y={2.05} material={band}><boxGeometry args={[2.24, 0.08, 2.24]} /></mesh>
           <mesh position={[0, 1.8, 1.12]} material={neon}><boxGeometry args={[1.4, 0.26, 0.05]} /></mesh>
         </>
       );
@@ -104,25 +124,49 @@ function Body({ kind, neon }: { kind: VenueKind; neon: THREE.Material }): ReactN
 
 function Landmark({ view, hues, selected, onSelect }: { view: VenueView; hues: Float32Array; selected: boolean; onSelect: (slot: number) => void }) {
   const [x, z] = view.position;
-  const [r, g, b] = view.dominantScene >= 0 ? sceneRgb(hues, view.dominantScene) : NEUTRAL_SIGN;
+  const base = view.dominantScene >= 0 ? sceneRgb(hues, view.dominantScene) : NEUTRAL_SIGN;
+  const [r, g, b] = base;
   const glow = view.open ? 0.5 + 2.2 * view.health : 0.04;
   const sign: Rgb = [r * glow, g * glow, b * glow];
   const pillar = (24 * LANDMARK_SCALE) / view.scale;
   const beacon = view.isEvent && view.open;
-  const neon = useMemo(() => new THREE.MeshBasicMaterial({ toneMapped: false }), []);
+  const gallery = view.kind === "gallery";
+  const mats = useMemo<Materials>(
+    () => ({
+      neon: new THREE.MeshBasicMaterial({ toneMapped: false }),
+      body: new THREE.MeshStandardMaterial({ color: gallery ? GALLERY_BODY : BODY, roughness: gallery ? 0.6 : 0.8, emissiveIntensity: 1 }),
+      band: new THREE.MeshBasicMaterial({ toneMapped: false }),
+    }),
+    [gallery],
+  );
   const bodyRef = useRef<THREE.Group>(null);
   const pillarRef = useRef<THREE.MeshBasicMaterial>(null);
   const waveRef = useRef<THREE.Mesh>(null);
   const waveMatRef = useRef<THREE.MeshBasicMaterial>(null);
   const anim = useRef<Anim | null>(null);
 
-  useEffect(() => () => neon.dispose(), [neon]);
+  useEffect(
+    () => () => {
+      mats.neon.dispose();
+      mats.body.dispose();
+      mats.band.dispose();
+    },
+    [mats],
+  );
 
   useFrame(() => {
     const now = performance.now();
     let a = anim.current;
     if (!a) {
-      a = { y: view.open ? BURIED * view.scale : CLOSED_SINK, vy: 0, last: now, open: view.open, openedAt: view.open ? now : -Infinity, flicker: 1 };
+      a = {
+        y: view.open ? BURIED * view.scale : CLOSED_SINK,
+        vy: 0,
+        last: now,
+        open: view.open,
+        openedAt: view.open ? now : -Infinity,
+        flicker: 1,
+        lit: view.open ? 1 : CLOSED_LIT,
+      };
       anim.current = a;
     }
     if (view.open && !a.open) a.openedAt = now;
@@ -149,7 +193,14 @@ function Landmark({ view, hues, selected, onSelect }: { view: VenueView; hues: F
       flickerTarget = n - Math.floor(n) >= 0.5 ? 1 : 0.35;
     }
     a.flicker += (flickerTarget - a.flicker) * (1 - Math.exp(-dt / 0.04));
-    neon.color.setRGB(sign[0] * a.flicker, sign[1] * a.flicker, sign[2] * a.flicker);
+    mats.neon.color.setRGB(sign[0] * a.flicker, sign[1] * a.flicker, sign[2] * a.flicker);
+
+    // Body glow and roofline band in the sign colour; closing dims them smoothly, never to black.
+    a.lit += ((view.open ? 1 : CLOSED_LIT) - a.lit) * (1 - Math.exp(-dt / 0.3));
+    const glowBody = BODY_EMISSIVE * a.lit;
+    mats.body.emissive.setRGB(base[0] * glowBody, base[1] * glowBody, base[2] * glowBody);
+    const glowBand = BAND * a.lit * a.flicker;
+    mats.band.color.setRGB(base[0] * glowBand, base[1] * glowBand, base[2] * glowBand);
 
     // Event beacon: a pulsing pillar and a ground ring that expands and fades every BEACON_PERIOD_MS.
     if (pillarRef.current) {
@@ -170,7 +221,7 @@ function Landmark({ view, hues, selected, onSelect }: { view: VenueView; hues: F
     <group position={[x, 0, z]} onClick={onClick}>
       {/* Springs in height and pops in scale (see useFrame); starts below ground until the first frame. */}
       <group ref={bodyRef} position-y={BURIED * view.scale} scale={view.scale}>
-        <Body kind={view.kind} neon={neon} />
+        <Body kind={view.kind} mats={mats} />
       </group>
       <group scale={view.scale}>
         {beacon && (
