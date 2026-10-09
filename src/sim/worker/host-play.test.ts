@@ -1,15 +1,20 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { Timeline } from "@/sim/timeline";
 import { type HostIO, SimHost } from "@/sim/worker/host";
-import type { FrameMessage, WorkerCommand } from "@/sim/worker/protocol";
+import type { FrameMessage, StoppedMessage, WorkerCommand } from "@/sim/worker/protocol";
 import { makeTinyWorld } from "@/world/fixtures/tiny-world";
 
 function fakeIo() {
   const scheduled: { fn: () => void; ms: number; handle: number }[] = [];
   const cancelled: unknown[] = [];
   const frames: FrameMessage[] = [];
+  const stopped: StoppedMessage[] = [];
   let next = 1;
   const io: HostIO = {
-    emit: (message) => frames.push(message),
+    emit: (message) => {
+      if (message.kind === "frame") frames.push(message);
+      else stopped.push(message);
+    },
     schedule: (fn, ms) => {
       const handle = next++;
       scheduled.push({ fn, ms, handle });
@@ -17,7 +22,7 @@ function fakeIo() {
     },
     cancel: (handle) => cancelled.push(handle),
   };
-  return { io, scheduled, cancelled, frames, runNext: () => scheduled.shift()?.fn() };
+  return { io, scheduled, cancelled, frames, stopped, runNext: () => scheduled.shift()?.fn() };
 }
 
 const config = { nAgents: 200, agentReserve: 0 };
@@ -25,6 +30,10 @@ let id = 0;
 const send = (host: SimHost, cmd: WorkerCommand) => host.handle({ ...cmd, id: ++id });
 
 describe("SimHost streaming", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("plays one tick per interval, pushing frames with a digest every 4th", () => {
     const f = fakeIo();
     const host = new SimHost(f.io);
@@ -73,5 +82,36 @@ describe("SimHost streaming", () => {
     const { frame } = r.result as { frame: { tick: number; digest?: unknown } };
     expect(frame.tick).toBe(0);
     expect(frame.digest).toBeDefined();
+  });
+
+  it("reports a stopped message when a tick throws, and stops scheduling", () => {
+    const f = fakeIo();
+    const host = new SimHost(f.io);
+    send(host, { type: "init", world: makeTinyWorld(), seed: 1, config });
+    send(host, { type: "play", timeline: "main", ticksPerSecond: 4 });
+    f.runNext();
+    vi.spyOn(Timeline.prototype, "advance").mockImplementationOnce(() => {
+      throw new Error("tick exploded");
+    });
+    const failing = f.scheduled[0];
+    f.runNext();
+    expect(f.stopped).toEqual([{ kind: "stopped", timeline: "main", error: "tick exploded" }]);
+    expect(f.scheduled).toHaveLength(0);
+    failing.fn();
+    expect(f.frames).toHaveLength(1);
+    expect(f.stopped).toHaveLength(1);
+    expect(f.scheduled).toHaveLength(0);
+  });
+
+  it("ignores a stale callback from a replaced player", () => {
+    const f = fakeIo();
+    const host = new SimHost(f.io);
+    send(host, { type: "init", world: makeTinyWorld(), seed: 1, config });
+    send(host, { type: "play", timeline: "main", ticksPerSecond: 2 });
+    const stale = f.scheduled[0];
+    send(host, { type: "play", timeline: "main", ticksPerSecond: 4 });
+    stale.fn();
+    expect(f.frames).toHaveLength(0);
+    expect(f.scheduled.map((s) => s.ms)).toEqual([500, 250]);
   });
 });

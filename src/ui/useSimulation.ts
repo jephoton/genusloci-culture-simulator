@@ -54,6 +54,11 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
     const client = SimClient.spawn();
     clientRef.current = client;
     const off = client.onFrame(accept);
+    const offStopped = client.onStopped(({ error: reason }) => {
+      playingRef.current = false;
+      setPlaying(false);
+      setError(reason);
+    });
     let cancelled = false;
     void (async () => {
       try {
@@ -73,6 +78,7 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
     return () => {
       cancelled = true;
       off();
+      offStopped();
       client.terminate();
       clientRef.current = null;
       playingRef.current = false;
@@ -93,7 +99,11 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
     if (!client) return;
     playingRef.current = true;
     setPlaying(true);
-    client.play(MAIN_TIMELINE, speedRef.current).catch(report);
+    client.play(MAIN_TIMELINE, speedRef.current).catch((e: unknown) => {
+      playingRef.current = false;
+      setPlaying(false);
+      report(e);
+    });
   }, [report]);
 
   const pause = useCallback(() => {

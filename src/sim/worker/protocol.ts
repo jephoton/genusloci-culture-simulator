@@ -45,4 +45,6 @@ export type WorkerResponse =
 
 /** Pushed by the worker while playing (no request id). */
 export type FrameMessage = { kind: "frame"; frame: Frame };
-export type WorkerMessage = WorkerResponse | FrameMessage;
+/** Pushed once when the play loop stops on its own because a tick failed. */
+export type StoppedMessage = { kind: "stopped"; timeline: string; error: string };
+export type WorkerMessage = WorkerResponse | FrameMessage | StoppedMessage;

@@ -1,7 +1,7 @@
 import type { Action } from "@/sim/actions/schema";
 import type { SimConfig } from "@/sim/config";
 import type { Frame } from "@/sim/frame";
-import type { CommandResults, WorkerCommand, WorkerMessage } from "@/sim/worker/protocol";
+import type { CommandResults, StoppedMessage, WorkerCommand, WorkerMessage } from "@/sim/worker/protocol";
 
 /** The subset of the Worker API the client needs (lets tests use an in-process fake). */
 export type WorkerLike = {
@@ -19,12 +19,14 @@ export class SimClient {
   private readonly pending = new Map<number, Pending>();
   private terminated = false;
   private readonly frameListeners = new Set<(frame: Frame) => void>();
+  private readonly stoppedListeners = new Set<(message: StoppedMessage) => void>();
 
   constructor(private readonly worker: WorkerLike) {
     worker.addEventListener("message", (e) => {
       const data = e.data;
       if ("kind" in data) {
-        for (const listener of this.frameListeners) listener(data.frame);
+        if (data.kind === "frame") for (const listener of this.frameListeners) listener(data.frame);
+        else if (data.kind === "stopped") for (const listener of this.stoppedListeners) listener(data);
         return;
       }
       const p = this.pending.get(data.id);
@@ -82,6 +84,13 @@ export class SimClient {
     this.frameListeners.add(listener);
     return () => {
       this.frameListeners.delete(listener);
+    };
+  }
+  /** Subscribes to the worker stopping playback after a failed tick; returns an unsubscribe function. */
+  onStopped(listener: (message: StoppedMessage) => void): () => void {
+    this.stoppedListeners.add(listener);
+    return () => {
+      this.stoppedListeners.delete(listener);
     };
   }
   play(timeline: string, ticksPerSecond: number) {

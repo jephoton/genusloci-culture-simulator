@@ -11,6 +11,7 @@ import {
   MAX_TICKS_PER_RUN,
   MAX_TICKS_PER_SECOND,
   MIN_TICKS_PER_SECOND,
+  type StoppedMessage,
   type WorkerCommand,
   type WorkerRequest,
   type WorkerResponse,
@@ -19,7 +20,7 @@ import { parseWorld } from "@/world/schema";
 
 /** Side effects the host needs for streaming; injected so tests can drive the loop by hand. */
 export type HostIO = {
-  emit(message: FrameMessage, transfer: ArrayBuffer[]): void;
+  emit(message: FrameMessage | StoppedMessage, transfer: ArrayBuffer[]): void;
   schedule(fn: () => void, ms: number): unknown;
   cancel(handle: unknown): void;
 };
@@ -41,9 +42,9 @@ export class SimHost {
     this.player = null;
   }
 
-  private readonly loop = (): void => {
-    const p = this.player;
-    if (!p) return;
+  /** One play-loop tick for `p`; a callback left over from a stopped or replaced player does nothing. */
+  private loop(p: Player): void {
+    if (this.player !== p) return;
     const t = this.timelines.get(p.timeline);
     if (!t) {
       this.stopPlaying();
@@ -54,12 +55,13 @@ export class SimHost {
       p.count++;
       const { frame, transfer } = buildFrame(t.state, p.timeline, t.earliest(), p.count % DIGEST_EVERY === 0);
       this.io.emit({ kind: "frame", frame }, transfer);
-    } catch {
+    } catch (e) {
       this.stopPlaying();
+      this.io.emit({ kind: "stopped", timeline: p.timeline, error: e instanceof Error ? e.message : String(e) }, []);
       return;
     }
-    p.handle = this.io.schedule(this.loop, p.intervalMs);
-  };
+    p.handle = this.io.schedule(() => this.loop(p), p.intervalMs);
+  }
 
   handle(req: WorkerRequest): WorkerResponse {
     try {
@@ -126,7 +128,7 @@ export class SimHost {
         this.stopPlaying();
         const player: Player = { timeline: cmd.timeline, intervalMs: 1000 / cmd.ticksPerSecond, handle: null, count: 0 };
         this.player = player;
-        player.handle = this.io.schedule(this.loop, player.intervalMs);
+        player.handle = this.io.schedule(() => this.loop(player), player.intervalMs);
         return { playing: true };
       }
       case "pause":
