@@ -1,3 +1,4 @@
+import { pointInPolygon as pointInRing } from "@/geo/geometry";
 import { createRng } from "@/sim/rng";
 import { toLocalMetres } from "@/world/projection";
 import type { VenueKind, World } from "@/world/schema";
@@ -81,15 +82,9 @@ export function distToSegment(px: number, pz: number, a: XZ, b: XZ): number {
   return Math.hypot(px - (a[0] + t * dx), pz - (a[1] + t * dz));
 }
 
-/** Even-odd ray casting. */
+/** Even-odd point-in-polygon on scene x/z (re-exported from the shared geometry module). */
 export function pointInPolygon(x: number, z: number, poly: XZ[]): boolean {
-  let inside = false;
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const [xi, zi] = poly[i];
-    const [xj, zj] = poly[j];
-    if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) inside = !inside;
-  }
-  return inside;
+  return pointInRing(x, z, poly);
 }
 
 /** Uniform-grid spatial hash over axis-aligned boxes. */
