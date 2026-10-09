@@ -10,8 +10,17 @@
 
 - **`qloo/`** — server-side Qloo client (`https://hackathon.api.qloo.com`, `X-Api-Key`). Validates, caches, throttles.
 - **`world/`** — builds a per-city World file (entities, affinity edges, heatmaps, archetypes). Cached server-side only.
-- **`sim/`** — pure, deterministic TypeScript engine running in a Web Worker. Never calls the network.
-- **`actions/`** — typed command schema shared by the UI toolbar and the co-pilot.
+- **`sim/`** — pure, deterministic TypeScript engine (no network, no DOM), hosted in a Web Worker:
+  - `state.ts` + `venue-table.ts` — agent slots with an `alive` mask; per-state venue table; expired event slots are reused (decision 0004)
+  - `steps/` — outing → attendance → exposure/adoption → drift → decay → venue lifecycle (events, rent)
+  - `actions/` — zod action schema shared by the toolbar and the co-pilot; `applyAction` (close/open venue, event, migrate, rent pressure)
+  - `scenes/` — warm-started spherical k-means scenes + lineage tracking (birth/split/merge/extinction)
+  - `niches.ts` — unmet-demand niches; auto-opens matching real places
+  - `calibration.ts` — Spearman fidelity against Qloo heatmaps
+  - `digest.ts` — compact serialisable summary for the UI and co-pilot
+  - `timeline.ts` — snapshots, exact rewind (snapshot + action-log replay), fork
+  - `worker/` — Web Worker host (zod-validated config and actions), protocol, promise-based `SimClient`
+  - `config.ts` — `SimConfig`, defaults, zod `SimConfigSchema`
 - **`agents/`** — LLM co-pilot (tool use, provider-agnostic via Vercel AI SDK; DeepSeek primary), persona interviews, scene naming.
 - **`ui/`** — Next.js app: deck.gl/MapLibre map, phylogeny, inspector, chat.
 
@@ -30,3 +39,4 @@
 - `pnpm test` — run all unit tests (Vitest; config in `vitest.config.mts`)
 - `pnpm test:watch` — watch mode
 - `pnpm bench:sim` — simulation tick-rate benchmark (target ≥ 10 ticks/sec at 5,000 agents)
+- `pnpm calibrate` — baseline fidelity and ecology report on the synthetic fixture
