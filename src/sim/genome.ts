@@ -78,10 +78,9 @@ export function affinityToEntity(g: Genomes, agent: number, cw: CompiledWorld, e
   return den > 0 ? num / den : 0;
 }
 
-/** Weighted mean of the venue's profile over the genome, in [0, 1]. */
-export function venueAffinity(g: Genomes, agent: number, cw: CompiledWorld, venue: number): number {
+/** Weighted mean of a venue profile row (profile[offset + entity]) over the genome, in [0, 1]. */
+export function venueAffinity(g: Genomes, agent: number, profile: Float32Array, offset: number): number {
   const base = agent * GENOME_CAP;
-  const row = venue * cw.nEntities;
   let num = 0;
   let den = 0;
   for (let k = 0; k < GENOME_CAP; k++) {
@@ -89,7 +88,7 @@ export function venueAffinity(g: Genomes, agent: number, cw: CompiledWorld, venu
     if (id === -1) continue;
     const w = g.w[base + k];
     den += w;
-    num += w * cw.venueProfile[row + id];
+    num += w * profile[offset + id];
   }
   return den > 0 ? num / den : 0;
 }

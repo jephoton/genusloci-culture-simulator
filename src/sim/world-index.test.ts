@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { compileWorld, distKm, edgeWeight } from "@/sim/world-index";
+import { compileWorld, distKm, edgeWeight, writeVenueProfile } from "@/sim/world-index";
 import type { World } from "@/world/schema";
 
 const world = (): World => ({
@@ -42,25 +42,25 @@ describe("compileWorld", () => {
     expect(c.edgeOffsets[2] - c.edgeOffsets[1]).toBe(0);
   });
 
-  it("indexes venues with cell and capacity", () => {
-    expect(Array.from(cw.venues)).toEqual([2]);
-    expect(cw.venueCell[0]).toBe(1);
-    expect(cw.venueCapacity[0]).toBe(20);
-  });
-
-  it("builds the venue profile: 1 for itself, edge weight for neighbours", () => {
-    expect(cw.venueProfile[0 * cw.nEntities + 2]).toBe(1);
-    expect(cw.venueProfile[0 * cw.nEntities + 0]).toBeCloseTo(0.4);
-    expect(cw.venueProfile[0 * cw.nEntities + 1]).toBe(0);
-  });
-
-  it("lists nearby venues per cell", () => {
-    expect(Array.from(cw.nearbyVenues[0])).toEqual([0]);
-    expect(Array.from(cw.nearbyVenues[1])).toEqual([0]);
+  it("lists place entities and counts cells", () => {
+    expect(Array.from(cw.places)).toEqual([2]);
+    expect(cw.nCells).toBe(2);
   });
 
   it("computes distance in km", () => {
     expect(distKm(cw, 0, 0)).toBe(0);
     expect(distKm(cw, 0, 1)).toBeCloseTo(11.1, 0);
+  });
+});
+
+describe("writeVenueProfile", () => {
+  it("writes 1 for the venue itself and edge weights for neighbours, only in its row", () => {
+    const cw = compileWorld(world());
+    const out = new Float32Array(cw.nEntities * 2).fill(9);
+    writeVenueProfile(cw, 2, out, cw.nEntities);
+    expect(Array.from(out.subarray(0, 3))).toEqual([9, 9, 9]);
+    expect(out[3 + 2]).toBe(1);
+    expect(out[3 + 0]).toBeCloseTo(0.4);
+    expect(out[3 + 1]).toBe(0);
   });
 });

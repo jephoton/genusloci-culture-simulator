@@ -39,4 +39,13 @@ describe("updateVenues", () => {
     expect(s.venueLowTicks[0]).toBe(0);
     expect(s.venueOpen[0]).toBe(1);
   });
+
+  it("reports whether any venue closed", () => {
+    const s = initState(makeTinyWorld(), config, 1);
+    s.venueAttendance.fill(0);
+    s.tick = 5;
+    expect(updateVenues(s)).toBe(false);
+    expect(updateVenues(s)).toBe(false);
+    expect(updateVenues(s)).toBe(true);
+  });
 });

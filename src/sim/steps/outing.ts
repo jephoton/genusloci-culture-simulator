@@ -1,37 +1,45 @@
 import { venueAffinity } from "@/sim/genome";
 import type { Rng } from "@/sim/rng";
 import type { SimState } from "@/sim/state";
+import { activeEvents } from "@/sim/venue-table";
 import { distKm } from "@/sim/world-index";
 
 /**
- * Each agent may go out and picks a venue by softmax over taste affinity, distance and friends.
- * Candidates are open nearby venues plus venues friends attended last tick.
+ * Each alive agent may go out and picks a venue by softmax over taste affinity, distance and friends.
+ * Candidates are: open nearby venues, venues friends attended last tick, and active events within reach
+ * (events carry no distance penalty: people travel for them).
  * Writes the new s.attendance (friend lookups use the previous tick's attendance).
  */
 export function chooseOutings(s: SimState, rng: Rng): void {
   const { cw, config, genomes } = s;
-  const n = s.homeCell.length;
+  const n = s.alive.length;
   const F = config.friendsPerAgent;
+  const nE = cw.nEntities;
   const prev = s.attendance;
   const next = new Int32Array(n).fill(-1);
-  const cand = new Int32Array(config.maxNearby + F);
+  const cand = new Int32Array(config.maxNearby + F + config.maxEvents);
   const scores = new Float64Array(cand.length);
+  const events = activeEvents(s);
+  let m = 0;
+  const push = (v: number) => {
+    for (let j = 0; j < m; j++) if (cand[j] === v) return;
+    cand[m++] = v;
+  };
 
   for (let i = 0; i < n; i++) {
+    if (!s.alive[i]) continue;
     if (rng.next() >= config.outingRate * s.energy[i]) continue;
     const home = s.homeCell[i];
 
-    let m = 0;
-    for (const v of cw.nearbyVenues[home]) if (s.venueOpen[v]) cand[m++] = v;
+    m = 0;
+    for (const v of s.nearbyVenues[home]) if (s.venueOpen[v]) push(v);
     for (let f = 0; f < F; f++) {
       const friend = s.friends[i * F + f];
       if (friend < 0) continue;
       const fv = prev[friend];
-      if (fv < 0 || !s.venueOpen[fv]) continue;
-      let dup = false;
-      for (let j = 0; j < m; j++) if (cand[j] === fv) dup = true;
-      if (!dup) cand[m++] = fv;
+      if (fv >= 0 && s.venueOpen[fv]) push(fv);
     }
+    for (const v of events) if (distKm(cw, home, s.venueCell[v]) <= s.venueReach[v]) push(v);
     if (m === 0) continue;
 
     let total = 0;
@@ -42,10 +50,11 @@ export function chooseOutings(s: SimState, rng: Rng): void {
         const friend = s.friends[i * F + f];
         if (friend >= 0 && prev[friend] === v) friendsThere++;
       }
+      const distance = s.venueExpires[v] >= 0 ? 0 : distKm(cw, home, s.venueCell[v]);
       const score = Math.exp(
-        config.beta * venueAffinity(genomes, i, cw, v) -
-          config.distPenaltyPerKm * distKm(cw, home, cw.venueCell[v]) +
-          config.friendBonus * (friendsThere / F),
+        config.beta * venueAffinity(genomes, i, s.venueProfile, v * nE) -
+          config.distPenaltyPerKm * distance +
+          config.friendBonus * (F > 0 ? friendsThere / F : 0),
       );
       scores[j] = score;
       total += score;

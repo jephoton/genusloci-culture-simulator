@@ -27,6 +27,27 @@ export type SimConfig = {
   /** No closures before this tick. */
   graceTicks: number;
   maxNearby: number;
+  /** Spare venue slots for openVenue, scheduleEvent and auto-opening. */
+  venueReserve: number;
+  /** Spare agent slots for migration. */
+  agentReserve: number;
+  maxEvents: number;
+  /** Run scene clustering (and auto-opening) every N ticks. */
+  sceneEvery: number;
+  maxScenes: number;
+  minSceneSize: number;
+  /** A sampled agent whose best cosine to every scene is below this founds a new scene. */
+  newSceneThreshold: number;
+  /** Agents sampled per clustering run when looking for new scenes. */
+  sceneSample: number;
+  kmeansIters: number;
+  /** A new cluster continues or splits from a lineage only if at least this share of it came from that lineage. */
+  splitShare: number;
+  /** A dying lineage counts as merged if at least this share of its members went to one cluster. */
+  mergeShare: number;
+  autoOpen: boolean;
+  /** Niche score (scene size ÷ (1 + matching venue capacity)) needed to auto-open a venue. */
+  autoOpenScore: number;
 };
 
 export const DEFAULT_CONFIG: SimConfig = {
@@ -49,4 +70,17 @@ export const DEFAULT_CONFIG: SimConfig = {
   closeAfterTicks: 4,
   graceTicks: 4,
   maxNearby: 12,
+  venueReserve: 64,
+  agentReserve: 1000,
+  maxEvents: 8,
+  sceneEvery: 4,
+  maxScenes: 12,
+  minSceneSize: 25,
+  newSceneThreshold: 0.2,
+  sceneSample: 400,
+  kmeansIters: 3,
+  splitShare: 0.3,
+  mergeShare: 0.3,
+  autoOpen: true,
+  autoOpenScore: 2,
 };

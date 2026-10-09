@@ -5,7 +5,7 @@ export type Roster = { offsets: Int32Array; members: Int32Array };
 
 /** Sets s.venueAttendance from s.attendance and returns the attendee roster. */
 export function tallyAttendance(s: SimState): Roster {
-  const nV = s.cw.venues.length;
+  const nV = s.nVenues;
   const counts = s.venueAttendance;
   counts.fill(0);
   for (const v of s.attendance) if (v >= 0) counts[v]++;
