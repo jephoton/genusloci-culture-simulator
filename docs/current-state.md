@@ -2,7 +2,7 @@
 
 <!-- generated: maintained by agents -->
 
-**Phase:** Plan 2 complete (sim ecology), merged to `main`. Next: Plan 3 (Qloo spike) once the key arrives; Plan 5 (UI) can start on the fixture meanwhile.
+**Phase:** Plan 5a complete (playable city). Next: Plan 5b (juice + field guide); Plan 3 (Qloo spike) as soon as the key arrives.
 
 ## Done
 - Concept, name (**Genus Loci**), design spec, roadmap. Repo: https://github.com/jephoton/genusloci-culture-simulator (public, MIT).
@@ -27,17 +27,40 @@
   - 130 tests passing; tsc and lint clean.
   - **Benchmark:** ≈ 64–84 ticks/sec at 5,000 agents (varies with machine load; clustering runs every 4th tick).
   - `pnpm calibrate` (synthetic): fidelity 0.990 → 0.984 over 100 ticks; venues 24 → 27 (auto-open); 6 stable scenes.
+- **Plan 5a (playable city):**
+  - Worker play/pause streaming transferable frames, with `stopped` notices.
+  - Age-thinned snapshots.
+  - World `geo` + venue `kind`, synthetic streets, river and parks.
+  - City layout: about 3,200 procedural buildings and landmark pads clear of roads, water and buildings.
+  - Three.js night diorama: bloom, window-light shader, neon landmarks per kind, crowds coloured by scene.
+  - Toolbar (open venue, throw event), venue panel (close), timeline (play, speed, rewind), HUD.
+  - Verified in the browser: everything works, no console errors.
+  - 167 tests passing; tsc, lint and build clean.
 
 ## Next
 1. Request the Qloo hackathon API key if not already done (issued manually; takes days).
-2. Plan 3 (Qloo spike + client) as soon as the key arrives.
-3. Plan 5 (UI) can start on the synthetic fixture in parallel. See `docs/superpowers/plans/2026-10-09-roadmap.md`.
+2. Plan 5b (juice + field guide): effects director (shockwave/fisheye, rise/sink, beacons, colour waves), specimen cards, phylogeny, Latin names, remaining tools.
+3. Plan 3 (Qloo spike + client) as soon as the key arrives.
+
+## Carry into Plan 5b (from the Plan 5a final review)
+- **Frame sequencing:** add `seq` and `epoch` to `Frame`. Bump `epoch` on init and rewind, and mark `refresh` frames as jumps, so the effects director only diffs consecutive frames of the same epoch.
+- **Per-frame change list:** venue opened/closed/expired, event started, scene born/split/merged/died, action results. Today scene events arrive only via the digest (every 4th tick, capped at 10).
+- **New commands:**
+  - `lineages`: full lineage table (bornTick, diedTick, mergedInto, peakSize, topEntities) for the phylogeny.
+  - `inspect`: one agent, venue or scene, for specimen cards.
+  - Cell or neighbourhood names in the World, for Latin epithets.
+- **Effect anchors:** landmark position and radius lookup (`LANDMARK_RADIUS` × `LANDMARK_SCALE` already shared from `layout.ts`), plus a camera-shake hook.
+- **Do per-frame work once:** `venueViews`, `sceneHues` and home positions are each computed twice per frame (Landmarks + Crowd). Compute them once in `accept`; `React.memo` the panels.
+- **Action results:** play-loop and `run` results are discarded. A double "Close venue" while playing queues twice.
+- **Rewind:** clear the selected venue (`VenuePanel` can show a reused slot).
+- **Visuals:** the building shader ignores fog. The selection and crowd rings can spill past `PAD_CLEARANCE` (music venue). The event pillar is too thin to notice.
+- **Accessibility:**
+  - `aria-label`s on the asides, header and footer; `role="status"` on the loading text; `aria-valuetext` on the slider.
+  - Focus the panel on open.
+  - Keyboard path for selecting and placing (venue list or cell picker).
+- **Layout performance:** `buildLayout` takes ≈ 260–420 ms on page load. Fine for now; consider precomputing per world in Plan 4.
 
 ## Carry forward (from the Plan 2 final review)
-- **Plan 5 must start with these:**
-  - **Non-blocking runs.** `run` currently blocks the worker (520 ticks ≈ 8 s). Use chunked play/pause with progress.
-  - **Render frames.** Add a `frame` response with transferable typed arrays: alive, homeCell (on change), attendance, `live[assignment[i]]` scene lineage, venue open/health/attendance/cell/entity/expires sliced to `nVenues`, and tick. Send the digest on a slower cadence (fidelity costs ≈ 6 ms).
-  - **Verify worker bundling.** Check `new Worker(new URL(...))` under Next 16.
 - **Timeline snapshots.** Eviction keeps tick 0 and drops the next oldest, so old rewinds get slow (≈ 1–4 s). Use thinned retention, e.g. every 10 recent, 40 older, 160 oldest.
 - **Memory.** About 2.5 MB per snapshot, ≈ 78 MB per timeline at bench scale. `venueProfile` depends only on the entity: precompute per place in `cw` and drop it from the state. Cap live forks at about 3.
 - **Ecology is too static on the fixture.**
