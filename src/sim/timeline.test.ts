@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "@/sim/config";
 import { hashState } from "@/sim/hash";
-import { Timeline } from "@/sim/timeline";
+import { snapshotSpacing, Timeline } from "@/sim/timeline";
 import { makeTinyWorld } from "@/world/fixtures/tiny-world";
 
 const world = makeTinyWorld();
@@ -72,6 +72,22 @@ describe("Timeline", () => {
     expect(hashState(t.state)).not.toBe(hashState(f.state));
     f.rewind(2);
     expect(f.state.tick).toBe(2);
+  });
+
+  it("thins snapshots with age so old rewinds stay cheap and memory stays bounded", () => {
+    const t = create(10);
+    t.advance(1000);
+    const ticks = t.snapshotTicks();
+    expect(ticks[0]).toBe(0);
+    expect(ticks.length).toBeLessThan(30);
+    for (const k of ticks) {
+      if (k === 0 || k === 1000) continue;
+      expect(k % snapshotSpacing(1000 - k)).toBe(0);
+    }
+    for (let tick = 0; tick <= 1000; tick += 37) {
+      const base = Math.max(...ticks.filter((k) => k <= tick));
+      expect(tick - base).toBeLessThan(160);
+    }
   });
 
   it("caps stored snapshots but can still rewind to the start", () => {
