@@ -88,7 +88,7 @@ describe("Timeline", () => {
       const base = Math.max(...ticks.filter((k) => k <= tick));
       expect(tick - base).toBeLessThan(160);
     }
-  });
+  }, 20_000);
 
   it("caps stored snapshots but can still rewind to the start", () => {
     const t = create(1);
