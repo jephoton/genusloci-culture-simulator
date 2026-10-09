@@ -13,6 +13,14 @@ const run = (seed: number, ticks: number) => {
 };
 
 describe("step", () => {
+  it("tracks scenes: three are born at tick 0 and survive a quiet run", () => {
+    const s = run(4, 20);
+    const births = s.scenes.events.filter((e) => e.kind === "birth" && e.tick === 0);
+    expect(births.length).toBeGreaterThanOrEqual(3);
+    expect(s.scenes.live.length).toBeGreaterThanOrEqual(3);
+    for (const id of s.scenes.live) expect(s.scenes.lineages[id].topEntities.length).toBeGreaterThan(0);
+  });
+
   it("advances the tick and the rng state", () => {
     const s = initState(makeTinyWorld(), config, 1);
     const rng0 = s.rngState;
