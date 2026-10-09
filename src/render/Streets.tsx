@@ -25,10 +25,10 @@ export function Streets({ layout }: { layout: CityLayout }) {
   return (
     <group>
       <mesh geometry={geometry.minor} position-y={0.04}>
-        <meshStandardMaterial color="#14161d" roughness={0.9} />
+        <meshStandardMaterial color="#1f2230" roughness={0.9} />
       </mesh>
       <mesh geometry={geometry.major} position-y={0.05}>
-        <meshStandardMaterial color="#181b24" roughness={0.85} />
+        <meshStandardMaterial color="#262a3a" roughness={0.85} />
       </mesh>
       <mesh geometry={geometry.glow} position-y={0.07}>
         <meshBasicMaterial color={[0.35, 0.5, 1.6]} toneMapped={false} />
