@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { assembleRings, clipPolygon, clipPolyline, type Pt, type Rect, simplify } from "@/geo/geometry";
+import { assembleRings, bufferLine, clipPolygon, clipPolyline, type Pt, type Rect, simplify } from "@/geo/geometry";
 import { type LatLon, toLocalMetres } from "@/world/projection";
 import type { Geo } from "@/world/schema";
 
@@ -12,6 +12,8 @@ const PARK_LEISURE = new Set(["park", "garden"]);
 const PARK_LANDUSE = new Set(["grass", "recreation_ground", "village_green"]);
 /** Simplification tolerance in metres. */
 const SIMPLIFY_M = { road: 3, area: 6 };
+/** Default drawn width (metres) of waterways mapped only as lines. */
+const WATERWAY_WIDTH_M: Record<string, number> = { river: 40, canal: 15 };
 
 const LatLonSchema = z.object({ lat: z.number(), lon: z.number() });
 const OverpassSchema = z.object({
@@ -44,6 +46,8 @@ export function buildOverpassQuery(centre: LatLon, radiusM: number): string {
   way["highway"~"^(${highways})$"](${b});
   way["natural"="water"](${b});
   way["waterway"="riverbank"](${b});
+  relation["waterway"="riverbank"](${b});
+  way["waterway"~"^(river|canal)$"](${b});
   relation["natural"="water"](${b});
   way["leisure"~"^(park|garden)$"](${b});
   relation["leisure"="park"](${b});
@@ -87,6 +91,14 @@ export function parseOverpass(json: unknown, centre: LatLon, radiusM: number): G
         for (const piece of clipPolyline(simplify(points, SIMPLIFY_M.road), rect)) {
           roads.push({ kind, points: piece.map(round) });
         }
+        continue;
+      }
+      const waterwayWidth = WATERWAY_WIDTH_M[tags.waterway ?? ""];
+      if (waterwayWidth !== undefined) {
+        const width = Number.parseFloat(tags.width ?? "") || waterwayWidth;
+        const ring = bufferLine(simplify(points, SIMPLIFY_M.road), width / 2);
+        const clipped = ring.length >= 3 ? clipPolygon(ring, rect) : null;
+        if (clipped) water.push(clipped.map(round));
         continue;
       }
       const target = areaTarget(tags);

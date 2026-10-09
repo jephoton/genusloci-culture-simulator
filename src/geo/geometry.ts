@@ -152,3 +152,34 @@ export function assembleRings(ways: Pt[][]): Pt[][] {
   }
   return rings;
 }
+
+/**
+ * Widens a polyline into a polygon `halfWidth` either side (mitred joins, miter length capped at 2×),
+ * e.g. to draw rivers mapped as lines. Returns [] for fewer than 2 points.
+ */
+export function bufferLine(points: Pt[], halfWidth: number): Pt[] {
+  if (points.length < 2) return [];
+  const normal = (a: Pt, b: Pt): Pt => {
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const len = Math.hypot(dx, dy) || 1;
+    return [-dy / len, dx / len];
+  };
+  const left: Pt[] = [];
+  const right: Pt[] = [];
+  for (let i = 0; i < points.length; i++) {
+    const nPrev = i > 0 ? normal(points[i - 1], points[i]) : null;
+    const nNext = i + 1 < points.length ? normal(points[i], points[i + 1]) : null;
+    let nx = (nPrev?.[0] ?? 0) + (nNext?.[0] ?? 0);
+    let ny = (nPrev?.[1] ?? 0) + (nNext?.[1] ?? 0);
+    const len = Math.hypot(nx, ny) || 1;
+    nx /= len;
+    ny /= len;
+    const ref = nNext ?? nPrev ?? [0, 1];
+    const miter = Math.min(2, 1 / Math.max(0.5, nx * ref[0] + ny * ref[1]));
+    const [x, y] = points[i];
+    left.push([x + nx * halfWidth * miter, y + ny * halfWidth * miter]);
+    right.push([x - nx * halfWidth * miter, y - ny * halfWidth * miter]);
+  }
+  return [...left, ...right.reverse()];
+}

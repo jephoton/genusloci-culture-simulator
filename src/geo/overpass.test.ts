@@ -16,6 +16,7 @@ const response = {
     { type: "way", id: 2, tags: { highway: "residential" }, geometry: [at(0, -300), at(0, 300)] },
     { type: "way", id: 3, tags: { highway: "footway" }, geometry: [at(100, 100), at(200, 200)] },
     { type: "way", id: 4, tags: { leisure: "park" }, geometry: [at(100, 100), at(300, 100), at(300, 300), at(100, 300), at(100, 100)] },
+    { type: "way", id: 6, tags: { waterway: "river", width: "60" }, geometry: [at(-900, 800), at(900, 800)] },
     {
       type: "relation",
       id: 5,
@@ -66,8 +67,21 @@ describe("parseOverpass", () => {
     }
   });
 
+  it("widens linear rivers into water, using their width tag", () => {
+    const river = geo.water.find((ring) => ring.some(([, y]) => y > 700));
+    expect(river).toBeDefined();
+    const ys = (river ?? []).map(([, y]) => y);
+    expect(Math.max(...ys) - Math.min(...ys)).toBeCloseTo(60, 0);
+  });
+
+  it("asks for linear rivers and canals and riverbank relations", () => {
+    const q = buildOverpassQuery(centre, radiusM);
+    expect(q).toContain('way["waterway"~"^(river|canal)$"]');
+    expect(q).toContain('relation["waterway"="riverbank"]');
+  });
+
   it("assembles multipolygon water and keeps closed-way parks", () => {
-    expect(geo.water).toHaveLength(1);
+    expect(geo.water).toHaveLength(2);
     expect(geo.parks).toHaveLength(1);
     expect(geo.water[0].length).toBeGreaterThanOrEqual(3);
   });
