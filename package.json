@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "bench:sim": "tsx scripts/bench-sim.ts",
-    "calibrate": "tsx scripts/calibrate.ts"
+    "calibrate": "tsx scripts/calibrate.ts",
+    "build:geo": "tsx scripts/build-geo.ts"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",
