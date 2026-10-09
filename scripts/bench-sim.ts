@@ -16,7 +16,7 @@ for (let t = 0; t < TICKS; t++) step(s);
 const tps = TICKS / ((performance.now() - t0) / 1000);
 
 console.log(
-  `agents=${DEFAULT_CONFIG.nAgents} entities=${world.entities.length} venues=${s.cw.venues.length} ` +
+  `agents=${DEFAULT_CONFIG.nAgents} entities=${world.entities.length} venues=${s.nVenues} ` +
     `cells=${world.cells.length} init=${initMs.toFixed(0)}ms ticks/sec=${tps.toFixed(1)}`,
 );
 if (tps < TARGET_TICKS_PER_SEC) {

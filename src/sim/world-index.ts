@@ -2,31 +2,26 @@ import type { World } from "@/world/schema";
 
 export const DEFAULT_VENUE_CAPACITY = 100;
 
-/** Read-only typed-array view of a World, built once and shared by all states. */
+/** Read-only typed-array view of a World's taste graph and geography, shared by all states. */
 export type CompiledWorld = {
   world: World;
   nEntities: number;
+  nCells: number;
   /** CSR adjacency: row i spans edgeOffsets[i]..edgeOffsets[i+1]; targets sorted ascending. */
   edgeOffsets: Int32Array;
   edgeTargets: Int32Array;
   edgeWeights: Float32Array;
-  /** Venue slot -> entity index. */
-  venues: Int32Array;
-  venueCell: Int32Array;
-  venueCapacity: Float32Array;
-  /** Dense nVenues × nEntities: 1 for the venue itself, else edge weight venue→entity. */
-  venueProfile: Float32Array;
-  /** Per cell: venue slots sorted by distance, at most maxNearby. */
-  nearbyVenues: Int32Array[];
+  /** Entity indices of type "place": candidates for new venues. */
+  places: Int32Array;
   cellLat: Float64Array;
   cellLon: Float64Array;
 };
 
-type EdgeIndex = Pick<CompiledWorld, "edgeOffsets" | "edgeTargets" | "edgeWeights">;
+type EdgeIndex = Pick<CompiledWorld, "nEntities" | "edgeOffsets" | "edgeTargets" | "edgeWeights">;
 type CellIndex = Pick<CompiledWorld, "cellLat" | "cellLon">;
 
 /** Affinity weight of the edge from → to, or 0 if none (binary search). */
-export function edgeWeight(cw: EdgeIndex, from: number, to: number): number {
+export function edgeWeight(cw: Pick<CompiledWorld, "edgeOffsets" | "edgeTargets" | "edgeWeights">, from: number, to: number): number {
   let lo = cw.edgeOffsets[from];
   let hi = cw.edgeOffsets[from + 1] - 1;
   while (lo <= hi) {
@@ -49,7 +44,16 @@ export function distKm(cw: CellIndex, a: number, b: number): number {
   return 6371 * Math.sqrt(x * x + y * y);
 }
 
-export function compileWorld(world: World, maxNearby = 12): CompiledWorld {
+/** Writes the venue profile of `entity` into out[offset, offset + nEntities): 1 for itself, else edge weight entity→e. */
+export function writeVenueProfile(cw: EdgeIndex, entity: number, out: Float32Array, offset: number): void {
+  out.fill(0, offset, offset + cw.nEntities);
+  for (let j = cw.edgeOffsets[entity]; j < cw.edgeOffsets[entity + 1]; j++) {
+    out[offset + cw.edgeTargets[j]] = cw.edgeWeights[j];
+  }
+  out[offset + entity] = 1;
+}
+
+export function compileWorld(world: World): CompiledWorld {
   const n = world.entities.length;
 
   const rows: Map<number, number>[] = Array.from({ length: n }, () => new Map());
@@ -70,39 +74,17 @@ export function compileWorld(world: World, maxNearby = 12): CompiledWorld {
     });
   }
 
-  const venueList: number[] = [];
-  world.entities.forEach((e, i) => {
-    if (e.type === "place" && e.cell !== undefined) venueList.push(i);
-  });
-  const venues = Int32Array.from(venueList);
-  const venueCell = Int32Array.from(venueList.map((i) => world.entities[i].cell as number));
-  const venueCapacity = Float32Array.from(
-    venueList.map((i) => world.entities[i].capacity ?? DEFAULT_VENUE_CAPACITY),
-  );
-
-  const venueProfile = new Float32Array(venues.length * n);
-  venues.forEach((ent, v) => {
-    const row = v * n;
-    for (let j = edgeOffsets[ent]; j < edgeOffsets[ent + 1]; j++) {
-      venueProfile[row + edgeTargets[j]] = edgeWeights[j];
-    }
-    venueProfile[row + ent] = 1;
-  });
-
-  const cells: CellIndex = {
-    cellLat: Float64Array.from(world.cells.map((c) => c.lat)),
-    cellLon: Float64Array.from(world.cells.map((c) => c.lon)),
-  };
-  const slots = Array.from({ length: venues.length }, (_, v) => v);
-  const nearbyVenues = world.cells.map((_, c) => {
-    const order = [...slots].sort(
-      (a, b) => distKm(cells, c, venueCell[a]) - distKm(cells, c, venueCell[b]) || a - b,
-    );
-    return Int32Array.from(order.slice(0, maxNearby));
-  });
+  const places = Int32Array.from(world.entities.flatMap((e, i) => (e.type === "place" ? [i] : [])));
 
   return {
-    world, nEntities: n, edgeOffsets, edgeTargets, edgeWeights,
-    venues, venueCell, venueCapacity, venueProfile, nearbyVenues, ...cells,
+    world,
+    nEntities: n,
+    nCells: world.cells.length,
+    edgeOffsets,
+    edgeTargets,
+    edgeWeights,
+    places,
+    cellLat: Float64Array.from(world.cells.map((c) => c.lat)),
+    cellLon: Float64Array.from(world.cells.map((c) => c.lon)),
   };
 }

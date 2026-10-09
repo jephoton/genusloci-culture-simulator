@@ -17,7 +17,7 @@ const clearAgent = (s: ReturnType<typeof initState>, a: number) => {
 
 describe("tallyAttendance", () => {
   it("counts visitors and groups them by venue", () => {
-    const s = initState(world, { ...DEFAULT_CONFIG, nAgents: 6 }, 1);
+    const s = initState(world, { ...DEFAULT_CONFIG, nAgents: 6, agentReserve: 0 }, 1);
     s.attendance = Int32Array.from([0, 2, 0, -1, 2, 2]);
     const roster = tallyAttendance(s);
     expect(s.venueAttendance[0]).toBe(2);
@@ -30,7 +30,7 @@ describe("tallyAttendance", () => {
 
 describe("adoptionProbability", () => {
   it("is higher for entities linked to the genome", () => {
-    const s = initState(world, { ...DEFAULT_CONFIG, nAgents: 50 }, 1);
+    const s = initState(world, { ...DEFAULT_CONFIG, nAgents: 50, agentReserve: 0 }, 1);
     clearAgent(s, 0);
     addGene(s.genomes, 0, idx(0, 4), 1);
     const same = adoptionProbability(s, 0, idx(0, 5));
@@ -40,7 +40,7 @@ describe("adoptionProbability", () => {
   });
 
   it("rises when friends hold the entity", () => {
-    const s = initState(world, { ...DEFAULT_CONFIG, nAgents: 50 }, 1);
+    const s = initState(world, { ...DEFAULT_CONFIG, nAgents: 50, agentReserve: 0 }, 1);
     clearAgent(s, 0);
     addGene(s.genomes, 0, idx(0, 4), 1);
     const before = adoptionProbability(s, 0, idx(1, 5));
@@ -52,10 +52,10 @@ describe("adoptionProbability", () => {
 
 describe("applyExposure", () => {
   it("reinforces genes shared with the attended venue", () => {
-    const s = initState(world, { ...DEFAULT_CONFIG, nAgents: 2 }, 1);
+    const s = initState(world, { ...DEFAULT_CONFIG, nAgents: 2, agentReserve: 0 }, 1);
     clearAgent(s, 0);
     clearAgent(s, 1);
-    const venue = Array.from(s.cw.venues).indexOf(idx(0, 0));
+    const venue = Array.from(s.venueEntity.subarray(0, s.nVenues)).indexOf(idx(0, 0));
     addGene(s.genomes, 0, idx(0, 5), 0.5);
     s.attendance = Int32Array.from([venue, -1]);
     applyExposure(s, createRng(1), tallyAttendance(s));
@@ -63,10 +63,10 @@ describe("applyExposure", () => {
   });
 
   it("lets attendees adopt the venue itself over repeated visits", () => {
-    const s = initState(world, { ...DEFAULT_CONFIG, nAgents: 2, adoptBase: 1 }, 1);
+    const s = initState(world, { ...DEFAULT_CONFIG, nAgents: 2, agentReserve: 0, adoptBase: 1 }, 1);
     clearAgent(s, 0);
     clearAgent(s, 1);
-    const venue = Array.from(s.cw.venues).indexOf(idx(0, 0));
+    const venue = Array.from(s.venueEntity.subarray(0, s.nVenues)).indexOf(idx(0, 0));
     addGene(s.genomes, 0, idx(0, 5), 1);
     const rng = createRng(4);
     for (let t = 0; t < 20; t++) {

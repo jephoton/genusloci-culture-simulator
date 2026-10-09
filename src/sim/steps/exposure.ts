@@ -29,24 +29,25 @@ function tryAdopt(s: SimState, agent: number, entity: number, rng: Rng): void {
 
 /**
  * For each attendee: reinforce genes the venue's profile shares, then try to adopt
- * (1) the venue itself and (2) a random co-attendee's strongest gene.
+ * (1) the venue's entity and (2) a random co-attendee's strongest gene.
  */
 export function applyExposure(s: SimState, rng: Rng, roster: Roster): void {
-  const { cw, config, genomes } = s;
+  const { config, genomes } = s;
+  const nE = s.cw.nEntities;
   for (let i = 0; i < s.attendance.length; i++) {
     const v = s.attendance[i];
     if (v < 0) continue;
 
     const base = i * GENOME_CAP;
-    const row = v * cw.nEntities;
+    const row = v * nE;
     for (let k = 0; k < GENOME_CAP; k++) {
       const id = genomes.ids[base + k];
       if (id < 0) continue;
-      const p = cw.venueProfile[row + id];
+      const p = s.venueProfile[row + id];
       if (p > 0) genomes.w[base + k] = Math.min(1, genomes.w[base + k] + config.reinforce * p);
     }
 
-    tryAdopt(s, i, cw.venues[v], rng);
+    tryAdopt(s, i, s.venueEntity[v], rng);
 
     const size = roster.offsets[v + 1] - roster.offsets[v];
     if (size > 1) {

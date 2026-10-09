@@ -45,7 +45,7 @@ describe("step", () => {
     world.entities[venueEntity].capacity = 1e9;
     const s = initState(world, config, 2);
     for (let t = 0; t < 40; t++) step(s);
-    const slot = Array.from(s.cw.venues).indexOf(venueEntity);
+    const slot = Array.from(s.venueEntity.subarray(0, s.nVenues)).indexOf(venueEntity);
     expect(s.venueOpen[slot]).toBe(0);
   });
 

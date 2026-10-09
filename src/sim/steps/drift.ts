@@ -9,7 +9,8 @@ import type { SimState } from "@/sim/state";
  */
 export function applyDrift(s: SimState, rng: Rng): void {
   const { cw, config, genomes } = s;
-  for (let i = 0; i < s.homeCell.length; i++) {
+  for (let i = 0; i < s.alive.length; i++) {
+    if (!s.alive[i]) continue;
     if (rng.next() >= config.driftRate * s.curiosity[i]) continue;
     const base = i * GENOME_CAP;
 

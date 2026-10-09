@@ -6,6 +6,7 @@ import { applyDrift } from "@/sim/steps/drift";
 import { applyExposure } from "@/sim/steps/exposure";
 import { chooseOutings } from "@/sim/steps/outing";
 import { updateVenues } from "@/sim/steps/venues";
+import { buildNearbyVenues } from "@/sim/venue-table";
 
 /**
  * One tick = one simulated week. Mutates `s` in place and returns it.
@@ -18,7 +19,7 @@ export function step(s: SimState): SimState {
   applyExposure(s, rng, roster);
   applyDrift(s, rng);
   applyDecay(s);
-  updateVenues(s);
+  if (updateVenues(s)) s.nearbyVenues = buildNearbyVenues(s);
   s.tick++;
   s.rngState = rng.state();
   return s;

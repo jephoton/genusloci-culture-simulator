@@ -3,7 +3,7 @@ import {
   GENOME_CAP, addGene, affinityToEntity, createGenomes, decayGenome,
   geneSlot, genomeSimilarity, topGene, venueAffinity,
 } from "@/sim/genome";
-import { compileWorld } from "@/sim/world-index";
+import { compileWorld, writeVenueProfile } from "@/sim/world-index";
 import { makeTinyWorld } from "@/world/fixtures/tiny-world";
 
 const cw = compileWorld(makeTinyWorld());
@@ -57,10 +57,10 @@ describe("genome", () => {
     const g = createGenomes(1);
     addGene(g, 0, idx(0, 5), 1);
     addGene(g, 0, idx(0, 6), 1);
-    const venueOfCluster = (c: number) => Array.from(cw.venues).indexOf(idx(c, 0));
-    expect(venueAffinity(g, 0, cw, venueOfCluster(0))).toBeGreaterThan(
-      venueAffinity(g, 0, cw, venueOfCluster(1)),
-    );
+    const profile = new Float32Array(cw.nEntities * 2);
+    writeVenueProfile(cw, idx(0, 0), profile, 0);
+    writeVenueProfile(cw, idx(1, 0), profile, cw.nEntities);
+    expect(venueAffinity(g, 0, profile, 0)).toBeGreaterThan(venueAffinity(g, 0, profile, cw.nEntities));
   });
 
   it("computes cosine similarity and the top gene", () => {
