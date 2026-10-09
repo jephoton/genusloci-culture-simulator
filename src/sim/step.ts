@@ -1,6 +1,8 @@
 import { applyAction } from "@/sim/actions/apply";
 import type { Action, ActionResult } from "@/sim/actions/schema";
 import { createRng } from "@/sim/rng";
+import { clusterAgents } from "@/sim/scenes/cluster";
+import { updateLineages } from "@/sim/scenes/lineage";
 import type { SimState } from "@/sim/state";
 import { tallyAttendance } from "@/sim/steps/attendance";
 import { applyDecay } from "@/sim/steps/decay";
@@ -28,6 +30,9 @@ export function step(s: SimState, actions: readonly Action[] = []): ActionResult
   applyDrift(s, rng);
   applyDecay(s);
   if (updateVenues(s)) s.nearbyVenues = buildNearbyVenues(s);
+  if (s.tick % s.config.sceneEvery === 0) {
+    updateLineages(s.scenes, clusterAgents(s, s.scenes.centroids, rng), s.tick, s.config);
+  }
   s.tick++;
   s.rngState = rng.state();
   return results;
