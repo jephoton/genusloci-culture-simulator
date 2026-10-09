@@ -23,7 +23,8 @@ export type Simulation = {
   play(): void;
   pause(): void;
   setSpeed(ticksPerSecond: number): void;
-  act(action: Action): Promise<void>;
+  /** Resolves true once the action is accepted (queued, or applied while paused); false if it was rejected. */
+  act(action: Action): Promise<boolean>;
   rewind(tick: number): Promise<void>;
   dismissError(): void;
 };
@@ -125,9 +126,9 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
   );
 
   const act = useCallback(
-    async (action: Action) => {
+    async (action: Action): Promise<boolean> => {
       const client = clientRef.current;
-      if (!client) return;
+      if (!client) return false;
       try {
         setError(null);
         await client.act(MAIN_TIMELINE, action);
@@ -136,8 +137,10 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
           setDigest(result.digest);
           await refresh();
         }
+        return true;
       } catch (e) {
         report(e);
+        return false;
       }
     },
     [refresh, report],

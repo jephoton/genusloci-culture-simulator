@@ -34,14 +34,14 @@ const BEACON_HZ = 1.2;
 type Anim = { y: number; vy: number; last: number; open: boolean; openedAt: number; flicker: number; lit: number };
 
 /** Per-landmark materials, recoloured every animation frame. */
-type Materials = { neon: THREE.MeshBasicMaterial; body: THREE.MeshStandardMaterial; band: THREE.MeshBasicMaterial };
+export type Materials = { neon: THREE.MeshBasicMaterial; body: THREE.MeshStandardMaterial; band: THREE.MeshBasicMaterial };
 
 /**
  * The neon parts share one material per landmark (`neon`), so the sign colour and its dying flicker
  * are set in one place. The body glows faintly in the sign colour (`body`), and a thin lit band runs
  * just under the roofline (`band`).
  */
-function Body({ kind, mats: { neon, body, band } }: { kind: VenueKind; mats: Materials }): ReactNode {
+export function Body({ kind, mats: { neon, body, band } }: { kind: VenueKind; mats: Materials }): ReactNode {
   switch (kind) {
     case "club":
       return (

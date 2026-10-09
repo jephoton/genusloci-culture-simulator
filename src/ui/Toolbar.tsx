@@ -1,11 +1,25 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { World } from "@/world/schema";
+import type { SimDigest } from "@/sim/digest";
+import { VENUE_KIND_LABELS } from "@/ui/words";
+import type { VenueKind, World } from "@/world/schema";
 
-export type Tool = { kind: "select" } | { kind: "open"; entity: number } | { kind: "event"; entity: number };
+/**
+ * The active tool. "open" and "event" first pick what to place (`venueKind` / `entity` null), then
+ * place it with a click on the map.
+ */
+export type Tool =
+  | { kind: "select" }
+  | { kind: "open"; venueKind: VenueKind | null }
+  | { kind: "event"; entity: number | null };
 
-function ToolButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+/** True once the tool has something to place, so a map click places it. */
+export function isPlacing(tool: Tool): boolean {
+  return (tool.kind === "open" && tool.venueKind !== null) || (tool.kind === "event" && tool.entity !== null);
+}
+
+function ToolButton({ active, label, hint, onClick }: { active: boolean; label: string; hint: string; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -15,52 +29,130 @@ function ToolButton({ active, label, onClick }: { active: boolean; label: string
         active ? "bg-violet-500/25 text-violet-100 ring-1 ring-violet-400/50" : "hover:bg-white/5"
       }`}
     >
+      <span className="block">{label}</span>
+      <span className="block text-xs text-zinc-400">{hint}</span>
+    </button>
+  );
+}
+
+function Choice({ active, label, disabled, title, onClick }: { active: boolean; label: string; disabled?: boolean; title?: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      disabled={disabled}
+      title={title}
+      className={`rounded-md px-2 py-1.5 text-left text-xs transition disabled:cursor-not-allowed disabled:opacity-40 ${
+        active ? "bg-amber-400/20 text-amber-100 ring-1 ring-amber-300/60" : "bg-white/5 hover:bg-white/10"
+      }`}
+    >
       {label}
     </button>
   );
 }
 
-export function Toolbar({ world, tool, onTool }: { world: World; tool: Tool; onTool: (tool: Tool) => void }) {
-  const places = useMemo(() => world.entities.flatMap((e, i) => (e.type === "place" ? [{ i, name: e.name }] : [])), [world]);
-  const artists = useMemo(() => world.entities.flatMap((e, i) => (e.type === "artist" ? [{ i, name: e.name }] : [])), [world]);
-  const [place, setPlace] = useState(places[0]?.i ?? -1);
-  const [artist, setArtist] = useState(artists[0]?.i ?? -1);
-  const select = "w-full rounded-md border border-white/10 bg-black/40 px-2 py-1 text-xs";
+type Group = { title: string; artists: { i: number; name: string }[] };
+
+/** Headliners grouped by the living scene they define (largest first); everyone else last. */
+function headlinerGroups(world: World, digest: SimDigest | null): Group[] {
+  const groups: Group[] = [];
+  const used = new Set<number>();
+  for (const scene of digest?.scenes ?? []) {
+    const artists = scene.topEntities
+      .filter((e) => world.entities[e.index]?.type === "artist" && !used.has(e.index))
+      .map((e) => ({ i: e.index, name: e.name }));
+    if (artists.length === 0) continue;
+    for (const a of artists) used.add(a.i);
+    groups.push({ title: `Loved by Scene ${scene.id}`, artists });
+  }
+  const rest = world.entities.flatMap((e, i) => (e.type === "artist" && !used.has(i) ? [{ i, name: e.name }] : []));
+  if (rest.length > 0) groups.push({ title: groups.length > 0 ? "Other headliners" : "Headliners", artists: rest });
+  return groups;
+}
+
+export function Toolbar({
+  world, digest, tool, onTool,
+}: {
+  world: World;
+  digest: SimDigest | null;
+  tool: Tool;
+  onTool: (tool: Tool) => void;
+}) {
+  const [filter, setFilter] = useState("");
+  const kindsHere = useMemo(() => new Set(world.entities.flatMap((e) => (e.type === "place" ? [e.kind ?? "other"] : []))), [world]);
+  const groups = useMemo(() => headlinerGroups(world, digest), [world, digest]);
+  const needle = filter.trim().toLowerCase();
+  const shown = needle
+    ? groups.map((g) => ({ ...g, artists: g.artists.filter((a) => a.name.toLowerCase().includes(needle)) })).filter((g) => g.artists.length > 0)
+    : groups;
+
+  let step: string | null = null;
+  if (tool.kind === "open") {
+    step = tool.venueKind === null ? "Pick a kind of venue." : "Move over the map and click where it should open. Esc cancels.";
+  } else if (tool.kind === "event") {
+    step = tool.entity === null ? "Pick a headliner." : "Move over the map and click where it should happen. Esc cancels.";
+  }
 
   return (
-    <aside className="panel pointer-events-auto absolute left-4 top-24 w-60 space-y-3 p-3">
-      <ToolButton active={tool.kind === "select"} label="Select" onClick={() => onTool({ kind: "select" })} />
-      <div className="space-y-1">
-        <ToolButton active={tool.kind === "open"} label="Open a venue" onClick={() => place >= 0 && onTool({ kind: "open", entity: place })} />
-        <select
-          aria-label="Place to open"
-          className={select}
-          value={place}
-          onChange={(e) => {
-            const v = Number(e.target.value);
-            setPlace(v);
-            if (tool.kind === "open") onTool({ kind: "open", entity: v });
-          }}
-        >
-          {places.map((p) => <option key={p.i} value={p.i}>{p.name}</option>)}
-        </select>
-      </div>
-      <div className="space-y-1">
-        <ToolButton active={tool.kind === "event"} label="Throw an event" onClick={() => artist >= 0 && onTool({ kind: "event", entity: artist })} />
-        <select
-          aria-label="Headliner"
-          className={select}
-          value={artist}
-          onChange={(e) => {
-            const v = Number(e.target.value);
-            setArtist(v);
-            if (tool.kind === "event") onTool({ kind: "event", entity: v });
-          }}
-        >
-          {artists.map((a) => <option key={a.i} value={a.i}>{a.name}</option>)}
-        </select>
-      </div>
-      {tool.kind !== "select" && <p className="text-xs text-amber-200">Click the map to place it. Esc cancels.</p>}
+    <aside aria-label="Tools" className="panel pointer-events-auto absolute left-4 top-24 flex max-h-[calc(100dvh-12rem)] w-64 flex-col gap-2 p-3">
+      <ToolButton active={tool.kind === "select"} label="Select" hint="Click a venue to see how it is doing." onClick={() => onTool({ kind: "select" })} />
+      <ToolButton
+        active={tool.kind === "open"}
+        label="Open a venue"
+        hint="Add a new place for people to go."
+        onClick={() => onTool(tool.kind === "open" ? { kind: "select" } : { kind: "open", venueKind: null })}
+      />
+      {tool.kind === "open" && (
+        <div role="group" aria-label="Kind of venue" className="grid grid-cols-2 gap-1">
+          {VENUE_KIND_LABELS.map(({ kind, label }) => (
+            <Choice
+              key={kind}
+              label={label}
+              active={tool.venueKind === kind}
+              disabled={!kindsHere.has(kind)}
+              title={kindsHere.has(kind) ? undefined : "There are no places of this kind in this city yet."}
+              onClick={() => onTool({ kind: "open", venueKind: kind })}
+            />
+          ))}
+        </div>
+      )}
+      <ToolButton
+        active={tool.kind === "event"}
+        label="Throw an event"
+        hint="A one-off night that draws a crowd for 3 weeks."
+        onClick={() => onTool(tool.kind === "event" ? { kind: "select" } : { kind: "event", entity: null })}
+      />
+      {tool.kind === "event" && (
+        <div className="flex min-h-0 flex-col gap-2">
+          <input
+            type="search"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            placeholder="Filter headliners"
+            aria-label="Filter headliners"
+            className="w-full rounded-md border border-white/10 bg-black/40 px-2 py-1 text-xs placeholder:text-zinc-500"
+          />
+          <div role="group" aria-label="Headliner" className="min-h-0 space-y-2 overflow-y-auto pr-1">
+            {shown.map((g) => (
+              <div key={g.title} className="space-y-1">
+                <p className="text-[11px] uppercase tracking-widest text-zinc-400">{g.title}</p>
+                <div className="flex flex-col gap-1">
+                  {g.artists.map((a) => (
+                    <Choice key={a.i} label={a.name} active={tool.entity === a.i} onClick={() => onTool({ kind: "event", entity: a.i })} />
+                  ))}
+                </div>
+              </div>
+            ))}
+            {shown.length === 0 && <p className="text-xs text-zinc-400">No headliners match.</p>}
+          </div>
+        </div>
+      )}
+      {step && (
+        <p role="status" className="text-xs text-amber-200">
+          {step}
+        </p>
+      )}
     </aside>
   );
 }

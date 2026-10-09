@@ -1,28 +1,59 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CityCanvas } from "@/render/CityCanvas";
-import { type CityLayout, nearestCell } from "@/render/layout";
+import type { GhostSpec } from "@/render/Ghost";
+import { type CityLayout, nearestCell, type XZ } from "@/render/layout";
+import { chooseVenueEntity } from "@/render/placement";
 import type { SimConfig } from "@/sim/config";
 import { Hud } from "@/ui/Hud";
 import { TimelineBar } from "@/ui/TimelineBar";
-import { type Tool, Toolbar } from "@/ui/Toolbar";
+import { type Toast, Toasts } from "@/ui/Toasts";
+import { isPlacing, type Tool, Toolbar } from "@/ui/Toolbar";
 import { useSimulation } from "@/ui/useSimulation";
 import { VenuePanel } from "@/ui/VenuePanel";
 import type { World } from "@/world/schema";
 import { Attribution } from "@/ui/Attribution";
 import { useCityWorld } from "@/ui/useCityWorld";
+import { areaName, kindWord } from "@/ui/words";
 
 const DEMO_SEED = 7;
 const DEMO_CONFIG: Partial<SimConfig> = { nAgents: 2500, agentReserve: 300 };
 const AGENT_SLOTS = 2800;
 const EVENT = { duration: 3, reachKm: 25, capacity: 3000 } as const;
+const MAX_TOASTS = 4;
+const TOAST_MS = 4000;
+
+/** A stack of short-lived toasts, and `notify` to add one. */
+function useToasts() {
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const nextId = useRef(0);
+  const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
+  useEffect(() => {
+    const pending = timers.current;
+    return () => {
+      for (const t of pending) clearTimeout(t);
+      pending.clear();
+    };
+  }, []);
+  const notify = useCallback((message: string, anchor?: XZ) => {
+    const id = nextId.current++;
+    setToasts((ts) => [...ts, { id, message, anchor }].slice(-MAX_TOASTS));
+    const timer = setTimeout(() => {
+      timers.current.delete(timer);
+      setToasts((ts) => ts.filter((t) => t.id !== id));
+    }, TOAST_MS);
+    timers.current.add(timer);
+  }, []);
+  return { toasts, notify };
+}
 
 function Game({ world, layout, attribution }: { world: World; layout: CityLayout; attribution: string | null }) {
   const sim = useSimulation(world, DEMO_SEED, DEMO_CONFIG);
   const { act } = sim;
   const [tool, setTool] = useState<Tool>({ kind: "select" });
   const [selected, setSelected] = useState<number | null>(null);
+  const { toasts, notify } = useToasts();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -37,18 +68,29 @@ function Game({ world, layout, attribution }: { world: World; layout: CityLayout
   const onGroundClick = useCallback(
     (x: number, z: number) => {
       const cell = nearestCell(layout, x, z);
-      if (tool.kind === "open") {
-        void act({ type: "openVenue", entity: tool.entity, cell });
+      const anchor: XZ = [x, z];
+      if (tool.kind === "open" && tool.venueKind !== null) {
+        const entity = chooseVenueEntity(world, tool.venueKind, cell);
         setTool({ kind: "select" });
-      } else if (tool.kind === "event") {
-        void act({ type: "scheduleEvent", entity: tool.entity, cell, ...EVENT });
+        void act({ type: "openVenue", entity, cell }).then((ok) => {
+          if (ok) notify(`Opened a ${kindWord(world.entities[entity].kind ?? "other")} in ${areaName(layout, x, z)}`, anchor);
+        });
+      } else if (tool.kind === "event" && tool.entity !== null) {
+        const entity = tool.entity;
         setTool({ kind: "select" });
-      } else {
+        void act({ type: "scheduleEvent", entity, cell, ...EVENT }).then((ok) => {
+          if (ok) notify(`${world.entities[entity].name} is playing tonight`, anchor);
+        });
+      } else if (tool.kind === "select") {
         setSelected(null);
       }
     },
-    [act, layout, tool],
+    [act, layout, notify, tool, world],
   );
+
+  let ghost: GhostSpec | null = null;
+  if (tool.kind === "open" && tool.venueKind !== null) ghost = { kind: "venue", venueKind: tool.venueKind };
+  else if (tool.kind === "event" && tool.entity !== null) ghost = { kind: "event" };
 
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-[#07080b] text-zinc-100">
@@ -62,10 +104,11 @@ function Game({ world, layout, attribution }: { world: World; layout: CityLayout
         selectedVenue={selected}
         onVenueClick={setSelected}
         onGroundClick={onGroundClick}
-        cursor={tool.kind === "select" ? "default" : "crosshair"}
+        cursor={isPlacing(tool) ? "crosshair" : "default"}
+        ghost={ghost}
       />
       <Hud city={world.city.name} digest={sim.digest} tick={sim.frame?.tick ?? 0} />
-      <Toolbar world={world} tool={tool} onTool={setTool} />
+      <Toolbar world={world} digest={sim.digest} tool={tool} onTool={setTool} />
       <VenuePanel
         world={world}
         frame={sim.frame}
@@ -83,6 +126,7 @@ function Game({ world, layout, attribution }: { world: World; layout: CityLayout
         onSpeed={sim.setSpeed}
         onRewind={(t) => void sim.rewind(t)}
       />
+      <Toasts toasts={toasts} />
       {attribution && <Attribution />}
       {sim.status === "loading" && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center text-zinc-400">Growing the city…</div>
