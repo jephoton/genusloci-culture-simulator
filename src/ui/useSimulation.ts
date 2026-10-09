@@ -28,7 +28,8 @@ export type Simulation = {
   dismissError(): void;
 };
 
-const DEFAULT_SPEED = 2;
+/** Weeks per second; each week is drawn as a night out, so this needs to be slow enough to follow. */
+const DEFAULT_SPEED = 0.5;
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** Owns the simulation worker: initialises the world, streams frames, and applies user actions. */

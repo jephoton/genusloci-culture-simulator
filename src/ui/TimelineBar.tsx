@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 
-const SPEEDS = [1, 2, 4, 8];
+/** Weeks per second. Each week plays as a night out, so slower speeds read as a story. */
+const SPEEDS = [
+  { value: 0.25, label: "¼" },
+  { value: 0.5, label: "½" },
+  { value: 1, label: "1" },
+  { value: 2, label: "2" },
+];
 
 export function TimelineBar({
   tick, earliest, playing, speed, onPlay, onPause, onSpeed, onRewind,
@@ -31,18 +37,20 @@ export function TimelineBar({
       >
         {playing ? "Pause" : "Play"}
       </button>
-      <div className="flex gap-1" role="group" aria-label="Speed">
+      <div className="flex items-center gap-1" role="group" aria-label="Speed in weeks per second">
         {SPEEDS.map((s) => (
           <button
-            key={s}
+            key={s.value}
             type="button"
-            onClick={() => onSpeed(s)}
-            aria-pressed={s === speed}
-            className={`rounded-md px-2 py-1 text-xs ${s === speed ? "bg-white/15" : "hover:bg-white/5"}`}
+            onClick={() => onSpeed(s.value)}
+            aria-pressed={s.value === speed}
+            aria-label={`${s.value} weeks per second`}
+            className={`rounded-md px-2 py-1 text-xs ${s.value === speed ? "bg-white/15" : "hover:bg-white/5"}`}
           >
-            {s}×
+            {s.label}
           </button>
         ))}
+        <span className="ml-1 text-[10px] text-zinc-500">wk/s</span>
       </div>
       <input
         type="range"
