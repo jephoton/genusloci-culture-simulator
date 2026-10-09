@@ -19,6 +19,30 @@ describe("parseWorld", () => {
     expect(parseWorld(minimal()).city.name).toBe("Testville");
   });
 
+  it("accepts venue kinds and a geo section", () => {
+    const w = minimal();
+    w.entities[1].kind = "club";
+    w.geo = {
+      bounds: { minX: -100, minY: -100, maxX: 100, maxY: 100 },
+      roads: [{ kind: "major", points: [[-100, 0], [100, 0]] }],
+      water: [[[0, 0], [10, 0], [10, 10]]],
+      parks: [],
+    };
+    expect(parseWorld(w).geo?.roads).toHaveLength(1);
+  });
+
+  it("rejects bad geo and unknown venue kinds", () => {
+    const badBounds = minimal();
+    badBounds.geo = { bounds: { minX: 5, minY: 0, maxX: 1, maxY: 10 }, roads: [], water: [], parks: [] };
+    expect(() => parseWorld(badBounds)).toThrow();
+    const shortRoad = minimal();
+    shortRoad.geo = { bounds: { minX: 0, minY: 0, maxX: 1, maxY: 1 }, roads: [{ kind: "minor", points: [[0, 0]] }], water: [], parks: [] };
+    expect(() => parseWorld(shortRoad)).toThrow();
+    const badKind = minimal() as unknown as { entities: { kind?: string }[] };
+    badKind.entities[1].kind = "spaceport";
+    expect(() => parseWorld(badKind)).toThrow();
+  });
+
   it("rejects an edge pointing past the entity table", () => {
     const w = minimal();
     w.edges.push({ source: 0, target: 5, weight: 0.2 });
