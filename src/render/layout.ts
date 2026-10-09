@@ -1,13 +1,36 @@
 import { createRng } from "@/sim/rng";
 import { toLocalMetres } from "@/world/projection";
-import type { World } from "@/world/schema";
+import type { VenueKind, World } from "@/world/schema";
 
 /** 1 scene unit = 10 m. Scene x = east, scene z = south (local y north → -z). */
 export const METRES_PER_UNIT = 10;
 export const PADS_PER_CELL = 6;
-/** Minimum distance (scene units) between a building's footprint and a landmark pad. */
-export const PAD_CLEARANCE = 4;
+/** Landmarks are drawn larger than life so they read as places at city zoom. */
+export const LANDMARK_SCALE = 2.2;
+/**
+ * Unscaled horizontal footprint radius of each landmark kind (circumscribed circle of the geometry
+ * in Landmarks.tsx). The stadium is drawn shrunk so it fits a pad like the others.
+ */
+export const LANDMARK_RADIUS: Record<VenueKind, number> = {
+  club: 2.34,
+  bar: 2.33,
+  cafe: 1.7,
+  restaurant: 2.4,
+  gallery: 2.2,
+  music_venue: 3.21,
+  shop: 1.28,
+  stadium: 3.2,
+  other: 1.56,
+};
+/**
+ * Clearance (scene units) from a landmark pad's centre to roads, water and parks, and from a pad to a
+ * building's footprint: room for the largest landmark, since any kind can open on any pad.
+ */
+export const PAD_CLEARANCE = LANDMARK_SCALE * Math.max(...Object.values(LANDMARK_RADIUS)) + 0.5;
 export const ROAD_HALF_WIDTH = { major: 1.2, minor: 0.6 } as const;
+/** Spacing (scene units) of the candidate grid searched for landmark pads. */
+const PAD_STEP = 2;
+const PAD_HASH_CELL = 32;
 const MAX_BUILDINGS = 16000;
 const CANDIDATES = 60000;
 const HASH_CELL = 8;
@@ -23,6 +46,8 @@ export type CityLayout = {
   cellZ: Float32Array;
   /** nCells × PADS_PER_CELL × (x, z) landmark pads. */
   pads: Float32Array;
+  /** How many pads could not meet the clearance rules and took the best remaining spot instead. */
+  fallbackPads: number;
   buildings: {
     count: number;
     x: Float32Array;
@@ -70,9 +95,11 @@ export function pointInPolygon(x: number, z: number, poly: XZ[]): boolean {
 /** Uniform-grid spatial hash over axis-aligned boxes. */
 class SpatialHash<T> {
   private readonly cells = new Map<string, T[]>();
+  constructor(private readonly size = HASH_CELL) {}
   add(x0: number, z0: number, x1: number, z1: number, item: T): void {
-    for (let i = Math.floor(x0 / HASH_CELL); i <= Math.floor(x1 / HASH_CELL); i++) {
-      for (let j = Math.floor(z0 / HASH_CELL); j <= Math.floor(z1 / HASH_CELL); j++) {
+    const size = this.size;
+    for (let i = Math.floor(x0 / size); i <= Math.floor(x1 / size); i++) {
+      for (let j = Math.floor(z0 / size); j <= Math.floor(z1 / size); j++) {
         const key = `${i},${j}`;
         const list = this.cells.get(key);
         if (list) list.push(item);
@@ -82,12 +109,23 @@ class SpatialHash<T> {
   }
   near(x: number, z: number, r: number): T[] {
     const out = new Set<T>();
-    for (let i = Math.floor((x - r) / HASH_CELL); i <= Math.floor((x + r) / HASH_CELL); i++) {
-      for (let j = Math.floor((z - r) / HASH_CELL); j <= Math.floor((z + r) / HASH_CELL); j++) {
+    const size = this.size;
+    for (let i = Math.floor((x - r) / size); i <= Math.floor((x + r) / size); i++) {
+      for (let j = Math.floor((z - r) / size); j <= Math.floor((z + r) / size); j++) {
         for (const item of this.cells.get(`${i},${j}`) ?? []) out.add(item);
       }
     }
     return [...out];
+  }
+  /** Allocation-free variant of near(): an item spanning several hash cells may be visited more than once. */
+  forEachNear(x: number, z: number, r: number, fn: (item: T) => void): void {
+    const size = this.size;
+    for (let i = Math.floor((x - r) / size); i <= Math.floor((x + r) / size); i++) {
+      for (let j = Math.floor((z - r) / size); j <= Math.floor((z + r) / size); j++) {
+        const list = this.cells.get(`${i},${j}`);
+        if (list) for (let k = 0; k < list.length; k++) fn(list[k]);
+      }
+    }
   }
 }
 
@@ -114,6 +152,117 @@ export function agentHomePosition(layout: CityLayout, cell: number, agent: numbe
   const a = hash01(agent * 2 + 1) * Math.PI * 2;
   const r = Math.sqrt(hash01(agent * 2 + 2)) * layout.spacing * 0.4;
   return [layout.cellX[cell] + r * Math.cos(a), layout.cellZ[cell] + r * Math.sin(a)];
+}
+
+type RoadSegment = { a: XZ; b: XZ; half: number };
+
+function addSegment(hash: SpatialHash<RoadSegment>, s: RoadSegment): void {
+  const { a, b, half } = s;
+  hash.add(Math.min(a[0], b[0]) - half, Math.min(a[1], b[1]) - half, Math.max(a[0], b[0]) + half, Math.max(a[1], b[1]) + half, s);
+}
+
+/** Distance from a point to a polygon's boundary, negative when the point is inside. */
+function signedDistToPolygon(x: number, z: number, poly: XZ[]): number {
+  let d = Infinity;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) d = Math.min(d, distToSegment(x, z, poly[j], poly[i]));
+  return pointInPolygon(x, z, poly) ? -d : d;
+}
+
+/**
+ * Chooses PADS_PER_CELL landmark pads per cell from a grid of candidates within `spacing` of the cell
+ * centre, nearest first. A pad must clear every road by its half-width + PAD_CLEARANCE, stay
+ * PAD_CLEARANCE outside water and parks, and sit at least 2 × PAD_CLEARANCE from every other pad.
+ * A cell short of valid spots falls back to the candidates that break those rules the least.
+ */
+function placePads({
+  cellX, cellZ, spacing, segments, areas,
+}: {
+  cellX: Float32Array;
+  cellZ: Float32Array;
+  spacing: number;
+  segments: RoadSegment[];
+  areas: XZ[][];
+}): { pads: Float32Array; fallbackPads: number } {
+  const nC = cellX.length;
+  // Coarser than the building hash: each pad query reaches ~9 units, so this keeps it to a few cells.
+  const roadHash = new SpatialHash<RoadSegment>(PAD_HASH_CELL);
+  for (const s of segments) addSegment(roadHash, s);
+  const boxes = areas.map((poly) => ({
+    poly,
+    minX: Math.min(...poly.map((p) => p[0])) - PAD_CLEARANCE,
+    maxX: Math.max(...poly.map((p) => p[0])) + PAD_CLEARANCE,
+    minZ: Math.min(...poly.map((p) => p[1])) - PAD_CLEARANCE,
+    maxZ: Math.max(...poly.map((p) => p[1])) + PAD_CLEARANCE,
+  }));
+  const pads = new Float32Array(nC * PADS_PER_CELL * 2);
+  const placed = new SpatialHash<XZ>();
+  const minGap = 2 * PAD_CLEARANCE;
+  let fallbackPads = 0;
+
+  const n = Math.floor(spacing / PAD_STEP);
+  const offsets: { dx: number; dz: number; r: number }[] = [];
+  for (let j = -n; j <= n; j++) {
+    for (let i = -n; i <= n; i++) {
+      const r = Math.hypot(i, j) * PAD_STEP;
+      if (r <= spacing) offsets.push({ dx: i * PAD_STEP, dz: j * PAD_STEP, r });
+    }
+  }
+  offsets.sort((a, b) => a.r - b.r); // stable: ties keep row-major order
+
+  /** How far (scene units) a spot is from breaking the road and area rules; negative when it breaks one. */
+  const siteSlack = (x: number, z: number): number => {
+    let slack = Infinity;
+    roadHash.forEachNear(x, z, PAD_CLEARANCE + ROAD_HALF_WIDTH.major, (s) => {
+      slack = Math.min(slack, distToSegment(x, z, s.a, s.b) - s.half - PAD_CLEARANCE);
+    });
+    if (slack < 0) return slack;
+    for (const b of boxes) {
+      if (x >= b.minX && x <= b.maxX && z >= b.minZ && z <= b.maxZ) slack = Math.min(slack, signedDistToPolygon(x, z, b.poly) - PAD_CLEARANCE);
+    }
+    return slack;
+  };
+  const gapSlack = (x: number, z: number): number => {
+    let slack = Infinity;
+    placed.forEachNear(x, z, minGap, ([px, pz]) => {
+      slack = Math.min(slack, Math.hypot(px - x, pz - z) - minGap);
+    });
+    return slack;
+  };
+
+  for (let c = 0; c < nC; c++) {
+    const chosen: XZ[] = [];
+    const take = (p: XZ) => {
+      const k = c * PADS_PER_CELL + chosen.length;
+      pads[k * 2] = p[0];
+      pads[k * 2 + 1] = p[1];
+      placed.add(p[0], p[1], p[0], p[1], p);
+      chosen.push(p);
+    };
+    const candidates: { p: XZ; site: number }[] = [];
+    for (const o of offsets) {
+      if (chosen.length === PADS_PER_CELL) break;
+      const p: XZ = [Math.fround(cellX[c] + o.dx), Math.fround(cellZ[c] + o.dz)];
+      const site = siteSlack(p[0], p[1]);
+      candidates.push({ p, site });
+      // Cheapest test first: most candidates fail the road check, and the nearest-cell scan is O(cells).
+      if (site >= 0 && gapSlack(p[0], p[1]) >= 0 && nearestCell({ cellX, cellZ }, p[0], p[1]) === c) take(p);
+    }
+    const own = chosen.length < PADS_PER_CELL ? candidates.filter(({ p }) => nearestCell({ cellX, cellZ }, p[0], p[1]) === c) : [];
+    while (chosen.length < PADS_PER_CELL) {
+      let best: XZ = [cellX[c], cellZ[c]];
+      let bestScore = -Infinity;
+      for (const { p, site } of own) {
+        const score = Math.min(site, gapSlack(p[0], p[1]));
+        if (score > bestScore) {
+          bestScore = score;
+          best = p;
+        }
+      }
+      take(best);
+      fallbackPads++;
+    }
+  }
+  return { pads, fallbackPads };
 }
 
 /**
@@ -157,29 +306,13 @@ export function buildLayout(world: World, seed = 1): CityLayout {
   const water = (geo?.water ?? []).map((ring) => ring.map(([x, y]) => toScene(x, y)));
   const parks = (geo?.parks ?? []).map((ring) => ring.map(([x, y]) => toScene(x, y)));
 
-  const pads = new Float32Array(nC * PADS_PER_CELL * 2);
-  const padHash = new SpatialHash<XZ>();
-  for (let c = 0; c < nC; c++) {
-    for (let k = 0; k < PADS_PER_CELL; k++) {
-      const a = (k / PADS_PER_CELL) * Math.PI * 2 + Math.PI / 6;
-      const r = spacing * 0.22;
-      const x = cellX[c] + r * Math.cos(a);
-      const z = cellZ[c] + r * Math.sin(a);
-      pads[(c * PADS_PER_CELL + k) * 2] = x;
-      pads[(c * PADS_PER_CELL + k) * 2 + 1] = z;
-      padHash.add(x, z, x, z, [x, z]);
-    }
-  }
+  const segments = roads.flatMap((r) => r.points.slice(1).map((b, i): RoadSegment => ({ a: r.points[i], b, half: ROAD_HALF_WIDTH[r.kind] })));
+  const roadHash = new SpatialHash<RoadSegment>();
+  for (const s of segments) addSegment(roadHash, s);
 
-  const roadHash = new SpatialHash<{ a: XZ; b: XZ; half: number }>();
-  for (const r of roads) {
-    const half = ROAD_HALF_WIDTH[r.kind];
-    for (let i = 0; i + 1 < r.points.length; i++) {
-      const a = r.points[i];
-      const b = r.points[i + 1];
-      roadHash.add(Math.min(a[0], b[0]) - half, Math.min(a[1], b[1]) - half, Math.max(a[0], b[0]) + half, Math.max(a[1], b[1]) + half, { a, b, half });
-    }
-  }
+  const { pads, fallbackPads } = placePads({ cellX, cellZ, spacing, segments, areas: [...water, ...parks] });
+  const padHash = new SpatialHash<XZ>();
+  for (let i = 0; i < pads.length; i += 2) padHash.add(pads[i], pads[i + 1], pads[i], pads[i + 1], [pads[i], pads[i + 1]]);
 
   const densities = world.cells.map((c) => c.density);
   const dMin = Math.min(...densities);
@@ -235,6 +368,7 @@ export function buildLayout(world: World, seed = 1): CityLayout {
     cellX,
     cellZ,
     pads,
+    fallbackPads,
     buildings: {
       count,
       x: bx.slice(0, count),
