@@ -114,4 +114,25 @@ describe("SimHost streaming", () => {
     expect(f.frames).toHaveLength(0);
     expect(f.scheduled.map((s) => s.ms)).toEqual([500, 250]);
   });
+
+  it("bumps the frame epoch on init and rewind but not on play", () => {
+    const f = fakeIo();
+    const host = new SimHost(f.io);
+    send(host, { type: "init", world: makeTinyWorld(), seed: 1, config });
+    const epochOf = () => {
+      const r = send(host, { type: "frame", timeline: "main" });
+      if (!r.ok) throw new Error(r.error);
+      return (r.result as { frame: { epoch: number } }).frame.epoch;
+    };
+    const e0 = epochOf();
+    send(host, { type: "play", timeline: "main", ticksPerSecond: 4 });
+    f.runNext();
+    f.runNext();
+    expect(f.frames.map((m) => m.frame.epoch)).toEqual([e0, e0]);
+    send(host, { type: "pause" });
+    send(host, { type: "rewind", timeline: "main", tick: 1 });
+    expect(epochOf()).toBe(e0 + 1);
+    send(host, { type: "init", world: makeTinyWorld(), seed: 2, config });
+    expect(epochOf()).toBe(e0 + 2);
+  });
 });

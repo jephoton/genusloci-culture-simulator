@@ -1,4 +1,5 @@
 import { digest, type SimDigest } from "@/sim/digest";
+import type { SceneEvent } from "@/sim/scenes/types";
 import type { SimState } from "@/sim/state";
 
 /** One tick's render data, streamed from the worker. Every typed array is a fresh copy, safe to transfer. */
@@ -6,6 +7,10 @@ export type Frame = {
   timeline: string;
   tick: number;
   earliestTick: number;
+  /** Bumped on init and rewind: only frames of the same epoch with consecutive ticks are a continuous story. */
+  epoch: number;
+  /** Scene events recorded by the step that produced this frame (tick === frame.tick - 1). */
+  sceneEvents: SceneEvent[];
   alive: Uint8Array;
   homeCell: Int32Array;
   attendance: Int32Array;
@@ -28,6 +33,7 @@ export function buildFrame(
   timeline: string,
   earliestTick: number,
   withDigest: boolean,
+  epoch: number,
 ): { frame: Frame; transfer: ArrayBuffer[] } {
   const scene = new Int32Array(s.alive.length).fill(-1);
   for (let i = 0; i < scene.length; i++) {
@@ -35,10 +41,16 @@ export function buildFrame(
     if (a >= 0) scene[i] = s.scenes.live[a];
   }
   const n = s.nVenues;
+  // Events only grow, in tick order: scan back from the end and stop at the first older one.
+  const events = s.scenes.events;
+  let first = events.length;
+  while (first > 0 && events[first - 1].tick === s.tick - 1) first--;
   const frame: Frame = {
     timeline,
     tick: s.tick,
     earliestTick,
+    epoch,
+    sceneEvents: events.slice(first),
     alive: s.alive.slice(),
     homeCell: s.homeCell.slice(),
     attendance: s.attendance.slice(),

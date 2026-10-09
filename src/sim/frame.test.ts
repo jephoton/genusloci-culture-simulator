@@ -10,7 +10,7 @@ const config = { ...DEFAULT_CONFIG, nAgents: 300, agentReserve: 20 };
 describe("buildFrame", () => {
   it("copies render state with venue arrays sliced to nVenues", () => {
     const s = initState(makeTinyWorld(), config, 1);
-    const { frame } = buildFrame(s, "main", 0, false);
+    const { frame } = buildFrame(s, "main", 0, false, 0);
     expect(frame.tick).toBe(0);
     expect(frame.alive).toHaveLength(320);
     expect(frame.venueEntity).toHaveLength(s.nVenues);
@@ -23,7 +23,7 @@ describe("buildFrame", () => {
   it("maps agents to scene lineage ids and carries lineage parents", () => {
     const s = initState(makeTinyWorld(), config, 1);
     step(s);
-    const { frame } = buildFrame(s, "main", 0, true);
+    const { frame } = buildFrame(s, "main", 0, true, 0);
     for (let i = 0; i < 300; i++) {
       const a = s.scenes.assignment[i];
       expect(frame.scene[i]).toBe(a >= 0 ? s.scenes.live[a] : -1);
@@ -34,12 +34,21 @@ describe("buildFrame", () => {
 
   it("returns independent copies and one distinct transferable buffer per array", () => {
     const s = initState(makeTinyWorld(), config, 1);
-    const { frame, transfer } = buildFrame(s, "main", 0, false);
+    const { frame, transfer } = buildFrame(s, "main", 0, false, 0);
     frame.alive[0] = 0;
     frame.venueOpen[0] = 0;
     expect(s.alive[0]).toBe(1);
     expect(s.venueOpen[0]).toBe(1);
     expect(transfer).toHaveLength(11);
     expect(new Set(transfer).size).toBe(11);
+  });
+
+  it("stamps the epoch and carries the scene events of the tick that produced it", () => {
+    const s = initState(makeTinyWorld(), config, 1);
+    step(s);
+    const { frame } = buildFrame(s, "main", 0, false, 3);
+    expect(frame.epoch).toBe(3);
+    expect(frame.sceneEvents.length).toBeGreaterThan(0);
+    expect(frame.sceneEvents.every((e) => e.tick === frame.tick - 1)).toBe(true);
   });
 });

@@ -14,7 +14,7 @@ describe("venueViews", () => {
   it("describes every venue slot with name, kind, a pad position and the pad's scale", () => {
     const s = initState(world, { ...DEFAULT_CONFIG, nAgents: 300, agentReserve: 0 }, 1);
     step(s);
-    const { frame } = buildFrame(s, "main", 0, false);
+    const { frame } = buildFrame(s, "main", 0, false, 0);
     const views = venueViews(frame, layout, world);
     expect(views).toHaveLength(s.nVenues);
     for (const v of views) {
@@ -33,7 +33,7 @@ describe("venueViews", () => {
 
   it("picks the majority scene among tonight's visitors", () => {
     const s = initState(world, { ...DEFAULT_CONFIG, nAgents: 10, agentReserve: 0 }, 1);
-    const { frame } = buildFrame(s, "main", 0, false);
+    const { frame } = buildFrame(s, "main", 0, false, 0);
     frame.attendance.fill(-1);
     frame.attendance.set([0, 0, 0, 0], 0);
     frame.scene.set([7, 7, 3, 7], 0);

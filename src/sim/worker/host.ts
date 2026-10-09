@@ -33,6 +33,7 @@ type Player = { timeline: string; intervalMs: number; handle: unknown; count: nu
 export class SimHost {
   private readonly timelines = new Map<string, Timeline>();
   private forks = 0;
+  private epoch = 0;
   private player: Player | null = null;
 
   constructor(private readonly io: HostIO = NO_IO) {}
@@ -53,7 +54,7 @@ export class SimHost {
     try {
       t.advance(1);
       p.count++;
-      const { frame, transfer } = buildFrame(t.state, p.timeline, t.earliest(), p.count % DIGEST_EVERY === 0);
+      const { frame, transfer } = buildFrame(t.state, p.timeline, t.earliest(), p.count % DIGEST_EVERY === 0, this.epoch);
       this.io.emit({ kind: "frame", frame }, transfer);
     } catch (e) {
       this.stopPlaying();
@@ -84,6 +85,7 @@ export class SimHost {
         this.stopPlaying();
         this.timelines.clear();
         this.forks = 0;
+        this.epoch++;
         this.timelines.set(MAIN_TIMELINE, t);
         return { timeline: MAIN_TIMELINE, digest: digest(t.state) };
       }
@@ -103,6 +105,7 @@ export class SimHost {
       case "rewind": {
         const t = this.timeline(cmd.timeline);
         t.rewind(cmd.tick);
+        this.epoch++;
         return { digest: digest(t.state) };
       }
       case "fork": {
@@ -136,7 +139,7 @@ export class SimHost {
         return { playing: false };
       case "frame": {
         const t = this.timeline(cmd.timeline);
-        return { frame: buildFrame(t.state, cmd.timeline, t.earliest(), true).frame };
+        return { frame: buildFrame(t.state, cmd.timeline, t.earliest(), true, this.epoch).frame };
       }
       default:
         throw new Error(`unknown command "${String((cmd as { type?: unknown }).type)}"`);
