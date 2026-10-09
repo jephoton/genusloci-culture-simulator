@@ -6,6 +6,7 @@ import type { CommandResults, WorkerCommand, WorkerResponse } from "@/sim/worker
 export type WorkerLike = {
   postMessage(message: unknown): void;
   addEventListener(type: "message", listener: (e: MessageEvent<WorkerResponse>) => void): void;
+  addEventListener(type: "error" | "messageerror", listener: (e: Event) => void): void;
   terminate(): void;
 };
 
@@ -15,6 +16,7 @@ type Pending = { resolve: (result: unknown) => void; reject: (error: Error) => v
 export class SimClient {
   private nextId = 1;
   private readonly pending = new Map<number, Pending>();
+  private terminated = false;
 
   constructor(private readonly worker: WorkerLike) {
     worker.addEventListener("message", (e) => {
@@ -24,6 +26,12 @@ export class SimClient {
       if (e.data.ok) p.resolve(e.data.result);
       else p.reject(new Error(e.data.error));
     });
+    const onFailure = (e: Event) => {
+      const message = (e as { message?: unknown }).message;
+      this.rejectAll(new Error(`worker error${typeof message === "string" && message ? `: ${message}` : ""}`));
+    };
+    worker.addEventListener("error", onFailure);
+    worker.addEventListener("messageerror", onFailure);
   }
 
   /** Browser only: spawns the simulation Web Worker. */
@@ -33,6 +41,7 @@ export class SimClient {
   }
 
   private request<K extends WorkerCommand["type"]>(cmd: Extract<WorkerCommand, { type: K }>): Promise<CommandResults[K]> {
+    if (this.terminated) return Promise.reject(new Error("worker terminated"));
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve: resolve as (result: unknown) => void, reject });
@@ -64,8 +73,14 @@ export class SimClient {
 
   /** Stops the worker and rejects anything still waiting. */
   terminate(): void {
+    this.terminated = true;
     this.worker.terminate();
-    for (const p of this.pending.values()) p.reject(new Error("worker terminated"));
+    this.rejectAll(new Error("worker terminated"));
+  }
+
+  private rejectAll(error: Error): void {
+    const pending = [...this.pending.values()];
     this.pending.clear();
+    for (const p of pending) p.reject(error);
   }
 }
