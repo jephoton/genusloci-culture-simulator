@@ -1,6 +1,6 @@
 # Genus Loci — Design Spec
 
-- **Repo:** `jephoton/genusloci-culture-simulator` (planned; not yet created)
+- **Repo:** https://github.com/jephoton/genusloci-culture-simulator
 - **Hackathon:** Qloo Agentic Hackathon ("Agents, but with taste"), deadline 2026-10-31 11:45 GMT+8
 - **Status:** Draft skeleton, approved in brainstorming 2026-10-09. Expected to be refined during build.
 

@@ -2,10 +2,10 @@
 
 <!-- generated: maintained by agents -->
 
-**Phase:** Plan 1 complete (scaffold + sim core), on branch `feat/plan-01-sim-core`. Next: Plan 2 (sim ecology).
+**Phase:** Plan 1 complete (scaffold + sim core), merged to `main`. Next: Plan 2 (sim ecology).
 
 ## Done
-- Concept, name (**Genus Loci**), design spec, roadmap. Planned repo: `jephoton/genusloci-culture-simulator` (not created yet).
+- Concept, name (**Genus Loci**), design spec, roadmap. Repo: https://github.com/jephoton/genusloci-culture-simulator (public, MIT).
 - **Plan 1:**
   - Next.js 16 scaffold; Vitest/zod/tsx tooling.
   - World schema and a synthetic fixture.
