@@ -1,4 +1,5 @@
 import { pointInPolygon as pointInRing } from "@/geo/geometry";
+import { buildRoadGraph, type RoadGraph } from "@/render/routes";
 import { createRng } from "@/sim/rng";
 import { toLocalMetres } from "@/world/projection";
 import type { VenueKind, World } from "@/world/schema";
@@ -92,6 +93,8 @@ export type CityLayout = {
   roads: { kind: "major" | "minor"; points: XZ[] }[];
   water: XZ[][];
   parks: XZ[][];
+  /** Routable street network built from `roads` (largest connected component only). */
+  graph: RoadGraph;
 };
 
 /** Deterministic integer hash → [0, 1). */
@@ -814,5 +817,6 @@ export function buildLayout(world: World, seed = 1): CityLayout {
     roads,
     water,
     parks,
+    graph: buildRoadGraph(roads),
   };
 }
