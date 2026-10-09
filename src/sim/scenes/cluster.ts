@@ -21,7 +21,10 @@ function genomeNorm(g: Genomes, agent: number): number {
 
 /** Cosine similarity between an agent's sparse genome and a unit-length dense centroid. */
 export function simToCentroid(g: Genomes, agent: number, centroid: Float32Array): number {
-  const norm = genomeNorm(g, agent);
+  return simWithNorm(g, agent, centroid, genomeNorm(g, agent));
+}
+
+function simWithNorm(g: Genomes, agent: number, centroid: Float32Array, norm: number): number {
   if (norm === 0) return 0;
   let dot = 0;
   for (let k = 0; k < GENOME_CAP; k++) {
@@ -33,7 +36,10 @@ export function simToCentroid(g: Genomes, agent: number, centroid: Float32Array)
 
 /** Adds the agent's unit-normalised genome into a dense vector. */
 function addInto(out: Float32Array, g: Genomes, agent: number): void {
-  const norm = genomeNorm(g, agent);
+  addIntoWithNorm(out, g, agent, genomeNorm(g, agent));
+}
+
+function addIntoWithNorm(out: Float32Array, g: Genomes, agent: number, norm: number): void {
   if (norm === 0) return;
   for (let k = 0; k < GENOME_CAP; k++) {
     const slot = agent * GENOME_CAP + k;
@@ -58,13 +64,20 @@ function normalize(v: Float32Array): boolean {
   return true;
 }
 
-function assign(s: SimState, centroids: Float32Array[]): Int32Array {
+/** Per slot genome norm; 0 for dead slots and empty genomes. */
+function genomeNorms(s: SimState): Float64Array {
+  const norms = new Float64Array(s.alive.length);
+  for (let i = 0; i < norms.length; i++) if (s.alive[i]) norms[i] = genomeNorm(s.genomes, i);
+  return norms;
+}
+
+function assign(s: SimState, centroids: Float32Array[], norms: Float64Array): Int32Array {
   const out = new Int32Array(s.alive.length).fill(-1);
   for (let i = 0; i < s.alive.length; i++) {
     if (!s.alive[i]) continue;
     let best = 0;
     for (let c = 0; c < centroids.length; c++) {
-      const sim = simToCentroid(s.genomes, i, centroids[c]);
+      const sim = simWithNorm(s.genomes, i, centroids[c], norms[i]);
       if (sim > best) {
         best = sim;
         out[i] = c;
@@ -84,25 +97,26 @@ export function clusterAgents(s: SimState, seeds: Float32Array[], rng: Rng): Clu
   const { config, genomes } = s;
   const nE = s.cw.nEntities;
   const n = s.alive.length;
+  const norms = genomeNorms(s);
   let centroids: Float32Array[] = seeds.map((c) => Float32Array.from(c));
 
   for (let t = 0; t < config.sceneSample && centroids.length < config.maxScenes; t++) {
     const i = rng.int(n);
-    if (!s.alive[i] || genomeNorm(genomes, i) === 0) continue;
+    if (!s.alive[i] || norms[i] === 0) continue;
     let best = 0;
-    for (const c of centroids) best = Math.max(best, simToCentroid(genomes, i, c));
+    for (const c of centroids) best = Math.max(best, simWithNorm(genomes, i, c, norms[i]));
     if (best < config.newSceneThreshold) centroids.push(agentVector(genomes, i, nE));
   }
 
   for (let iter = 0; iter < config.kmeansIters && centroids.length > 0; iter++) {
-    const assignment = assign(s, centroids);
+    const assignment = assign(s, centroids, norms);
     const sums = centroids.map(() => new Float32Array(nE));
     const counts = new Int32Array(centroids.length);
     for (let i = 0; i < n; i++) {
       const c = assignment[i];
       if (c < 0) continue;
       counts[c]++;
-      addInto(sums[c], genomes, i);
+      addIntoWithNorm(sums[c], genomes, i, norms[i]);
     }
     const kept: Float32Array[] = [];
     sums.forEach((v, c) => {
@@ -111,7 +125,7 @@ export function clusterAgents(s: SimState, seeds: Float32Array[], rng: Rng): Clu
     centroids = kept;
   }
 
-  const assignment = assign(s, centroids);
+  const assignment = assign(s, centroids, norms);
   const sizes = centroids.map(() => 0);
   for (const c of assignment) if (c >= 0) sizes[c]++;
   return { centroids, assignment, sizes };
