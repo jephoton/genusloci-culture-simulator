@@ -1,7 +1,21 @@
 import type { SimState } from "@/sim/state";
 import { distKm, writeVenueProfile } from "@/sim/world-index";
 
-/** Adds a venue in the next free slot and returns the slot, or -1 if the table is full. */
+/** Lowest slot holding a closed, expired event (reusable), or -1. Permanent closed venues are history and never reused. */
+function reusableSlot(s: SimState): number {
+  for (let v = 0; v < s.nVenues; v++) if (s.venueOpen[v] === 0 && s.venueExpires[v] >= 0) return v;
+  return -1;
+}
+
+/** True if addVenue would succeed: a closed expired event slot or an unused slot is available. */
+export function hasVenueRoom(s: SimState): boolean {
+  return s.nVenues < s.venueEntity.length || reusableSlot(s) >= 0;
+}
+
+/**
+ * Adds a venue and returns its slot, or -1 if the table is full. Reuses the lowest closed expired
+ * event slot first; otherwise appends at nVenues. Closed permanent venues are never reused.
+ */
 export function addVenue(
   s: SimState,
   entity: number,
@@ -10,8 +24,11 @@ export function addVenue(
   expires = -1,
   reachKm = 0,
 ): number {
-  const v = s.nVenues;
-  if (v >= s.venueEntity.length) return -1;
+  let v = reusableSlot(s);
+  if (v < 0) {
+    v = s.nVenues;
+    if (v >= s.venueEntity.length) return -1;
+  }
   s.venueEntity[v] = entity;
   s.venueCell[v] = cell;
   s.venueCapacity[v] = capacity;
@@ -22,7 +39,7 @@ export function addVenue(
   s.venueAttendance[v] = 0;
   s.venueExpires[v] = expires;
   s.venueReach[v] = reachKm;
-  s.nVenues = v + 1;
+  if (v === s.nVenues) s.nVenues = v + 1;
   return v;
 }
 

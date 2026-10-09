@@ -2,7 +2,7 @@ import type { Action, ActionResult } from "@/sim/actions/schema";
 import { GENOME_CAP } from "@/sim/genome";
 import type { Rng } from "@/sim/rng";
 import { agentsByCell, chooseFriends, seedGenome, type SimState } from "@/sim/state";
-import { activeEvents, addVenue, buildNearbyVenues } from "@/sim/venue-table";
+import { activeEvents, addVenue, buildNearbyVenues, hasVenueRoom } from "@/sim/venue-table";
 import { DEFAULT_VENUE_CAPACITY } from "@/sim/world-index";
 
 export const MAX_RENT = 5;
@@ -13,7 +13,7 @@ type MigrateAction = Extract<Action, { type: "migrate" }>;
 export function validateAction(s: SimState, a: Action): string | null {
   const nE = s.cw.nEntities;
   const nC = s.cw.nCells;
-  const venueRoom = s.nVenues < s.venueEntity.length;
+  const venueRoom = hasVenueRoom(s);
   switch (a.type) {
     case "closeVenue":
       if (a.venue >= s.nVenues) return `unknown venue ${a.venue}`;
