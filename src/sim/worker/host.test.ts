@@ -52,6 +52,13 @@ describe("SimHost", () => {
     expect(ok(send(host, { type: "digest", timeline: "main" })).digest.tick).toBe(2);
   });
 
+  it("rejects unknown commands", () => {
+    const host = new SimHost();
+    const res = host.handle({ id: 1, type: "bogus" } as never);
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toMatch(/unknown command/);
+  });
+
   it("returns errors instead of throwing", () => {
     const host = new SimHost();
     expect(send(host, { type: "init", world: { nope: true }, seed: 1 }).ok).toBe(false);
