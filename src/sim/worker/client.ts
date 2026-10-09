@@ -1,11 +1,12 @@
 import type { Action } from "@/sim/actions/schema";
 import type { SimConfig } from "@/sim/config";
-import type { CommandResults, WorkerCommand, WorkerResponse } from "@/sim/worker/protocol";
+import type { Frame } from "@/sim/frame";
+import type { CommandResults, WorkerCommand, WorkerMessage } from "@/sim/worker/protocol";
 
 /** The subset of the Worker API the client needs (lets tests use an in-process fake). */
 export type WorkerLike = {
   postMessage(message: unknown): void;
-  addEventListener(type: "message", listener: (e: MessageEvent<WorkerResponse>) => void): void;
+  addEventListener(type: "message", listener: (e: MessageEvent<WorkerMessage>) => void): void;
   addEventListener(type: "error" | "messageerror", listener: (e: Event) => void): void;
   terminate(): void;
 };
@@ -17,14 +18,20 @@ export class SimClient {
   private nextId = 1;
   private readonly pending = new Map<number, Pending>();
   private terminated = false;
+  private readonly frameListeners = new Set<(frame: Frame) => void>();
 
   constructor(private readonly worker: WorkerLike) {
     worker.addEventListener("message", (e) => {
-      const p = this.pending.get(e.data.id);
+      const data = e.data;
+      if ("kind" in data) {
+        for (const listener of this.frameListeners) listener(data.frame);
+        return;
+      }
+      const p = this.pending.get(data.id);
       if (!p) return;
-      this.pending.delete(e.data.id);
-      if (e.data.ok) p.resolve(e.data.result);
-      else p.reject(new Error(e.data.error));
+      this.pending.delete(data.id);
+      if (data.ok) p.resolve(data.result);
+      else p.reject(new Error(data.error));
     });
     const onFailure = (e: Event) => {
       const message = (e as { message?: unknown }).message;
@@ -69,6 +76,22 @@ export class SimClient {
   }
   dispose(timeline: string) {
     return this.request<"dispose">({ type: "dispose", timeline });
+  }
+  /** Subscribes to frames pushed while playing; returns an unsubscribe function. */
+  onFrame(listener: (frame: Frame) => void): () => void {
+    this.frameListeners.add(listener);
+    return () => {
+      this.frameListeners.delete(listener);
+    };
+  }
+  play(timeline: string, ticksPerSecond: number) {
+    return this.request<"play">({ type: "play", timeline, ticksPerSecond });
+  }
+  pause() {
+    return this.request<"pause">({ type: "pause" });
+  }
+  frame(timeline: string) {
+    return this.request<"frame">({ type: "frame", timeline });
   }
 
   /** Stops the worker and rejects anything still waiting. */
