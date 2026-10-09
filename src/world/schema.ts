@@ -6,6 +6,11 @@ export const ENTITY_TYPES = [
   "podcast", "video_game", "destination", "person", "tag",
 ] as const;
 
+/** Landmark styles for venues (Plan 4 maps Qloo tags to these). */
+export const VENUE_KINDS = [
+  "club", "bar", "cafe", "restaurant", "gallery", "music_venue", "shop", "stadium", "other",
+] as const;
+
 const index = z.number().int().nonnegative();
 
 export const EntitySchema = z.object({
@@ -18,6 +23,8 @@ export const EntitySchema = z.object({
   cell: index.optional(),
   /** Visitors per tick at which the venue counts as full. */
   capacity: z.number().positive().optional(),
+  /** Landmark style for venues. */
+  kind: z.enum(VENUE_KINDS).optional(),
 });
 
 export const EdgeSchema = z.object({
@@ -48,6 +55,16 @@ export const HeatmapSchema = z.object({
   values: z.array(z.number()),
 });
 
+const point = z.tuple([z.number(), z.number()]);
+
+/** City geometry in local metres relative to `city` (x east, y north). From OpenStreetMap in real worlds. */
+export const GeoSchema = z.object({
+  bounds: z.object({ minX: z.number(), minY: z.number(), maxX: z.number(), maxY: z.number() }),
+  roads: z.array(z.object({ kind: z.enum(["major", "minor"]), points: z.array(point).min(2) })),
+  water: z.array(z.array(point).min(3)),
+  parks: z.array(z.array(point).min(3)),
+});
+
 export const WorldSchema = z
   .object({
     version: z.literal(1),
@@ -57,6 +74,7 @@ export const WorldSchema = z
     cells: z.array(CellSchema).min(1),
     archetypes: z.array(ArchetypeSchema).min(1),
     heatmaps: z.array(HeatmapSchema),
+    geo: GeoSchema.optional(),
   })
   .superRefine((w, ctx) => {
     const nE = w.entities.length;
@@ -83,10 +101,15 @@ export const WorldSchema = z
       if (h.entity >= nE) fail(`heatmaps[${i}] references a missing entity`);
       if (h.values.length !== nC) fail(`heatmaps[${i}] must have one value per cell`);
     });
+    if (w.geo && (w.geo.bounds.minX >= w.geo.bounds.maxX || w.geo.bounds.minY >= w.geo.bounds.maxY)) {
+      fail("geo.bounds must have min < max");
+    }
   });
 
 export type World = z.infer<typeof WorldSchema>;
 export type EntityType = (typeof ENTITY_TYPES)[number];
+export type VenueKind = (typeof VENUE_KINDS)[number];
+export type Geo = z.infer<typeof GeoSchema>;
 
 export function parseWorld(json: unknown): World {
   return WorldSchema.parse(json);

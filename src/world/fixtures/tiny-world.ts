@@ -1,5 +1,6 @@
 import { createRng } from "@/sim/rng";
-import type { World } from "@/world/schema";
+import { syntheticGeo } from "@/world/fixtures/synthetic-geo";
+import { VENUE_KINDS, type World } from "@/world/schema";
 
 /**
  * Deterministic synthetic World for tests and benchmarks.
@@ -28,7 +29,9 @@ export function makeTinyWorld(
         type: isVenue ? "place" : "artist",
         tags: [`syn:genre:${c}`],
         popularity: rng.next(),
-        ...(isVenue ? { cell: rng.int(nCells), capacity: 50 } : {}),
+        ...(isVenue
+          ? { cell: rng.int(nCells), capacity: 50, kind: VENUE_KINDS[(c * VENUES_PER_CLUSTER + j) % VENUE_KINDS.length] }
+          : {}),
       });
     }
   }
@@ -79,5 +82,6 @@ export function makeTinyWorld(
     });
   }
 
-  return { version: 1, city: { name: "Synthville", lat: 51.5, lon: -0.1 }, entities, edges, cells, archetypes, heatmaps };
+  const city = { name: "Synthville", lat: 51.5, lon: -0.1 };
+  return { version: 1, city, entities, edges, cells, archetypes, heatmaps, geo: syntheticGeo(cells, city) };
 }
