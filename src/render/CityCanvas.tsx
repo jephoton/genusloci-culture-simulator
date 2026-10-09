@@ -3,9 +3,11 @@
 import { MapControls } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
-import type { RefObject } from "react";
+import { type RefObject, useMemo } from "react";
 import { Buildings } from "@/render/Buildings";
 import { Crowd } from "@/render/Crowd";
+import { Effects } from "@/render/effects/Effects";
+import { ShockwaveEffect } from "@/render/effects/ShockwaveEffect";
 import type { FrameStore } from "@/render/frame-store";
 import { Ground } from "@/render/Ground";
 import { Landmarks } from "@/render/Landmarks";
@@ -29,6 +31,7 @@ export type CityCanvasProps = {
 
 export function CityCanvas(props: CityCanvasProps) {
   const { layout } = props;
+  const shockwave = useMemo(() => new ShockwaveEffect(), []);
   const size = Math.max(layout.bounds.maxX - layout.bounds.minX, layout.bounds.maxZ - layout.bounds.minZ);
   const { x, z } = layout.center;
   return (
@@ -47,6 +50,7 @@ export function CityCanvas(props: CityCanvasProps) {
         <Buildings layout={layout} />
         <Landmarks world={props.world} layout={layout} frame={props.frame} selected={props.selectedVenue} onSelect={props.onVenueClick} />
         <Crowd world={props.world} layout={layout} frames={props.frames} slots={props.agentSlots} tickMs={props.tickMs} />
+        <Effects world={props.world} layout={layout} frames={props.frames} shockwave={shockwave} />
         <MapControls
           makeDefault
           target={[x, 0, z]}
@@ -59,6 +63,7 @@ export function CityCanvas(props: CityCanvasProps) {
           maxDistance={size * 1.6}
         />
         <EffectComposer>
+          <primitive object={shockwave} />
           <Bloom mipmapBlur intensity={1.15} luminanceThreshold={0.55} luminanceSmoothing={0.25} />
           <Vignette offset={0.25} darkness={0.75} />
         </EffectComposer>

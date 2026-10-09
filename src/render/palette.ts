@@ -37,3 +37,14 @@ export function hslToRgb(h: number, s: number, l: number): Rgb {
 export function sceneRgb(hues: Float32Array, id: number): Rgb {
   return id < 0 || id >= hues.length ? UNASSIGNED_RGB : hslToRgb(hues[id], 0.85, 0.6);
 }
+
+const hueCache = new WeakMap<ArrayLike<number>, Float32Array>();
+/** sceneHues, computed once per lineage-parents array. */
+export function sceneHuesOf(parents: Int32Array): Float32Array {
+  let hues = hueCache.get(parents);
+  if (!hues) {
+    hues = sceneHues(parents);
+    hueCache.set(parents, hues);
+  }
+  return hues;
+}

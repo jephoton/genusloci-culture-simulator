@@ -3,8 +3,8 @@
 import type { ThreeEvent } from "@react-three/fiber";
 import { type ReactNode, useMemo } from "react";
 import { type CityLayout, LANDMARK_RADIUS, LANDMARK_SCALE } from "@/render/layout";
-import { type Rgb, sceneHues, sceneRgb } from "@/render/palette";
-import { type VenueView, venueViews } from "@/render/venues";
+import { type Rgb, sceneHuesOf, sceneRgb } from "@/render/palette";
+import { type VenueView, venueViewsOf } from "@/render/venues";
 import type { Frame } from "@/sim/frame";
 import type { VenueKind, World } from "@/world/schema";
 
@@ -127,8 +127,8 @@ export function Landmarks({
   selected: number | null;
   onSelect: (slot: number) => void;
 }) {
-  const views = useMemo(() => (frame ? venueViews(frame, layout, world) : []), [frame, layout, world]);
-  const hues = useMemo(() => (frame ? sceneHues(frame.lineageParents) : new Float32Array(0)), [frame]);
+  const views = useMemo(() => (frame ? venueViewsOf(frame, layout, world) : []), [frame, layout, world]);
+  const hues = useMemo(() => (frame ? sceneHuesOf(frame.lineageParents) : new Float32Array(0)), [frame]);
   return (
     <group>
       {views.map((v) => (

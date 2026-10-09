@@ -5,8 +5,8 @@ import { type RefObject, useLayoutEffect, useRef } from "react";
 import * as THREE from "three";
 import type { FrameStore } from "@/render/frame-store";
 import { agentHomePosition, type CityLayout, hash01, LANDMARK_RADIUS } from "@/render/layout";
-import { sceneHues, sceneRgb } from "@/render/palette";
-import { venueViews } from "@/render/venues";
+import { sceneHuesOf, sceneRgb } from "@/render/palette";
+import { venueViewsOf } from "@/render/venues";
 import type { Frame } from "@/sim/frame";
 import type { World } from "@/world/schema";
 
@@ -77,8 +77,8 @@ export function Crowd({
     const n = Math.min(slots, frame.alive.length);
 
     if (frame !== m.frame) {
-      const venues = venueViews(frame, layout, world);
-      const hues = sceneHues(frame.lineageParents);
+      const venues = venueViewsOf(frame, layout, world);
+      const hues = sceneHuesOf(frame.lineageParents);
       for (let i = 0; i < n; i++) {
         if (!frame.alive[i]) {
           m.placed[i] = 0;

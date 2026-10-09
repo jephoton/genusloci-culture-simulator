@@ -58,3 +58,14 @@ export function venueViews(frame: Frame, layout: CityLayout, world: World): Venu
   }
   return views;
 }
+
+const viewCache = new WeakMap<Frame, VenueView[]>();
+/** venueViews, computed once per frame object (layout and world are stable for a frame's lifetime). */
+export function venueViewsOf(frame: Frame, layout: CityLayout, world: World): VenueView[] {
+  let views = viewCache.get(frame);
+  if (!views) {
+    views = venueViews(frame, layout, world);
+    viewCache.set(frame, views);
+  }
+  return views;
+}
