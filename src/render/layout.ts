@@ -31,10 +31,15 @@ export const PAD_CLEARANCE = LANDMARK_SCALE * Math.max(...Object.values(LANDMARK
 export const ROAD_HALF_WIDTH = { major: 1.2, minor: 0.6 } as const;
 /** Spacing (scene units) of the candidate grid searched for landmark pads. */
 const PAD_STEP = 2;
-const PAD_HASH_CELL = 32;
 const MAX_BUILDINGS = 16000;
 const CANDIDATES = 60000;
-const HASH_CELL = 8;
+/** Largest building footprint radius: half the diagonal of a 7 × 7 footprint. */
+const MAX_BUILDING_RADIUS = Math.hypot(7, 7) / 2;
+const BUILDING_GAP = 0.4;
+/** Grid cell sizes (scene units), matched to the radii their queries reach. */
+const ROAD_GRID_CELL = 4;
+const AREA_GRID_CELL = 8;
+const BUILDING_GRID_CELL = 8;
 
 export type XZ = [number, number];
 
@@ -74,12 +79,16 @@ export function hash01(n: number): number {
 
 const toScene = (x: number, y: number): XZ => [x / METRES_PER_UNIT, -y / METRES_PER_UNIT];
 
-export function distToSegment(px: number, pz: number, a: XZ, b: XZ): number {
-  const dx = b[0] - a[0];
-  const dz = b[1] - a[1];
+function segDist(px: number, pz: number, ax: number, az: number, bx: number, bz: number): number {
+  const dx = bx - ax;
+  const dz = bz - az;
   const len2 = dx * dx + dz * dz;
-  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((px - a[0]) * dx + (pz - a[1]) * dz) / len2));
-  return Math.hypot(px - (a[0] + t * dx), pz - (a[1] + t * dz));
+  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / len2));
+  return Math.hypot(px - (ax + t * dx), pz - (az + t * dz));
+}
+
+export function distToSegment(px: number, pz: number, a: XZ, b: XZ): number {
+  return segDist(px, pz, a[0], a[1], b[0], b[1]);
 }
 
 /** Even-odd point-in-polygon on scene x/z (re-exported from the shared geometry module). */
@@ -87,38 +96,70 @@ export function pointInPolygon(x: number, z: number, poly: XZ[]): boolean {
   return pointInRing(x, z, poly);
 }
 
-/** Uniform-grid spatial hash over axis-aligned boxes. */
-class SpatialHash<T> {
-  private readonly cells = new Map<string, T[]>();
-  constructor(private readonly size = HASH_CELL) {}
-  add(x0: number, z0: number, x1: number, z1: number, item: T): void {
-    const size = this.size;
-    for (let i = Math.floor(x0 / size); i <= Math.floor(x1 / size); i++) {
-      for (let j = Math.floor(z0 / size); j <= Math.floor(z1 / size); j++) {
-        const key = `${i},${j}`;
-        const list = this.cells.get(key);
-        if (list) list.push(item);
-        else this.cells.set(key, [item]);
+/**
+ * Uniform grid over a fixed extent; each grid cell lists the ids of the boxes that overlap it. Points
+ * outside the extent clamp to the border cells, so queries stay exact anywhere. Ids must be small
+ * non-negative integers; each query visits an id once even when its box spans several grid cells.
+ */
+class Grid {
+  private readonly cells: (number[] | undefined)[];
+  private readonly nx: number;
+  private readonly nz: number;
+  private seen = new Int32Array(64);
+  private stamp = 0;
+  constructor(
+    private readonly minX: number,
+    private readonly minZ: number,
+    maxX: number,
+    maxZ: number,
+    private readonly size: number,
+  ) {
+    this.nx = Math.max(1, Math.ceil((maxX - minX) / size));
+    this.nz = Math.max(1, Math.ceil((maxZ - minZ) / size));
+    this.cells = new Array(this.nx * this.nz);
+  }
+  private ix(x: number): number {
+    const i = Math.floor((x - this.minX) / this.size);
+    return i < 0 ? 0 : i >= this.nx ? this.nx - 1 : i;
+  }
+  private iz(z: number): number {
+    const j = Math.floor((z - this.minZ) / this.size);
+    return j < 0 ? 0 : j >= this.nz ? this.nz - 1 : j;
+  }
+  add(x0: number, z0: number, x1: number, z1: number, id: number): void {
+    if (id >= this.seen.length) {
+      const grown = new Int32Array(Math.max(id + 1, this.seen.length * 2));
+      grown.set(this.seen);
+      this.seen = grown;
+    }
+    const i1 = this.ix(x1);
+    const j1 = this.iz(z1);
+    for (let j = this.iz(z0); j <= j1; j++) {
+      for (let i = this.ix(x0); i <= i1; i++) {
+        const k = j * this.nx + i;
+        const list = this.cells[k];
+        if (list) list.push(id);
+        else this.cells[k] = [id];
       }
     }
   }
-  near(x: number, z: number, r: number): T[] {
-    const out = new Set<T>();
-    const size = this.size;
-    for (let i = Math.floor((x - r) / size); i <= Math.floor((x + r) / size); i++) {
-      for (let j = Math.floor((z - r) / size); j <= Math.floor((z + r) / size); j++) {
-        for (const item of this.cells.get(`${i},${j}`) ?? []) out.add(item);
-      }
-    }
-    return [...out];
-  }
-  /** Allocation-free variant of near(): an item spanning several hash cells may be visited more than once. */
-  forEachNear(x: number, z: number, r: number, fn: (item: T) => void): void {
-    const size = this.size;
-    for (let i = Math.floor((x - r) / size); i <= Math.floor((x + r) / size); i++) {
-      for (let j = Math.floor((z - r) / size); j <= Math.floor((z + r) / size); j++) {
-        const list = this.cells.get(`${i},${j}`);
-        if (list) for (let k = 0; k < list.length; k++) fn(list[k]);
+  /** Visits the id of every box that may overlap the square of half-size r around (x, z). */
+  forEachNear(x: number, z: number, r: number, fn: (id: number) => void): void {
+    const seen = this.seen;
+    const stamp = ++this.stamp;
+    const i0 = this.ix(x - r);
+    const i1 = this.ix(x + r);
+    const j1 = this.iz(z + r);
+    for (let j = this.iz(z - r); j <= j1; j++) {
+      for (let i = i0; i <= i1; i++) {
+        const list = this.cells[j * this.nx + i];
+        if (!list) continue;
+        for (let k = 0; k < list.length; k++) {
+          const id = list[k];
+          if (seen[id] === stamp) continue;
+          seen[id] = stamp;
+          fn(id);
+        }
       }
     }
   }
@@ -149,18 +190,112 @@ export function agentHomePosition(layout: CityLayout, cell: number, agent: numbe
   return [layout.cellX[cell] + r * Math.cos(a), layout.cellZ[cell] + r * Math.sin(a)];
 }
 
-type RoadSegment = { a: XZ; b: XZ; half: number };
+/** Roads, water and parks indexed in uniform grids for clearance queries. */
+type Obstacles = {
+  /** 5 per road segment: ax, az, bx, bz, half-width. */
+  segs: Float64Array;
+  roadGrid: Grid;
+  polys: XZ[][];
+  /** 4 per polygon: minX, minZ, maxX, maxZ. */
+  polyBox: Float64Array;
+  boxGrid: Grid;
+  /** 4 per polygon edge: ax, az, bx, bz. */
+  edges: Float64Array;
+  edgeGrid: Grid;
+};
 
-function addSegment(hash: SpatialHash<RoadSegment>, s: RoadSegment): void {
-  const { a, b, half } = s;
-  hash.add(Math.min(a[0], b[0]) - half, Math.min(a[1], b[1]) - half, Math.max(a[0], b[0]) + half, Math.max(a[1], b[1]) + half, s);
+function indexObstacles(bounds: CityLayout["bounds"], roads: CityLayout["roads"], areas: XZ[][]): Obstacles {
+  const { minX, minZ, maxX, maxZ } = bounds;
+  const segs = new Float64Array(roads.reduce((a, r) => a + r.points.length - 1, 0) * 5);
+  const roadGrid = new Grid(minX, minZ, maxX, maxZ, ROAD_GRID_CELL);
+  let s = 0;
+  for (const r of roads) {
+    const half = ROAD_HALF_WIDTH[r.kind];
+    for (let i = 1; i < r.points.length; i++, s++) {
+      const [ax, az] = r.points[i - 1];
+      const [bx, bz] = r.points[i];
+      segs.set([ax, az, bx, bz, half], s * 5);
+      roadGrid.add(Math.min(ax, bx) - half, Math.min(az, bz) - half, Math.max(ax, bx) + half, Math.max(az, bz) + half, s);
+    }
+  }
+  const polyBox = new Float64Array(areas.length * 4);
+  const boxGrid = new Grid(minX, minZ, maxX, maxZ, AREA_GRID_CELL);
+  const edges = new Float64Array(areas.reduce((a, p) => a + p.length, 0) * 4);
+  const edgeGrid = new Grid(minX, minZ, maxX, maxZ, AREA_GRID_CELL);
+  let e = 0;
+  areas.forEach((poly, p) => {
+    let x0 = Infinity;
+    let z0 = Infinity;
+    let x1 = -Infinity;
+    let z1 = -Infinity;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++, e++) {
+      const [ax, az] = poly[j];
+      const [bx, bz] = poly[i];
+      edges.set([ax, az, bx, bz], e * 4);
+      edgeGrid.add(Math.min(ax, bx), Math.min(az, bz), Math.max(ax, bx), Math.max(az, bz), e);
+      x0 = Math.min(x0, bx);
+      z0 = Math.min(z0, bz);
+      x1 = Math.max(x1, bx);
+      z1 = Math.max(z1, bz);
+    }
+    polyBox.set([x0, z0, x1, z1], p * 4);
+    boxGrid.add(x0, z0, x1, z1, p);
+  });
+  return { segs, roadGrid, polys: areas, polyBox, boxGrid, edges, edgeGrid };
 }
 
-/** Distance from a point to a polygon's boundary, negative when the point is inside. */
-function signedDistToPolygon(x: number, z: number, poly: XZ[]): number {
-  let d = Infinity;
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) d = Math.min(d, distToSegment(x, z, poly[j], poly[i]));
-  return pointInPolygon(x, z, poly) ? -d : d;
+/** Distance from (x, z) to the nearest road edge (centreline distance minus half-width), capped at `cap`. */
+function roadRoom(o: Obstacles, x: number, z: number, cap: number): number {
+  let c = cap;
+  const segs = o.segs;
+  o.roadGrid.forEachNear(x, z, cap + ROAD_HALF_WIDTH.major, (s) => {
+    const k = s * 5;
+    const d = segDist(x, z, segs[k], segs[k + 1], segs[k + 2], segs[k + 3]) - segs[k + 4];
+    if (d < c) c = d;
+  });
+  return c;
+}
+
+function insideArea(o: Obstacles, x: number, z: number): boolean {
+  let inside = false;
+  const b = o.polyBox;
+  o.boxGrid.forEachNear(x, z, 0, (p) => {
+    const k = p * 4;
+    if (!inside && x >= b[k] && x <= b[k + 2] && z >= b[k + 1] && z <= b[k + 3] && pointInPolygon(x, z, o.polys[p])) inside = true;
+  });
+  return inside;
+}
+
+/** Signed distance from (x, z) to the nearest water or park boundary, capped at ±`cap`: negative inside. */
+function areaRoom(o: Obstacles, x: number, z: number, cap: number): number {
+  let c = cap;
+  const edges = o.edges;
+  o.edgeGrid.forEachNear(x, z, cap, (e) => {
+    const k = e * 4;
+    const d = segDist(x, z, edges[k], edges[k + 1], edges[k + 2], edges[k + 3]);
+    if (d < c) c = d;
+  });
+  return insideArea(o, x, z) ? -c : c;
+}
+
+/** Exact nearest cell via a grid of cell centres; falls back to a full scan far from every cell. */
+function cellFinder(cellX: Float32Array, cellZ: Float32Array, spacing: number, bounds: CityLayout["bounds"]): (x: number, z: number) => number {
+  const grid = new Grid(bounds.minX, bounds.minZ, bounds.maxX, bounds.maxZ, spacing);
+  for (let c = 0; c < cellX.length; c++) grid.add(cellX[c], cellZ[c], cellX[c], cellZ[c], c);
+  const reach = spacing * 1.5;
+  return (x, z) => {
+    let best = -1;
+    let bestD = Infinity;
+    grid.forEachNear(x, z, reach, (c) => {
+      const d = (cellX[c] - x) ** 2 + (cellZ[c] - z) ** 2;
+      if (d < bestD || (d === bestD && c < best)) {
+        bestD = d;
+        best = c;
+      }
+    });
+    // Every cell within `reach` was visited, so a winner that close is the true nearest.
+    return best >= 0 && bestD <= reach * reach ? best : nearestCell({ cellX, cellZ }, x, z);
+  };
 }
 
 /**
@@ -170,28 +305,19 @@ function signedDistToPolygon(x: number, z: number, poly: XZ[]): number {
  * A cell short of valid spots falls back to the candidates that break those rules the least.
  */
 function placePads({
-  cellX, cellZ, spacing, segments, areas,
+  cellX, cellZ, spacing, bounds, obstacles, nearest,
 }: {
   cellX: Float32Array;
   cellZ: Float32Array;
   spacing: number;
-  segments: RoadSegment[];
-  areas: XZ[][];
+  bounds: CityLayout["bounds"];
+  obstacles: Obstacles;
+  nearest: (x: number, z: number) => number;
 }): { pads: Float32Array; fallbackPads: number } {
   const nC = cellX.length;
-  // Coarser than the building hash: each pad query reaches ~9 units, so this keeps it to a few cells.
-  const roadHash = new SpatialHash<RoadSegment>(PAD_HASH_CELL);
-  for (const s of segments) addSegment(roadHash, s);
-  const boxes = areas.map((poly) => ({
-    poly,
-    minX: Math.min(...poly.map((p) => p[0])) - PAD_CLEARANCE,
-    maxX: Math.max(...poly.map((p) => p[0])) + PAD_CLEARANCE,
-    minZ: Math.min(...poly.map((p) => p[1])) - PAD_CLEARANCE,
-    maxZ: Math.max(...poly.map((p) => p[1])) + PAD_CLEARANCE,
-  }));
   const pads = new Float32Array(nC * PADS_PER_CELL * 2);
-  const placed = new SpatialHash<XZ>();
   const minGap = 2 * PAD_CLEARANCE;
+  const placed = new Grid(bounds.minX, bounds.minZ, bounds.maxX, bounds.maxZ, minGap);
   let fallbackPads = 0;
 
   const n = Math.floor(spacing / PAD_STEP);
@@ -206,54 +332,49 @@ function placePads({
 
   /** How far (scene units) a spot is from breaking the road and area rules; negative when it breaks one. */
   const siteSlack = (x: number, z: number): number => {
-    let slack = Infinity;
-    roadHash.forEachNear(x, z, PAD_CLEARANCE + ROAD_HALF_WIDTH.major, (s) => {
-      slack = Math.min(slack, distToSegment(x, z, s.a, s.b) - s.half - PAD_CLEARANCE);
-    });
-    if (slack < 0) return slack;
-    for (const b of boxes) {
-      if (x >= b.minX && x <= b.maxX && z >= b.minZ && z <= b.maxZ) slack = Math.min(slack, signedDistToPolygon(x, z, b.poly) - PAD_CLEARANCE);
-    }
-    return slack;
+    const road = roadRoom(obstacles, x, z, 2 * PAD_CLEARANCE) - PAD_CLEARANCE;
+    if (road < 0) return road;
+    return Math.min(road, areaRoom(obstacles, x, z, 2 * PAD_CLEARANCE) - PAD_CLEARANCE);
   };
   const gapSlack = (x: number, z: number): number => {
     let slack = Infinity;
-    placed.forEachNear(x, z, minGap, ([px, pz]) => {
-      slack = Math.min(slack, Math.hypot(px - x, pz - z) - minGap);
+    placed.forEachNear(x, z, minGap, (k) => {
+      slack = Math.min(slack, Math.hypot(pads[k * 2] - x, pads[k * 2 + 1] - z) - minGap);
     });
     return slack;
   };
 
   for (let c = 0; c < nC; c++) {
-    const chosen: XZ[] = [];
-    const take = (p: XZ) => {
-      const k = c * PADS_PER_CELL + chosen.length;
-      pads[k * 2] = p[0];
-      pads[k * 2 + 1] = p[1];
-      placed.add(p[0], p[1], p[0], p[1], p);
-      chosen.push(p);
+    let chosen = 0;
+    const take = (x: number, z: number) => {
+      const k = c * PADS_PER_CELL + chosen;
+      pads[k * 2] = x;
+      pads[k * 2 + 1] = z;
+      placed.add(x, z, x, z, k);
+      chosen++;
     };
-    const candidates: { p: XZ; site: number }[] = [];
+    const own: { x: number; z: number; site: number }[] = [];
     for (const o of offsets) {
-      if (chosen.length === PADS_PER_CELL) break;
-      const p: XZ = [Math.fround(cellX[c] + o.dx), Math.fround(cellZ[c] + o.dz)];
-      const site = siteSlack(p[0], p[1]);
-      candidates.push({ p, site });
-      // Cheapest test first: most candidates fail the road check, and the nearest-cell scan is O(cells).
-      if (site >= 0 && gapSlack(p[0], p[1]) >= 0 && nearestCell({ cellX, cellZ }, p[0], p[1]) === c) take(p);
+      if (chosen === PADS_PER_CELL) break;
+      const x = Math.fround(cellX[c] + o.dx);
+      const z = Math.fround(cellZ[c] + o.dz);
+      if (nearest(x, z) !== c) continue;
+      const site = siteSlack(x, z);
+      own.push({ x, z, site });
+      if (site >= 0 && gapSlack(x, z) >= 0) take(x, z);
     }
-    const own = chosen.length < PADS_PER_CELL ? candidates.filter(({ p }) => nearestCell({ cellX, cellZ }, p[0], p[1]) === c) : [];
-    while (chosen.length < PADS_PER_CELL) {
+    while (chosen < PADS_PER_CELL) {
       let best: XZ = [cellX[c], cellZ[c]];
       let bestScore = -Infinity;
-      for (const { p, site } of own) {
-        const score = Math.min(site, gapSlack(p[0], p[1]));
+      for (const { x, z, site } of own) {
+        if (site <= bestScore) continue;
+        const score = Math.min(site, gapSlack(x, z));
         if (score > bestScore) {
           bestScore = score;
-          best = p;
+          best = [x, z];
         }
       }
-      take(best);
+      take(best[0], best[1]);
       fallbackPads++;
     }
   }
@@ -301,13 +422,11 @@ export function buildLayout(world: World, seed = 1): CityLayout {
   const water = (geo?.water ?? []).map((ring) => ring.map(([x, y]) => toScene(x, y)));
   const parks = (geo?.parks ?? []).map((ring) => ring.map(([x, y]) => toScene(x, y)));
 
-  const segments = roads.flatMap((r) => r.points.slice(1).map((b, i): RoadSegment => ({ a: r.points[i], b, half: ROAD_HALF_WIDTH[r.kind] })));
-  const roadHash = new SpatialHash<RoadSegment>();
-  for (const s of segments) addSegment(roadHash, s);
-
-  const { pads, fallbackPads } = placePads({ cellX, cellZ, spacing, segments, areas: [...water, ...parks] });
-  const padHash = new SpatialHash<XZ>();
-  for (let i = 0; i < pads.length; i += 2) padHash.add(pads[i], pads[i + 1], pads[i], pads[i + 1], [pads[i], pads[i + 1]]);
+  const obstacles = indexObstacles(bounds, roads, [...water, ...parks]);
+  const nearest = cellFinder(cellX, cellZ, spacing, bounds);
+  const { pads, fallbackPads } = placePads({ cellX, cellZ, spacing, bounds, obstacles, nearest });
+  const padGrid = new Grid(bounds.minX, bounds.minZ, bounds.maxX, bounds.maxZ, PAD_CLEARANCE);
+  for (let i = 0; i < pads.length / 2; i++) padGrid.add(pads[i * 2], pads[i * 2 + 1], pads[i * 2], pads[i * 2 + 1], i);
 
   const densities = world.cells.map((c) => c.density);
   const dMin = Math.min(...densities);
@@ -321,7 +440,7 @@ export function buildLayout(world: World, seed = 1): CityLayout {
   const bh = new Float32Array(MAX_BUILDINGS);
   const bs = new Float32Array(MAX_BUILDINGS);
   const br = new Float32Array(MAX_BUILDINGS);
-  const buildingHash = new SpatialHash<number>();
+  const buildingGrid = new Grid(bounds.minX, bounds.minZ, bounds.maxX, bounds.maxZ, BUILDING_GRID_CELL);
   const rng = createRng(seed);
   let count = 0;
 
@@ -333,17 +452,22 @@ export function buildLayout(world: World, seed = 1): CityLayout {
     const heightRoll = rng.next();
     const acceptRoll = rng.next();
 
-    const cell = nearestCell({ cellX, cellZ }, x, z);
+    const cell = nearest(x, z);
     if (Math.hypot(cellX[cell] - x, cellZ[cell] - z) > spacing) continue;
     const dn = norm(cell);
     if (acceptRoll > 0.35 + 0.65 * dn) continue;
 
     const radius = Math.hypot(w, d) / 2;
-    const maxHalf = ROAD_HALF_WIDTH.major;
-    if (roadHash.near(x, z, radius + maxHalf).some((s) => distToSegment(x, z, s.a, s.b) < s.half + radius)) continue;
-    if (padHash.near(x, z, radius + PAD_CLEARANCE).some(([px, pz]) => Math.hypot(px - x, pz - z) < radius + PAD_CLEARANCE)) continue;
-    if (water.some((p) => pointInPolygon(x, z, p)) || parks.some((p) => pointInPolygon(x, z, p))) continue;
-    if (buildingHash.near(x, z, radius + 4).some((j) => Math.hypot(bx[j] - x, bz[j] - z) < radius + br[j] + 0.4)) continue;
+    if (roadRoom(obstacles, x, z, radius) < radius) continue;
+    let blocked = false;
+    padGrid.forEachNear(x, z, radius + PAD_CLEARANCE, (p) => {
+      if (Math.hypot(pads[p * 2] - x, pads[p * 2 + 1] - z) < radius + PAD_CLEARANCE) blocked = true;
+    });
+    if (blocked || insideArea(obstacles, x, z)) continue;
+    buildingGrid.forEachNear(x, z, radius + MAX_BUILDING_RADIUS + BUILDING_GAP, (j) => {
+      if (Math.hypot(bx[j] - x, bz[j] - z) < radius + br[j] + BUILDING_GAP) blocked = true;
+    });
+    if (blocked) continue;
 
     bx[count] = x;
     bz[count] = z;
@@ -352,7 +476,7 @@ export function buildLayout(world: World, seed = 1): CityLayout {
     bh[count] = 1.5 + heightRoll * heightRoll * (3 + 16 * dn * dn);
     bs[count] = hash01(t + seed * 7919);
     br[count] = radius;
-    buildingHash.add(x - radius, z - radius, x + radius, z + radius, count);
+    buildingGrid.add(x - radius, z - radius, x + radius, z + radius, count);
     count++;
   }
 
