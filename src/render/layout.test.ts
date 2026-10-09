@@ -42,16 +42,19 @@ describe("buildLayout", () => {
     const b = layout.buildings;
     expect(b.count).toBeGreaterThan(500);
     const segments = layout.roads.flatMap((r) => r.points.slice(1).map((p, i) => ({ a: r.points[i], b: p, half: ROAD_HALF_WIDTH[r.kind] })));
+    // Collect violations instead of asserting per pair: millions of expect() calls are too slow.
+    const violations: string[] = [];
     for (let i = 0; i < b.count; i++) {
       const radius = Math.hypot(b.w[i], b.d[i]) / 2;
-      for (const s of segments) expect(distToSegment(b.x[i], b.z[i], s.a, s.b)).toBeGreaterThanOrEqual(s.half + radius - 1e-4);
-      for (const poly of [...layout.water, ...layout.parks]) expect(pointInPolygon(b.x[i], b.z[i], poly)).toBe(false);
+      for (const s of segments) if (distToSegment(b.x[i], b.z[i], s.a, s.b) < s.half + radius - 1e-4) violations.push(`road ${i}`);
+      for (const poly of [...layout.water, ...layout.parks]) if (pointInPolygon(b.x[i], b.z[i], poly)) violations.push(`area ${i}`);
       for (let p = 0; p < layout.pads.length; p += 2) {
-        expect(Math.hypot(layout.pads[p] - b.x[i], layout.pads[p + 1] - b.z[i])).toBeGreaterThanOrEqual(radius + PAD_CLEARANCE - 1e-4);
+        if (Math.hypot(layout.pads[p] - b.x[i], layout.pads[p + 1] - b.z[i]) < radius + PAD_CLEARANCE - 1e-4) violations.push(`pad ${i}`);
       }
-      expect(b.h[i]).toBeGreaterThan(0);
+      if (!(b.h[i] > 0)) violations.push(`height ${i}`);
     }
-  }, 60_000); // ~1.6M expect() calls: needs more than the 5 s default
+    expect(violations).toEqual([]);
+  }, 30_000);
 
   it("builds more in denser cells", () => {
     const counts = new Array(world.cells.length).fill(0);

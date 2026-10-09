@@ -8,8 +8,8 @@ export const PADS_PER_CELL = 6;
 /** Minimum distance (scene units) between a building's footprint and a landmark pad. */
 export const PAD_CLEARANCE = 4;
 export const ROAD_HALF_WIDTH = { major: 1.2, minor: 0.6 } as const;
-const MAX_BUILDINGS = 4000;
-const CANDIDATES = 12000;
+const MAX_BUILDINGS = 16000;
+const CANDIDATES = 60000;
 const HASH_CELL = 8;
 
 export type XZ = [number, number];
@@ -200,15 +200,15 @@ export function buildLayout(world: World, seed = 1): CityLayout {
   for (let t = 0; t < CANDIDATES && count < MAX_BUILDINGS; t++) {
     const x = bounds.minX + rng.next() * (bounds.maxX - bounds.minX);
     const z = bounds.minZ + rng.next() * (bounds.maxZ - bounds.minZ);
-    const w = 2.5 + rng.next() * 2.5;
-    const d = 2.5 + rng.next() * 2.5;
+    const w = 3 + rng.next() * 4;
+    const d = 3 + rng.next() * 4;
     const heightRoll = rng.next();
     const acceptRoll = rng.next();
 
     const cell = nearestCell({ cellX, cellZ }, x, z);
     if (Math.hypot(cellX[cell] - x, cellZ[cell] - z) > spacing) continue;
     const dn = norm(cell);
-    if (acceptRoll > 0.15 + 0.85 * dn) continue;
+    if (acceptRoll > 0.35 + 0.65 * dn) continue;
 
     const radius = Math.hypot(w, d) / 2;
     const maxHalf = ROAD_HALF_WIDTH.major;
@@ -221,7 +221,7 @@ export function buildLayout(world: World, seed = 1): CityLayout {
     bz[count] = z;
     bw[count] = w;
     bd[count] = d;
-    bh[count] = 1.5 + heightRoll * (2 + 12 * dn * dn);
+    bh[count] = 1.5 + heightRoll * heightRoll * (3 + 16 * dn * dn);
     bs[count] = hash01(t + seed * 7919);
     br[count] = radius;
     buildingHash.add(x - radius, z - radius, x + radius, z + radius, count);
