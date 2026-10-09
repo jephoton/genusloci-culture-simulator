@@ -6,7 +6,11 @@ import { step } from "@/sim/step";
 import type { World } from "@/world/schema";
 
 export const DEFAULT_SNAPSHOT_EVERY = 10;
-export const MAX_SNAPSHOTS = 30;
+
+/** Snapshot spacing by age: dense for recent history, sparse for old, so old rewinds stay fast and memory stays bounded. */
+export function snapshotSpacing(age: number): number {
+  return age < 100 ? 10 : age < 400 ? 40 : 160;
+}
 
 /**
  * A simulation run you can steer and rewind. Actions are queued and applied at the start of the next
@@ -75,12 +79,18 @@ export class Timeline {
     return t;
   }
 
+  /** Ticks that currently have a stored snapshot, ascending. */
+  snapshotTicks(): number[] {
+    return [...this.snapshots.keys()].sort((a, b) => a - b);
+  }
+
   private snapshot(): void {
-    this.snapshots.set(this.state.tick, cloneState(this.state));
-    if (this.snapshots.size > MAX_SNAPSHOTS) {
-      // Keep the earliest snapshot so the start stays reachable; drop the next oldest.
-      const keys = [...this.snapshots.keys()].sort((a, b) => a - b);
-      this.snapshots.delete(keys[1]);
+    const now = this.state.tick;
+    this.snapshots.set(now, cloneState(this.state));
+    const earliest = this.earliest();
+    for (const k of [...this.snapshots.keys()]) {
+      if (k === earliest || k === now) continue;
+      if (k % snapshotSpacing(now - k) !== 0) this.snapshots.delete(k);
     }
   }
 }
