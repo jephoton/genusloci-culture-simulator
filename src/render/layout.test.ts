@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  agentHomePosition, buildLayout, distToSegment, hash01, landmarkPosition, nearestCell,
+  agentHomePosition, buildLayout, distToSegment, hash01, LANDMARK_RADIUS, LANDMARK_SCALE, landmarkPosition, nearestCell,
   PAD_CLEARANCE, PADS_PER_CELL, pointInPolygon, ROAD_HALF_WIDTH,
 } from "@/render/layout";
 import { makeTinyWorld } from "@/world/fixtures/tiny-world";
@@ -63,6 +63,28 @@ describe("buildLayout", () => {
     const half = Math.floor(order.length / 2);
     const mean = (xs: { n: number }[]) => xs.reduce((a, x) => a + x.n, 0) / xs.length;
     expect(mean(order.slice(half))).toBeGreaterThan(mean(order.slice(0, half)));
+  });
+
+  it("sizes the pad clearance to fit the largest drawn landmark", () => {
+    const largest = Math.max(...Object.values(LANDMARK_RADIUS));
+    expect(PAD_CLEARANCE).toBeCloseTo(LANDMARK_SCALE * largest + 0.5);
+  });
+
+  it("keeps landmark pads clear of roads, water, parks and each other", () => {
+    const segments = layout.roads.flatMap((r) => r.points.slice(1).map((p, i) => ({ a: r.points[i], b: p, half: ROAD_HALF_WIDTH[r.kind] })));
+    const violations: string[] = [];
+    const n = layout.pads.length / 2;
+    for (let i = 0; i < n; i++) {
+      const x = layout.pads[i * 2];
+      const z = layout.pads[i * 2 + 1];
+      for (const s of segments) if (distToSegment(x, z, s.a, s.b) < s.half + PAD_CLEARANCE - 1e-4) violations.push(`road ${i}`);
+      for (const poly of [...layout.water, ...layout.parks]) if (pointInPolygon(x, z, poly)) violations.push(`area ${i}`);
+      for (let j = i + 1; j < n; j++) {
+        if (Math.hypot(layout.pads[j * 2] - x, layout.pads[j * 2 + 1] - z) < 2 * PAD_CLEARANCE - 1e-4) violations.push(`pads ${i}-${j}`);
+      }
+    }
+    expect(violations).toEqual([]);
+    expect(layout.fallbackPads).toBe(0);
   });
 
   it("gives each cell PADS_PER_CELL distinct landmark pads and deterministic agent homes", () => {

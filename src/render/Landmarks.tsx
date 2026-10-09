@@ -2,7 +2,7 @@
 
 import type { ThreeEvent } from "@react-three/fiber";
 import { type ReactNode, useMemo } from "react";
-import type { CityLayout } from "@/render/layout";
+import { type CityLayout, LANDMARK_RADIUS, LANDMARK_SCALE } from "@/render/layout";
 import { type Rgb, sceneHues, sceneRgb } from "@/render/palette";
 import { type VenueView, venueViews } from "@/render/venues";
 import type { Frame } from "@/sim/frame";
@@ -11,8 +11,8 @@ import type { VenueKind, World } from "@/world/schema";
 const BODY = "#151821";
 const NEUTRAL_SIGN: Rgb = [0.9, 0.85, 0.75];
 const CLOSED_SINK = -3.5;
-/** Landmarks are drawn larger than life so they read as places at city zoom. */
-const LANDMARK_SCALE = 2.2;
+/** The stadium is modelled with a 4.4-unit ring; it is drawn shrunk to LANDMARK_RADIUS.stadium so it fits a pad. */
+const STADIUM_SHRINK = LANDMARK_RADIUS.stadium / 4.4;
 
 function Body({ kind, sign }: { kind: VenueKind; sign: Rgb }): ReactNode {
   const body = <meshStandardMaterial color={BODY} roughness={0.8} />;
@@ -73,10 +73,10 @@ function Body({ kind, sign }: { kind: VenueKind; sign: Rgb }): ReactNode {
       );
     case "stadium":
       return (
-        <>
+        <group scale={STADIUM_SHRINK}>
           <mesh position-y={0.8} rotation-x={Math.PI / 2}><torusGeometry args={[3.4, 1, 10, 32]} />{body}</mesh>
           <mesh position-y={1.6} rotation-x={Math.PI / 2}><torusGeometry args={[4.2, 0.08, 8, 48]} />{neon}</mesh>
-        </>
+        </group>
       );
     default:
       return (
