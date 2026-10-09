@@ -22,6 +22,7 @@ import { VenuePanel } from "@/ui/VenuePanel";
 import type { World } from "@/world/schema";
 import { Attribution } from "@/ui/Attribution";
 import { useCityWorld } from "@/ui/useCityWorld";
+import { CITIES } from "@/geo/cities";
 import { areaName, kindWord } from "@/ui/words";
 
 const DEMO_SEED = 7;
@@ -94,7 +95,15 @@ function useAnnounce(notify: Notify): Notify {
 
 const placementKey = (entity: number, cell: number) => `${entity}:${cell}`;
 
-function Game({ world, layout, attribution }: { world: World; layout: CityLayout; attribution: string | null }) {
+function Game({
+  world, layout, attribution, citySlug, onCityChange,
+}: {
+  world: World;
+  layout: CityLayout;
+  attribution: string | null;
+  citySlug: string;
+  onCityChange: (slug: string) => void;
+}) {
   const sim = useSimulation(world, DEMO_SEED, DEMO_CONFIG);
   const { act, frames } = sim;
   const [tool, setTool] = useState<Tool>({ kind: "select" });
@@ -235,7 +244,14 @@ function Game({ world, layout, attribution }: { world: World; layout: CityLayout
         flyTo={flyRef}
         onFrameChanges={onFrameChanges}
       />
-      <Hud city={world.city.name} digest={sim.digest} tick={sim.frame?.tick ?? 0} />
+      <Hud
+        city={world.city.name}
+        digest={sim.digest}
+        tick={sim.frame?.tick ?? 0}
+        cities={CITY_OPTIONS}
+        citySlug={citySlug}
+        onCityChange={onCityChange}
+      />
       <Toolbar world={world} digest={sim.digest} tool={tool} onTool={setTool} />
       <div className="pointer-events-none absolute right-4 top-24 flex max-h-[calc(100dvh-12rem)] w-72 flex-col gap-3">
         <VenuePanel
@@ -280,12 +296,23 @@ function Game({ world, layout, attribution }: { world: World; layout: CityLayout
   );
 }
 
-const CITY = "london";
+const CITY_OPTIONS = Object.values(CITIES).map((c) => ({ slug: c.slug, name: c.name }));
 
 export default function GameShell() {
-  const city = useCityWorld(CITY);
-  if (!city) {
+  const [slug, setSlug] = useState<string>(CITIES.london.slug);
+  const city = useCityWorld(slug);
+  if (!city || city.slug !== slug) {
     return <div className="grid h-dvh place-items-center bg-[#07080b] text-zinc-400">Mapping the streets…</div>;
   }
-  return <Game world={city.world} layout={city.layout} attribution={city.attribution} />;
+  // Keyed by city so switching starts a fresh simulation, camera and effects.
+  return (
+    <Game
+      key={city.slug}
+      world={city.world}
+      layout={city.layout}
+      attribution={city.attribution}
+      citySlug={city.slug}
+      onCityChange={setSlug}
+    />
+  );
 }

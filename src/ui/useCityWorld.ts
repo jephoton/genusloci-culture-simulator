@@ -7,7 +7,7 @@ import { demoWorld } from "@/ui/demo-world";
 import { makeSyntheticCity } from "@/world/fixtures/synthetic-city";
 import type { World } from "@/world/schema";
 
-export type CityWorld = { world: World; layout: CityLayout; attribution: string | null; fallback: boolean };
+export type CityWorld = { slug: string; world: World; layout: CityLayout; attribution: string | null; fallback: boolean };
 
 /** Builds the city layout in a Web Worker, so a big city doesn't freeze the page. */
 function layoutInWorker(world: World): Promise<CityLayout> {
@@ -45,7 +45,7 @@ export function useCityWorld(slug: string): CityWorld | null {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      let loaded: Omit<CityWorld, "layout">;
+      let loaded: Omit<CityWorld, "layout" | "slug">;
       try {
         const res = await fetch(`/geo/${slug}.json`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -57,7 +57,7 @@ export function useCityWorld(slug: string): CityWorld | null {
       }
       if (cancelled) return;
       const layout = await layoutOf(loaded.world);
-      if (!cancelled) setState({ ...loaded, layout });
+      if (!cancelled) setState({ ...loaded, layout, slug });
     })();
     return () => {
       cancelled = true;
