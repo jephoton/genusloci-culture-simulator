@@ -1,4 +1,4 @@
-import { type CityLayout, landmarkPosition, type XZ } from "@/render/layout";
+import { type CityLayout, landmarkPosition, landmarkScale, type XZ } from "@/render/layout";
 import type { Frame } from "@/sim/frame";
 import type { VenueKind, World } from "@/world/schema";
 
@@ -8,6 +8,8 @@ export type VenueView = {
   name: string;
   kind: VenueKind;
   position: XZ;
+  /** Scale the landmark is drawn at: its pad's (see CityLayout.padScale). */
+  scale: number;
   open: boolean;
   isEvent: boolean;
   health: number;
@@ -46,6 +48,7 @@ export function venueViews(frame: Frame, layout: CityLayout, world: World): Venu
       name: world.entities[entity].name,
       kind: world.entities[entity].kind ?? "other",
       position: landmarkPosition(layout, cell, pad),
+      scale: landmarkScale(layout, cell, pad),
       open: frame.venueOpen[v] === 1,
       isEvent: frame.venueExpires[v] >= 0,
       health: frame.venueHealth[v],

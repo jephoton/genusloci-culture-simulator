@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildLayout, landmarkPosition } from "@/render/layout";
+import { buildLayout, landmarkPosition, landmarkScale } from "@/render/layout";
 import { venueViews } from "@/render/venues";
 import { DEFAULT_CONFIG } from "@/sim/config";
 import { buildFrame } from "@/sim/frame";
@@ -11,7 +11,7 @@ const world = makeTinyWorld();
 const layout = buildLayout(world);
 
 describe("venueViews", () => {
-  it("describes every venue slot with name, kind and a pad position", () => {
+  it("describes every venue slot with name, kind, a pad position and the pad's scale", () => {
     const s = initState(world, { ...DEFAULT_CONFIG, nAgents: 300, agentReserve: 0 }, 1);
     step(s);
     const { frame } = buildFrame(s, "main", 0, false);
@@ -27,6 +27,7 @@ describe("venueViews", () => {
       const pad = byCell.get(cell) ?? 0;
       byCell.set(cell, pad + 1);
       expect(views[v].position).toEqual(landmarkPosition(layout, cell, pad));
+      expect(views[v].scale).toBe(landmarkScale(layout, cell, pad));
     }
   });
 
