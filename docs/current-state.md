@@ -31,7 +31,7 @@
   - Worker play/pause streaming transferable frames, with `stopped` notices.
   - Age-thinned snapshots.
   - World `geo` + venue `kind`, synthetic streets, river and parks.
-  - City layout: about 3,200 procedural buildings and landmark pads clear of roads, water and buildings.
+  - City layout: procedural buildings sized to the street grain, and landmark pads clear of roads, water and buildings. Each pad carries its own landmark scale (`padScale`, 1.0–2.2): Synthville keeps 2.2 everywhere, and on London about 92% of pads fit at ≥ 1.0 (the rest are `crampedPads`, mostly in park or river cells).
   - Three.js night diorama: bloom, window-light shader, neon landmarks per kind, crowds coloured by scene.
   - Toolbar (open venue, throw event), venue panel (close), timeline (play, speed, rewind), HUD.
   - Verified in the browser: everything works, no console errors.
@@ -49,16 +49,16 @@
   - `lineages`: full lineage table (bornTick, diedTick, mergedInto, peakSize, topEntities) for the phylogeny.
   - `inspect`: one agent, venue or scene, for specimen cards.
   - Cell or neighbourhood names in the World, for Latin epithets.
-- **Effect anchors:** landmark position and radius lookup (`LANDMARK_RADIUS` × `LANDMARK_SCALE` already shared from `layout.ts`), plus a camera-shake hook.
+- **Effect anchors:** landmark position and radius lookup (`LANDMARK_RADIUS` × `VenueView.scale`, the pad's scale), plus a camera-shake hook.
 - **Do per-frame work once:** `venueViews`, `sceneHues` and home positions are each computed twice per frame (Landmarks + Crowd). Compute them once in `accept`; `React.memo` the panels.
 - **Action results:** play-loop and `run` results are discarded. A double "Close venue" while playing queues twice.
 - **Rewind:** clear the selected venue (`VenuePanel` can show a reused slot).
-- **Visuals:** the building shader ignores fog. The selection and crowd rings can spill past `PAD_CLEARANCE` (music venue). The event pillar is too thin to notice.
+- **Visuals:** the building shader ignores fog. The selection ring is fixed in landmark units, so it can spill past the pad's clearance (music venue). The event pillar is too thin to notice.
 - **Accessibility:**
   - `aria-label`s on the asides, header and footer; `role="status"` on the loading text; `aria-valuetext` on the slider.
   - Focus the panel on open.
   - Keyboard path for selecting and placing (venue list or cell picker).
-- **Layout performance:** `buildLayout` takes ≈ 260–420 ms on page load. Fine for now; consider precomputing per world in Plan 4.
+- **Layout performance:** `buildLayout` takes ≈ 0.3 s on Synthville and ≈ 0.8 s on London, on the main thread. Consider a worker or precomputing per world.
 
 ## Carry forward (from the Plan 2 final review)
 - **Timeline snapshots.** Eviction keeps tick 0 and drops the next oldest, so old rewinds get slow (≈ 1–4 s). Use thinned retention, e.g. every 10 recent, 40 older, 160 oldest.
