@@ -72,6 +72,8 @@ export class SimHost {
         this.timelines.delete(cmd.timeline);
         return { disposed: true };
       }
+      default:
+        throw new Error(`unknown command "${String((cmd as { type?: unknown }).type)}"`);
     }
   }
 }
