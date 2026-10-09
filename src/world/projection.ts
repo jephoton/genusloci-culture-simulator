@@ -11,3 +11,11 @@ export function toLocalMetres(p: LatLon, origin: LatLon): LocalPoint {
     y: (p.lat - origin.lat) * METRES_PER_DEG_LAT,
   };
 }
+
+/** Inverse of toLocalMetres. */
+export function fromLocalMetres(p: LocalPoint, origin: LatLon): LatLon {
+  return {
+    lat: origin.lat + p.y / METRES_PER_DEG_LAT,
+    lon: origin.lon + p.x / (METRES_PER_DEG_LON_AT_EQUATOR * Math.cos((origin.lat * Math.PI) / 180)),
+  };
+}
