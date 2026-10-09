@@ -63,4 +63,18 @@ describe("step", () => {
     expect(Array.from(s.genomes.ids).filter((x) => x >= 0).length).toBeGreaterThan(400);
     expect(Array.from(s.venueOpen).some((x) => x === 1)).toBe(true);
   });
+
+  it("re-grows supply: after a whole scene's venues close, a matching venue opens", () => {
+    const s = initState(makeTinyWorld(), config, 6);
+    step(s);
+    const venuesOfCluster0 = Array.from({ length: s.nVenues }, (_, v) => v).filter(
+      (v) => Math.floor(s.venueEntity[v] / 12) === 0,
+    );
+    step(s, venuesOfCluster0.map((venue) => ({ type: "closeVenue" as const, venue })));
+    for (let t = 0; t < 12; t++) step(s);
+    const reopened = Array.from({ length: s.nVenues }, (_, v) => v).filter(
+      (v) => v >= 12 && s.venueOpen[v] && Math.floor(s.venueEntity[v] / 12) === 0,
+    );
+    expect(reopened.length).toBeGreaterThan(0);
+  });
 });
