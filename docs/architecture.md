@@ -21,6 +21,12 @@
 - Secrets live in environment variables only (`QLOO_API_KEY`, `DEEPSEEK_API_KEY`, fallback provider keys).
 - Sim ticks make zero API calls; the server is stateless apart from caches.
 
-## Commands
+## Commands (verified 2026-10-09)
 
-None yet — the project is not scaffolded. Update this section once they are verified.
+- `pnpm install` — install dependencies
+- `pnpm dev` — run the Next.js dev server
+- `pnpm build` — production build (Next.js 16)
+- `pnpm lint` — ESLint
+- `pnpm test` — run all unit tests (Vitest; config in `vitest.config.mts`)
+- `pnpm test:watch` — watch mode
+- `pnpm bench:sim` — simulation tick-rate benchmark (target ≥ 10 ticks/sec at 5,000 agents)
