@@ -14,8 +14,8 @@ import { Attribution } from "@/ui/Attribution";
 import { useCityWorld } from "@/ui/useCityWorld";
 
 const DEMO_SEED = 7;
-const DEMO_CONFIG: Partial<SimConfig> = { nAgents: 4000, agentReserve: 500 };
-const AGENT_SLOTS = 4500;
+const DEMO_CONFIG: Partial<SimConfig> = { nAgents: 2500, agentReserve: 300 };
+const AGENT_SLOTS = 2800;
 const EVENT = { duration: 3, reachKm: 25, capacity: 3000 } as const;
 
 function Game({ world, layout, attribution }: { world: World; layout: CityLayout; attribution: string | null }) {
