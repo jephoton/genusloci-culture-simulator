@@ -1,0 +1,11 @@
+node_modules/
+.next/
+out/
+.vercel/
+.env
+.env*.local
+# Qloo responses must never be committed (Qloo terms)
+.cache/
+data/qloo/
+*.world.json
+*.world.json.gz
