@@ -1,5 +1,6 @@
 import { applyAction } from "@/sim/actions/apply";
 import type { Action, ActionResult } from "@/sim/actions/schema";
+import { autoOpenVenue } from "@/sim/niches";
 import { createRng } from "@/sim/rng";
 import { clusterAgents } from "@/sim/scenes/cluster";
 import { updateLineages } from "@/sim/scenes/lineage";
@@ -32,6 +33,7 @@ export function step(s: SimState, actions: readonly Action[] = []): ActionResult
   if (updateVenues(s)) s.nearbyVenues = buildNearbyVenues(s);
   if (s.tick % s.config.sceneEvery === 0) {
     updateLineages(s.scenes, clusterAgents(s, s.scenes.centroids, rng), s.tick, s.config);
+    autoOpenVenue(s);
   }
   s.tick++;
   s.rngState = rng.state();
