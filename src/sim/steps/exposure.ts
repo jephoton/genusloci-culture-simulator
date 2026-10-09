@@ -34,6 +34,9 @@ function tryAdopt(s: SimState, agent: number, entity: number, rng: Rng): void {
 export function applyExposure(s: SimState, rng: Rng, roster: Roster): void {
   const { config, genomes } = s;
   const nE = s.cw.nEntities;
+  // Snapshot every attendee's strongest gene first, so adoption this tick doesn't depend on agent order.
+  const tops = new Int32Array(s.attendance.length).fill(-1);
+  for (let i = 0; i < s.attendance.length; i++) if (s.attendance[i] >= 0) tops[i] = topGene(genomes, i);
   for (let i = 0; i < s.attendance.length; i++) {
     const v = s.attendance[i];
     if (v < 0) continue;
@@ -53,7 +56,7 @@ export function applyExposure(s: SimState, rng: Rng, roster: Roster): void {
     if (size > 1) {
       const other = roster.members[roster.offsets[v] + rng.int(size)];
       if (other !== i) {
-        const e = topGene(genomes, other);
+        const e = tops[other];
         if (e >= 0) tryAdopt(s, i, e, rng);
       }
     }
