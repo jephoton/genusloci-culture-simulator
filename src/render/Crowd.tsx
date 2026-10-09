@@ -5,6 +5,7 @@ import { type RefObject, useLayoutEffect, useRef } from "react";
 import * as THREE from "three";
 import type { FrameStore } from "@/render/frame-store";
 import { agentHomePosition, type CityLayout, hash01, LANDMARK_RADIUS } from "@/render/layout";
+import { outingPhase, staggerOf } from "@/render/outing-path";
 import { sceneHuesOf, sceneRgb } from "@/render/palette";
 import { venueViewsOf } from "@/render/venues";
 import type { Frame } from "@/sim/frame";
@@ -14,15 +15,30 @@ const FIGURE_Y = 0.6;
 const GLOW = 1.6;
 /** Time constant of the colour blend towards a new scene colour. */
 const BLEND_S = 0.35;
+/** Agents who stay in adopt their new colour at this phase of the week. */
+const STAY_COMMIT_AT = 0.5;
+const ease = (k: number) => k * k * (3 - 2 * k);
 
 type Motion = {
+  /** Where the agent was when this week's frame arrived (normally home). */
   fromX: Float32Array;
   fromZ: Float32Array;
-  toX: Float32Array;
-  toZ: Float32Array;
+  /** Venue spot this week (only meaningful when going). */
+  venueX: Float32Array;
+  venueZ: Float32Array;
+  homeX: Float32Array;
+  homeZ: Float32Array;
+  going: Uint8Array;
+  stagger: Float32Array;
   curX: Float32Array;
   curZ: Float32Array;
   placed: Uint8Array;
+  /** The new scene colour waits until the agent arrives (or mid-week if staying in). */
+  pending: Uint8Array;
+  pendingChanged: Uint8Array;
+  nextR: Float32Array;
+  nextG: Float32Array;
+  nextB: Float32Array;
   /** Current (displayed) and target colours, before the pop flash. */
   curR: Float32Array;
   curG: Float32Array;
@@ -42,11 +58,20 @@ function createMotion(slots: number): Motion {
   return {
     fromX: new Float32Array(slots),
     fromZ: new Float32Array(slots),
-    toX: new Float32Array(slots),
-    toZ: new Float32Array(slots),
+    venueX: new Float32Array(slots),
+    venueZ: new Float32Array(slots),
+    homeX: new Float32Array(slots),
+    homeZ: new Float32Array(slots),
+    going: new Uint8Array(slots),
+    stagger: Float32Array.from({ length: slots }, (_, i) => staggerOf(i)),
     curX: new Float32Array(slots),
     curZ: new Float32Array(slots),
     placed: new Uint8Array(slots),
+    pending: new Uint8Array(slots),
+    pendingChanged: new Uint8Array(slots),
+    nextR: new Float32Array(slots),
+    nextG: new Float32Array(slots),
+    nextB: new Float32Array(slots),
     curR: new Float32Array(slots),
     curG: new Float32Array(slots),
     curB: new Float32Array(slots),
@@ -62,8 +87,9 @@ function createMotion(slots: number): Motion {
 }
 
 /**
- * One glowing figure per agent slot: each tick it eases from where it was to its venue (or home).
- * Colours blend towards the agent's scene colour; an agent that switches scene pops and flashes white.
+ * One glowing figure per agent slot. Each tick (week) plays as a night out: agents leave home in
+ * staggered waves, gather at their venue, then walk home. A changed scene colour is adopted when the
+ * agent arrives at the venue where it changed (or mid-week if it stayed in), with a pop and a flash.
  */
 export function Crowd({
   world, layout, frames, slots, tickMs,
@@ -117,47 +143,47 @@ export function Crowd({
           continue;
         }
         const [cr, cg, cb] = sceneRgb(hues, frame.scene[i]);
-        m.tgtR[i] = cr * GLOW;
-        m.tgtG[i] = cg * GLOW;
-        m.tgtB[i] = cb * GLOW;
-        if (snap || !m.placed[i]) {
-          m.curR[i] = m.tgtR[i];
-          m.curG[i] = m.tgtG[i];
-          m.curB[i] = m.tgtB[i];
-          m.changedAt[i] = -Infinity;
-        } else if (m.scene[i] !== frame.scene[i]) {
-          m.changedAt[i] = now;
-        }
+        const changed = m.scene[i] !== frame.scene[i];
         m.scene[i] = frame.scene[i];
+        if (snap || !m.placed[i]) {
+          m.curR[i] = m.tgtR[i] = cr * GLOW;
+          m.curG[i] = m.tgtG[i] = cg * GLOW;
+          m.curB[i] = m.tgtB[i] = cb * GLOW;
+          m.changedAt[i] = -Infinity;
+          m.pending[i] = 0;
+        } else {
+          m.nextR[i] = cr * GLOW;
+          m.nextG[i] = cg * GLOW;
+          m.nextB[i] = cb * GLOW;
+          m.pending[i] = 1;
+          m.pendingChanged[i] = changed ? 1 : 0;
+        }
+        const [hx, hz] = agentHomePosition(layout, frame.homeCell[i], i);
+        m.homeX[i] = hx;
+        m.homeZ[i] = hz;
         const v = frame.attendance[i];
-        let tx: number;
-        let tz: number;
-        if (v >= 0 && v < venues.length) {
+        m.going[i] = v >= 0 && v < venues.length ? 1 : 0;
+        if (m.going[i]) {
           const { position: [vx, vz], kind, scale } = venues[v];
           const a = hash01(i * 3 + 1) * Math.PI * 2;
           // Stand just outside the landmark body, whatever its size.
           const r = scale * LANDMARK_RADIUS[kind] + 1 + hash01(i * 5 + 2) * 2;
-          tx = vx + r * Math.cos(a);
-          tz = vz + r * Math.sin(a);
-        } else {
-          [tx, tz] = agentHomePosition(layout, frame.homeCell[i], i);
+          m.venueX[i] = vx + r * Math.cos(a);
+          m.venueZ[i] = vz + r * Math.sin(a);
         }
-        if (!m.placed[i]) {
-          m.curX[i] = tx;
-          m.curZ[i] = tz;
+        if (!m.placed[i] || snap) {
+          m.curX[i] = hx;
+          m.curZ[i] = hz;
           m.placed[i] = 1;
         }
         m.fromX[i] = m.curX[i];
         m.fromZ[i] = m.curZ[i];
-        m.toX[i] = tx;
-        m.toZ[i] = tz;
       }
       m.frame = frame;
       m.startedAt = now;
     }
 
-    const k = Math.min(1, (now - m.startedAt) / Math.max(1, tickMs * 0.85));
-    const e = k * k * (3 - 2 * k);
+    const t = Math.min(1, (now - m.startedAt) / Math.max(1, tickMs));
     const blend = 1 - Math.exp(-dt / BLEND_S);
     const arr = mesh.instanceMatrix.array as Float32Array;
     const col = mesh.instanceColor;
@@ -169,8 +195,31 @@ export function Crowd({
         arr[o + 10] = 0;
         continue;
       }
-      const x = m.fromX[i] + (m.toX[i] - m.fromX[i]) * e;
-      const z = m.fromZ[i] + (m.toZ[i] - m.fromZ[i]) * e;
+      let x: number;
+      let z: number;
+      let arrived: boolean;
+      if (m.going[i]) {
+        const { out, back } = outingPhase(t, m.stagger[i]);
+        const eo = ease(out);
+        const eb = ease(back);
+        x = m.fromX[i] + (m.venueX[i] - m.fromX[i]) * eo;
+        z = m.fromZ[i] + (m.venueZ[i] - m.fromZ[i]) * eo;
+        x += (m.homeX[i] - x) * eb;
+        z += (m.homeZ[i] - z) * eb;
+        arrived = out >= 1;
+      } else {
+        const e = ease(Math.min(1, t / 0.3));
+        x = m.fromX[i] + (m.homeX[i] - m.fromX[i]) * e;
+        z = m.fromZ[i] + (m.homeZ[i] - m.fromZ[i]) * e;
+        arrived = t >= STAY_COMMIT_AT;
+      }
+      if (m.pending[i] && arrived) {
+        m.tgtR[i] = m.nextR[i];
+        m.tgtG[i] = m.nextG[i];
+        m.tgtB[i] = m.nextB[i];
+        if (m.pendingChanged[i]) m.changedAt[i] = now;
+        m.pending[i] = 0;
+      }
       m.curX[i] = x;
       m.curZ[i] = z;
       m.curR[i] += (m.tgtR[i] - m.curR[i]) * blend;
