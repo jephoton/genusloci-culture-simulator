@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { homeScene, sceneAnchor } from "@/render/anchors";
 import type { FlyTo } from "@/render/CameraDirector";
-import { CityCanvas } from "@/render/CityCanvas";
+import { CityCanvas, type ScoutOverlay } from "@/render/CityCanvas";
 import type { FrameChange } from "@/render/effects/diff";
 import type { Origin } from "@/render/effects/director";
 import type { Focus } from "@/render/focus";
@@ -13,8 +13,12 @@ import { chooseVenueEntity } from "@/render/placement";
 import { type ClosureRules, venueViewsOf } from "@/render/venues";
 import { DEFAULT_CONFIG } from "@/sim/config";
 import type { Frame } from "@/sim/frame";
+import type { ScoutResult } from "@/sim/scout";
+import { SCOUT_DEFAULTS } from "@/sim/worker/protocol";
 import { Hud } from "@/ui/Hud";
 import { SceneLegend } from "@/ui/SceneLegend";
+import { ScoutPanel, type ScoutSpot } from "@/ui/ScoutPanel";
+import { pinLetter } from "@/ui/scout-words";
 import { TimelineBar } from "@/ui/TimelineBar";
 import { type Toast, Toasts } from "@/ui/Toasts";
 import { isPlacing, type Tool, Toolbar } from "@/ui/Toolbar";
@@ -99,6 +103,27 @@ function useAnnounce(notify: Notify): Notify {
 }
 
 const placementKey = (entity: number, cell: number) => `${entity}:${cell}`;
+const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+/** Letter of the player's own scouting spot. */
+const OWN_LETTER = "D";
+
+/** Scout mode: the headliner, its demand map, the spots being compared and the latest comparison. */
+type ScoutState = {
+  entity: number;
+  demand: number[] | null;
+  /** Spots the tool proposed (A, B, C). */
+  candidates: number[];
+  /** The player's own spot (D), or null. */
+  own: number | null;
+  results: ScoutResult[] | null;
+  /** Tick the results were simulated from. */
+  tick: number | null;
+  loading: boolean;
+  error: string | null;
+};
+
+const scoutCells = (s: ScoutState) => (s.own === null ? s.candidates : [...s.candidates, s.own]);
 
 function Game({
   world, layout, attribution, citySlug, onCityChange,
@@ -110,7 +135,7 @@ function Game({
   onCityChange: (slug: string) => void;
 }) {
   const sim = useSimulation(world, DEMO_SEED, DEMO_CONFIG);
-  const { act, frames } = sim;
+  const { act, frames, play, pause, playing, demand: fetchDemand, scout: simulateScout } = sim;
   const [tool, setTool] = useState<Tool>({ kind: "select" });
   const [selected, setSelected] = useState<number | null>(null);
   /** Focus set by selecting a venue or clicking a legend row; `hovered` (a legend row) wins while set. */
@@ -123,6 +148,14 @@ function Game({
   const placed = useRef(new Set<string>());
   /** Venues the player closed that the frame feed hasn't shown closing yet (same keys as `placed`). */
   const closedByPlayer = useRef(new Set<string>());
+  const [scout, setScout] = useState<ScoutState | null>(null);
+  /** Cell of the scout card being hovered, highlighted on the map. */
+  const [scoutHover, setScoutHover] = useState<number | null>(null);
+  /** Bumped by every scout request and exit, so a late answer for an old request is ignored. */
+  const scoutRequest = useRef(0);
+  /** Whether the city was playing when scouting began (it resumes after booking or cancelling). */
+  const scoutWasPlaying = useRef(false);
+  const scouting = scout !== null;
 
   const clearFocus = useCallback(() => {
     setPinned(null);
@@ -130,29 +163,166 @@ function Game({
     setSelected(null);
   }, []);
 
+  const flyTo = useCallback(([x, z]: XZ) => {
+    flyRef.current = { x, z, at: performance.now() };
+  }, []);
+
+  /** Leaves scout mode with nothing booked; `resume` restarts play if scouting paused it. */
+  const exitScout = useCallback(
+    (resume: boolean) => {
+      scoutRequest.current++;
+      setScout(null);
+      setScoutHover(null);
+      setTool((t) => (t.kind === "scout" ? { kind: "select" } : t));
+      if (resume && scoutWasPlaying.current) play();
+      scoutWasPlaying.current = false;
+    },
+    [play],
+  );
+
+  /** Simulates the night at each cell; the newest request wins. */
+  const runScout = useCallback(
+    (entity: number, cells: number[]) => {
+      const id = ++scoutRequest.current;
+      setScout((s) => s && { ...s, loading: true, error: null });
+      simulateScout(entity, cells).then(
+        (r) => {
+          if (id === scoutRequest.current) setScout((s) => s && { ...s, results: r.results, tick: r.baselineTick, loading: false });
+        },
+        (e: unknown) => {
+          if (id === scoutRequest.current) setScout((s) => s && { ...s, loading: false, error: errorText(e) });
+        },
+      );
+    },
+    [simulateScout],
+  );
+
+  /** Enters (or restarts) scout mode for a headliner: pause, map the demand, propose spots, compare them. */
+  const startScout = useCallback(
+    (entity: number) => {
+      if (!scouting) scoutWasPlaying.current = playing;
+      if (playing) pause();
+      clearFocus();
+      setScoutHover(null);
+      const id = ++scoutRequest.current;
+      setScout({ entity, demand: null, candidates: [], own: null, results: null, tick: null, loading: true, error: null });
+      fetchDemand(entity).then(
+        (d) => {
+          if (id !== scoutRequest.current) return;
+          if (d.candidates.length === 0) {
+            setScout((s) => s && { ...s, demand: d.demand, loading: false, error: "nobody in the city is into this headliner yet" });
+            return;
+          }
+          setScout((s) => s && { ...s, demand: d.demand, candidates: d.candidates });
+          // Show the strongest spot, so the glow and pins are in view while the comparison runs.
+          flyTo([layout.cellX[d.candidates[0]], layout.cellZ[d.candidates[0]]]);
+          runScout(entity, d.candidates);
+        },
+        (e: unknown) => {
+          if (id === scoutRequest.current) setScout((s) => s && { ...s, loading: false, error: errorText(e) });
+        },
+      );
+    },
+    [clearFocus, fetchDemand, flyTo, layout, pause, playing, runScout, scouting],
+  );
+
+  const retryScout = useCallback(() => {
+    if (!scout) return;
+    // The comparison is about one moment, so hold the city still while it runs.
+    if (playing) pause();
+    if (scout.demand === null || scout.candidates.length === 0) startScout(scout.entity);
+    else runScout(scout.entity, scoutCells(scout));
+  }, [pause, playing, runScout, scout, startScout]);
+
+  /** Puts the player's own spot (D) at `cell` and re-runs the comparison. */
+  const tryOwnSpot = useCallback(
+    (cell: number) => {
+      if (!scout || scout.demand === null || scout.candidates.length === 0) return;
+      const already = scout.candidates.indexOf(cell);
+      if (already >= 0) {
+        notify(`That's already spot ${pinLetter(already)}`, [layout.cellX[cell], layout.cellZ[cell]]);
+        setScoutHover(cell);
+        return;
+      }
+      if (scout.own === cell) return;
+      setScout((s) => s && { ...s, own: cell });
+      runScout(scout.entity, [...scout.candidates, cell]);
+    },
+    [layout, notify, runScout, scout],
+  );
+
+  const onTool = useCallback(
+    (t: Tool) => {
+      if (t.kind === "scout" && t.entity !== null) {
+        setTool(t);
+        startScout(t.entity);
+        return;
+      }
+      if (scouting) exitScout(true);
+      setTool(t);
+    },
+    [exitScout, scouting, startScout],
+  );
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
+      if (scouting) exitScout(true);
       setTool({ kind: "select" });
       clearFocus();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [clearFocus]);
+  }, [clearFocus, exitScout, scouting]);
 
-  const flyTo = useCallback(([x, z]: XZ) => {
-    flyRef.current = { x, z, at: performance.now() };
-  }, []);
+  const onScoutHover = useCallback(
+    (cell: number | null) => {
+      setScoutHover(cell);
+      if (cell !== null) flyTo([layout.cellX[cell], layout.cellZ[cell]]);
+    },
+    [flyTo, layout],
+  );
+
+  /** Books the scouted night at `cell` in the live city, leaves scout mode, and resumes play if it was on. */
+  const onBook = useCallback(
+    (cell: number) => {
+      if (!scout) return;
+      const entity = scout.entity;
+      const resume = scoutWasPlaying.current;
+      scoutWasPlaying.current = false;
+      exitScout(false);
+      const key = placementKey(entity, cell);
+      placed.current.add(key);
+      const anchor: XZ = [layout.cellX[cell], layout.cellZ[cell]];
+      flyTo(anchor);
+      const { duration, reachKm, capacity } = SCOUT_DEFAULTS;
+      void act({ type: "scheduleEvent", entity, cell, duration, reachKm, capacity }).then((ok) => {
+        if (ok) notify(`Booked ${world.entities[entity].name} in ${areaName(layout, anchor[0], anchor[1])}`, anchor);
+        else placed.current.delete(key);
+        if (resume) play();
+      });
+    },
+    [act, exitScout, flyTo, layout, notify, play, scout, world],
+  );
 
   // A pinned scene that has merged or died stops being a focus.
   const live = sim.digest?.scenes;
   const pinnedLive = pinned?.kind === "scene" && live && !live.some((s) => s.id === pinned.id) ? null : pinned;
   const focus = useMemo<Focus>(() => (hovered !== null ? { kind: "scene", id: hovered } : pinnedLive), [hovered, pinnedLive]);
 
-  const onVenueClick = useCallback((slot: number) => {
-    setSelected(slot);
-    setPinned({ kind: "venue", slot });
-  }, []);
+  const onVenueClick = useCallback(
+    (slot: number) => {
+      // Scouting, a venue is just a place on the map: try the spot it stands on.
+      if (scouting) {
+        const frame = frames.current.current;
+        if (frame && slot < frame.nVenues) tryOwnSpot(frame.venueCell[slot]);
+        return;
+      }
+      setSelected(slot);
+      setPinned({ kind: "venue", slot });
+    },
+    [frames, scouting, tryOwnSpot],
+  );
 
   const onPinScene = useCallback(
     (id: number) => {
@@ -235,11 +405,13 @@ function Game({
           if (ok) notify(`${world.entities[entity].name} is playing tonight`, anchor);
           else placed.current.delete(key);
         });
+      } else if (tool.kind === "scout") {
+        tryOwnSpot(cell);
       } else if (tool.kind === "select") {
         clearFocus();
       }
     },
-    [act, clearFocus, layout, notify, tool, world],
+    [act, clearFocus, layout, notify, tool, tryOwnSpot, world],
   );
 
   const shownFrame = sim.frame;
@@ -260,6 +432,28 @@ function Game({
   let ghost: GhostSpec | null = null;
   if (tool.kind === "open" && tool.venueKind !== null) ghost = { kind: "venue", venueKind: tool.venueKind };
   else if (tool.kind === "event" && tool.entity !== null) ghost = { kind: "event" };
+  else if (scout && scout.candidates.length > 0) ghost = { kind: "event" };
+
+  const spots = useMemo<ScoutSpot[]>(() => {
+    if (!scout) return [];
+    const spot = (cell: number, letter: string, own: boolean): ScoutSpot => ({
+      cell, letter, own, area: areaName(layout, layout.cellX[cell], layout.cellZ[cell]),
+    });
+    const out = scout.candidates.map((c, i) => spot(c, pinLetter(i), false));
+    if (scout.own !== null) out.push(spot(scout.own, OWN_LETTER, true));
+    return out;
+  }, [layout, scout]);
+  const scoutOverlay = useMemo<ScoutOverlay | null>(
+    () =>
+      scout && {
+        demand: scout.demand,
+        pins: spots.map(({ cell, letter, own }) => ({ cell, letter, own })),
+        highlighted: scoutHover,
+        best: scout.results?.[0]?.cell ?? null,
+      },
+    [scout, scoutHover, spots],
+  );
+  const scoutStale = !!scout && scout.tick !== null && !scout.loading && sim.frame !== null && sim.frame.tick !== scout.tick;
 
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-[#07080b] text-zinc-100">
@@ -280,6 +474,7 @@ function Game({
         onFrameChanges={onFrameChanges}
         classifyChange={classifyChange}
         rules={CLOSURE_RULES}
+        scout={scoutOverlay}
       />
       <Hud
         city={world.city.name}
@@ -289,24 +484,43 @@ function Game({
         citySlug={citySlug}
         onCityChange={onCityChange}
       />
-      <Toolbar world={world} digest={sim.digest} tool={tool} onTool={setTool} />
-      <div className="pointer-events-none absolute right-4 top-24 flex max-h-[calc(100dvh-12rem)] w-72 flex-col gap-3">
-        <VenuePanel
-          world={world}
-          frame={sim.frame}
-          slot={selected}
-          onCloseVenue={onCloseVenue}
-          onDismiss={clearFocus}
-        />
-        <SceneLegend
-          digest={sim.digest}
-          frame={sim.frame}
-          pinned={pinnedLive?.kind === "scene" ? pinnedLive.id : null}
-          focused={focus !== null}
-          onHover={setHovered}
-          onPin={onPinScene}
-          onClear={clearFocus}
-        />
+      <Toolbar world={world} digest={sim.digest} tool={tool} onTool={onTool} />
+      <div className={`pointer-events-none absolute right-4 top-24 flex max-h-[calc(100dvh-12rem)] flex-col gap-3 ${scout ? "w-80" : "w-72"}`}>
+        {scout ? (
+          <ScoutPanel
+            headliner={world.entities[scout.entity].name}
+            weeks={SCOUT_DEFAULTS.weeks}
+            spots={spots}
+            results={scout.results}
+            loading={scout.loading}
+            error={scout.error}
+            stale={scoutStale}
+            frame={sim.frame}
+            onHover={onScoutHover}
+            onBook={onBook}
+            onCancel={() => exitScout(true)}
+            onRetry={retryScout}
+          />
+        ) : (
+          <>
+            <VenuePanel
+              world={world}
+              frame={sim.frame}
+              slot={selected}
+              onCloseVenue={onCloseVenue}
+              onDismiss={clearFocus}
+            />
+            <SceneLegend
+              digest={sim.digest}
+              frame={sim.frame}
+              pinned={pinnedLive?.kind === "scene" ? pinnedLive.id : null}
+              focused={focus !== null}
+              onHover={setHovered}
+              onPin={onPinScene}
+              onClear={clearFocus}
+            />
+          </>
+        )}
       </div>
       <TimelineBar
         tick={sim.frame?.tick ?? 0}

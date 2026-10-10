@@ -7,7 +7,7 @@ import type { SimConfig } from "@/sim/config";
 import type { SimDigest } from "@/sim/digest";
 import type { Frame } from "@/sim/frame";
 import { SimClient } from "@/sim/worker/client";
-import { MAIN_TIMELINE } from "@/sim/worker/protocol";
+import { type CommandResults, MAIN_TIMELINE } from "@/sim/worker/protocol";
 import type { World } from "@/world/schema";
 
 export type SimStatus = "loading" | "ready" | "error";
@@ -26,6 +26,10 @@ export type Simulation = {
   /** Resolves true once the action is accepted (queued, or applied while paused); false if it was rejected. */
   act(action: Action): Promise<boolean>;
   rewind(tick: number): Promise<void>;
+  /** Per-cell demand for a headliner in the live city, plus up to 3 candidate cells. Rejects on failure. */
+  demand(entity: number): Promise<CommandResults["demand"]>;
+  /** Simulates a night for `entity` at each cell in forked futures (live city untouched). Rejects on failure. */
+  scout(entity: number, cells: number[]): Promise<CommandResults["scout"]>;
   dismissError(): void;
 };
 
@@ -161,7 +165,17 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
     [refresh, report],
   );
 
+  const demand = useCallback((entity: number) => {
+    const client = clientRef.current;
+    return client ? client.demand(MAIN_TIMELINE, entity) : Promise.reject(new Error("the simulation isn't running"));
+  }, []);
+
+  const scout = useCallback((entity: number, cells: number[]) => {
+    const client = clientRef.current;
+    return client ? client.scout(MAIN_TIMELINE, entity, cells) : Promise.reject(new Error("the simulation isn't running"));
+  }, []);
+
   const dismissError = useCallback(() => setError(null), []);
 
-  return { status, error, playing, speed, frame, digest, frames, play, pause, setSpeed, act, rewind, dismissError };
+  return { status, error, playing, speed, frame, digest, frames, play, pause, setSpeed, act, rewind, demand, scout, dismissError };
 }

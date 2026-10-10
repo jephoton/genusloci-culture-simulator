@@ -7,6 +7,7 @@ import { type RefObject, useMemo, useRef } from "react";
 import { Buildings } from "@/render/Buildings";
 import { CameraDirector, type FlyTo } from "@/render/CameraDirector";
 import { Crowd } from "@/render/Crowd";
+import { DemandGlow } from "@/render/DemandGlow";
 import type { FrameChange } from "@/render/effects/diff";
 import type { Origin } from "@/render/effects/director";
 import { Effects } from "@/render/effects/Effects";
@@ -18,6 +19,7 @@ import { Ground, type GroundPointer } from "@/render/Ground";
 import { Landmarks } from "@/render/Landmarks";
 import type { CityLayout } from "@/render/layout";
 import { SceneAuras } from "@/render/SceneAuras";
+import { type ScoutPin, ScoutPins } from "@/render/ScoutPins";
 import { Streets } from "@/render/Streets";
 import type { ClosureRules } from "@/render/venues";
 import type { Frame } from "@/sim/frame";
@@ -46,6 +48,17 @@ export type CityCanvasProps = {
   rules: ClosureRules;
   /** Whether a change was the player's doing (full shockwave) or the simulation's (softer). */
   classifyChange?: (change: FrameChange, frame: Frame) => Origin;
+  /** Scout mode overlay: the headliner's demand per cell and the lettered spots; null when not scouting. */
+  scout?: ScoutOverlay | null;
+};
+
+export type ScoutOverlay = {
+  demand: number[] | null;
+  pins: ScoutPin[];
+  /** Cell of the pin to highlight (a hovered card), or null. */
+  highlighted: number | null;
+  /** Cell of the top-ranked spot, or null before results arrive. */
+  best: number | null;
 };
 
 export function CityCanvas(props: CityCanvasProps) {
@@ -68,7 +81,9 @@ export function CityCanvas(props: CityCanvasProps) {
         <Ground layout={layout} onGroundClick={props.onGroundClick} pointerRef={pointerRef} />
         <Streets layout={layout} />
         <Buildings layout={layout} />
-        <SceneAuras world={props.world} layout={layout} frame={props.frame} focus={props.focus} />
+        <SceneAuras world={props.world} layout={layout} frame={props.frame} focus={props.focus} dimmed={!!props.scout} />
+        {props.scout?.demand && <DemandGlow layout={layout} demand={props.scout.demand} />}
+        {props.scout && <ScoutPins layout={layout} pins={props.scout.pins} highlighted={props.scout.highlighted} best={props.scout.best} />}
         <Landmarks world={props.world} layout={layout} frame={props.frame} selected={props.selectedVenue} focus={props.focus} rules={props.rules} onSelect={props.onVenueClick} />
         <Crowd world={props.world} layout={layout} frames={props.frames} slots={props.agentSlots} tickMs={props.tickMs} focus={props.focus} />
         {props.ghost && <Ghost layout={layout} frames={props.frames} pointerRef={pointerRef} spec={props.ghost} />}

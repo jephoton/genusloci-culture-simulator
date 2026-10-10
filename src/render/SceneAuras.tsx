@@ -38,6 +38,8 @@ const BREATH_DEPTH = 0.12;
 /** Under a scene focus, other scenes' hotspots keep this fraction of their light. */
 const UNFOCUSED_LIT = 0.25;
 const FOCUS_S = 0.25;
+/** While dimmed (scouting), every hotspot keeps this fraction of its light. */
+const DIMMED_LIT = 0.3;
 
 type Aura = {
   scene: number;
@@ -83,7 +85,16 @@ const FRAGMENT = /* glsl */ `
  * it is clearly over-represented: you can see where scenes live, and watch them form, spread and fade.
  * Smoothed per (scene lineage id, cell).
  */
-export function SceneAuras({ world, layout, frame, focus }: { world: World; layout: CityLayout; frame: Frame | null; focus: Focus }) {
+export function SceneAuras({
+  world, layout, frame, focus, dimmed = false,
+}: {
+  world: World;
+  layout: CityLayout;
+  frame: Frame | null;
+  focus: Focus;
+  /** Turns every hotspot down, so another overlay (the scout's demand glow) reads clearly. */
+  dimmed?: boolean;
+}) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const hotspots = useMemo(() => (frame ? sceneHotspots(frame, layout, world) : []), [frame, layout, world]);
   const liveScenes = useMemo(() => {
@@ -117,6 +128,7 @@ export function SceneAuras({ world, layout, frame, focus }: { world: World; layo
   /** Seconds since each live scene was first seen (for the birth pulse); Infinity for scenes already there. */
   const sceneAgeRef = useRef(new Map<number, number>());
   const seen = useRef<{ hotspots: typeof hotspots | null; epoch: number }>({ hotspots: null, epoch: -1 });
+  const dimRef = useRef(1);
   const scratch = useMemo(() => new THREE.Matrix4(), []);
 
   useEffect(
@@ -177,6 +189,8 @@ export function SceneAuras({ world, layout, frame, focus }: { world: World; layo
     for (const [id, age] of sceneAge) sceneAge.set(id, age + dt);
     const glide = 1 - Math.exp(-dt / GLIDE_S);
     const focusK = 1 - Math.exp(-dt / FOCUS_S);
+    dimRef.current += ((dimmed ? DIMMED_LIT : 1) - dimRef.current) * focusK;
+    const dim = dimRef.current;
     const t = state.clock.elapsedTime;
     const mesh = meshRef.current;
     const tint = mesh?.geometry.getAttribute("aTint") as THREE.InstancedBufferAttribute | undefined;
@@ -198,7 +212,7 @@ export function SceneAuras({ world, layout, frame, focus }: { world: World; layo
       if (!mesh || !tint || i >= MAX_AURAS) continue;
       const pulse = 1 + BIRTH_PULSE * Math.exp(-(sceneAge.get(a.scene) ?? Infinity) / BIRTH_DECAY_S);
       const breath = 1 + BREATH_DEPTH * Math.sin(t * BREATH_HZ * Math.PI * 2 + a.scene * 1.7);
-      const k = a.level * a.opacity * a.focus * pulse * breath;
+      const k = a.level * a.opacity * a.focus * pulse * breath * dim;
       mesh.setMatrixAt(i, scratch.makeScale(a.r, 1, a.r).setPosition(a.x, AURA_Y, a.z));
       tint.setXYZ(i, a.rgb[0] * k, a.rgb[1] * k, a.rgb[2] * k);
       i++;
