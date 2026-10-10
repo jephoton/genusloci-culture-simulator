@@ -2,8 +2,9 @@
 
 import { Html } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { type RefObject, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import type { FrameStore } from "@/render/frame-store";
 import type { CityLayout } from "@/render/layout";
 
 /** A scouted spot: its cell, pin letter, and whether it is the player's own (D). */
@@ -18,7 +19,9 @@ const RISE_S = 0.6;
 /** Time constant of the glide into and out of the highlight. */
 const HIGHLIGHT_S = 0.15;
 
-function Pin({ layout, pin, highlighted, best }: { layout: CityLayout; pin: ScoutPin; highlighted: boolean; best: boolean }) {
+function Pin({
+  frames, layout, pin, highlighted, best,
+}: { frames: RefObject<FrameStore>; layout: CityLayout; pin: ScoutPin; highlighted: boolean; best: boolean }) {
   const beamRef = useRef<THREE.Mesh>(null);
   const anim = useRef({ rise: 0, glow: 0 });
   const color = pin.own ? VIOLET : AMBER;
@@ -39,12 +42,14 @@ function Pin({ layout, pin, highlighted, best }: { layout: CityLayout; pin: Scou
     [mats],
   );
 
-  useFrame((state, delta) => {
+  // The rise and highlight answer the player (scouting pauses the city), so they run in real time; the
+  // pulse is ambient and runs on the pausable animation clock.
+  useFrame((_, delta) => {
     const dt = Math.min(1 / 15, Math.max(0, delta));
     const a = anim.current;
     a.rise = Math.min(1, a.rise + dt / RISE_S);
     a.glow += ((highlighted ? 1 : 0) - a.glow) * (1 - Math.exp(-dt / HIGHLIGHT_S));
-    const pulse = 0.5 + 0.5 * Math.sin(state.clock.elapsedTime * PULSE_HZ * Math.PI * 2);
+    const pulse = 0.5 + 0.5 * Math.sin((frames.current.clock.now() / 1000) * PULSE_HZ * Math.PI * 2);
     const rise = 1 - (1 - a.rise) ** 3;
     if (beamRef.current) {
       beamRef.current.scale.set(1 + 0.6 * a.glow, Math.max(0.001, rise), 1 + 0.6 * a.glow);
@@ -87,8 +92,10 @@ function Pin({ layout, pin, highlighted, best }: { layout: CityLayout; pin: Scou
 
 /** Lettered beacons on the spots being scouted. The highlighted one (a hovered card) glows brighter. */
 export function ScoutPins({
-  layout, pins, highlighted, best,
+  frames, layout, pins, highlighted, best,
 }: {
+  /** Holds the pausable animation clock. */
+  frames: RefObject<FrameStore>;
   layout: CityLayout;
   pins: ScoutPin[];
   /** Cell of the pin to highlight, or null. */
@@ -99,7 +106,7 @@ export function ScoutPins({
   return (
     <group>
       {pins.map((p) => (
-        <Pin key={`${p.letter}:${p.cell}`} layout={layout} pin={p} highlighted={highlighted === p.cell} best={best === p.cell} />
+        <Pin key={`${p.letter}:${p.cell}`} frames={frames} layout={layout} pin={p} highlighted={highlighted === p.cell} best={best === p.cell} />
       ))}
     </group>
   );

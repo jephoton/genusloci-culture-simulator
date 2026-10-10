@@ -1,12 +1,13 @@
 "use client";
 
 import { useFrame } from "@react-three/fiber";
-import { useLayoutEffect, useMemo, useRef } from "react";
+import { type RefObject, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { BUILDING_FRAGMENT, BUILDING_VERTEX } from "@/render/buildingShader";
+import type { FrameStore } from "@/render/frame-store";
 import { type CityLayout, hash01 } from "@/render/layout";
 
-export function Buildings({ layout }: { layout: CityLayout }) {
+export function Buildings({ frames, layout }: { frames: RefObject<FrameStore>; layout: CityLayout }) {
   const { count } = layout.buildings;
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
@@ -31,8 +32,9 @@ export function Buildings({ layout }: { layout: CityLayout }) {
     mesh.computeBoundingSphere();
   }, [layout]);
 
-  useFrame((state) => {
-    if (materialRef.current) materialRef.current.uniforms.uTime.value = state.clock.elapsedTime;
+  // Window flicker runs on the pausable animation clock, so a pause freezes it too.
+  useFrame(() => {
+    if (materialRef.current) materialRef.current.uniforms.uTime.value = frames.current.clock.now() / 1000;
   });
 
   return (

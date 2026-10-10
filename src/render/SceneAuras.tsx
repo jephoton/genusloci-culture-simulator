@@ -1,9 +1,10 @@
 "use client";
 
 import { useFrame } from "@react-three/fiber";
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { type RefObject, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Focus } from "@/render/focus";
+import type { FrameStore } from "@/render/frame-store";
 import type { CityLayout } from "@/render/layout";
 import { type Rgb, sceneHuesOf, sceneRgb } from "@/render/palette";
 import { sceneHotspots } from "@/render/scene-hotspots";
@@ -83,13 +84,16 @@ const FRAGMENT = /* glsl */ `
 /**
  * Soft, additive glows on the ground in each scene's colour over its hotspots, the neighbourhoods where
  * it is clearly over-represented: you can see where scenes live, and watch them form, spread and fade.
- * Smoothed per (scene lineage id, cell).
+ * Smoothed per (scene lineage id, cell). Growth, fades and the breath run on the pausable animation
+ * clock (a pause freezes them); the focus and scout dimming are UI feedback and run in real time.
  */
 export function SceneAuras({
-  world, layout, frame, focus, dimmed = false,
+  world, layout, frames, frame, focus, dimmed = false,
 }: {
   world: World;
   layout: CityLayout;
+  /** Holds the pausable animation clock. */
+  frames: RefObject<FrameStore>;
   frame: Frame | null;
   focus: Focus;
   /** Turns every hotspot down, so another overlay (the scout's demand glow) reads clearly. */
@@ -129,6 +133,8 @@ export function SceneAuras({
   const sceneAgeRef = useRef(new Map<number, number>());
   const seen = useRef<{ hotspots: typeof hotspots | null; epoch: number }>({ hotspots: null, epoch: -1 });
   const dimRef = useRef(1);
+  /** Animation clock time of the last animation frame, or null before the first. */
+  const lastRef = useRef<number | null>(null);
   const scratch = useMemo(() => new THREE.Matrix4(), []);
 
   useEffect(
@@ -147,8 +153,11 @@ export function SceneAuras({
     mesh.instanceMatrix.needsUpdate = true;
   }, []);
 
-  useFrame((state, delta) => {
-    const dt = Math.min(1 / 15, Math.max(0, delta));
+  useFrame((_, delta) => {
+    const realDt = Math.min(1 / 15, Math.max(0, delta));
+    const now = frames.current.clock.now();
+    const dt = lastRef.current === null ? 0 : Math.min(1 / 15, Math.max(0, (now - lastRef.current) / 1000));
+    lastRef.current = now;
     const s = seen.current;
     const auras = aurasRef.current;
     const sceneAge = sceneAgeRef.current;
@@ -183,15 +192,22 @@ export function SceneAuras({
         a.target = target;
         a.rgb = sceneRgb(hues, h.scene);
         a.tr = r;
+        // The first frame, a rewind or a re-init is a cut: show it at once (it may arrive while paused).
+        if (!continuous) {
+          a.r = r;
+          a.level = target;
+          a.opacity = 1;
+        }
       });
+      if (!continuous) for (const [key, a] of auras) if (!a.live) auras.delete(key);
     }
 
     for (const [id, age] of sceneAge) sceneAge.set(id, age + dt);
     const glide = 1 - Math.exp(-dt / GLIDE_S);
-    const focusK = 1 - Math.exp(-dt / FOCUS_S);
+    const focusK = 1 - Math.exp(-realDt / FOCUS_S);
     dimRef.current += ((dimmed ? DIMMED_LIT : 1) - dimRef.current) * focusK;
     const dim = dimRef.current;
-    const t = state.clock.elapsedTime;
+    const t = now / 1000;
     const mesh = meshRef.current;
     const tint = mesh?.geometry.getAttribute("aTint") as THREE.InstancedBufferAttribute | undefined;
     let i = 0;

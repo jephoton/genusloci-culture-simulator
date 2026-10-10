@@ -98,15 +98,18 @@ type Motion = {
   tgtR: Float32Array;
   tgtG: Float32Array;
   tgtB: Float32Array;
-  /** Scene id per slot in the last frame, and when it last changed (performance.now ms). */
+  /** Scene id per slot in the last frame, and when it last changed (animation clock ms). */
   scene: Int32Array;
   changedAt: Float64Array;
   /** Brightness (1 = full) and emphasis (0–1, towards FOCUSED_SIZE) under the current focus, eased. */
   lit: Float32Array;
   emphasis: Float32Array;
   frame: Frame | null;
+  /** Animation clock time this tick's night out started, and of the last animation frame. */
   startedAt: number;
   last: number;
+  /** Real time of the last animation frame: focus fades are UI feedback and run even while paused. */
+  lastReal: number;
 };
 
 function createMotion(slots: number): Motion {
@@ -141,15 +144,18 @@ function createMotion(slots: number): Motion {
     frame: null,
     startedAt: 0,
     last: 0,
+    lastReal: 0,
   };
 }
 
 /**
- * One glowing figure per agent slot. Each tick (week) plays as a night out: agents leave home in
+ * One glowing figure per agent slot. Each tick (a day in the demo) plays as a night out: agents leave home in
  * staggered waves, walk the streets to their venue, gather there, then walk home the same way. A
  * changed scene colour is adopted when the agent arrives at the venue where it changed (or mid-week
  * if it stayed in), with a pop and a flash. Under a focus, agents outside it fade nearly to black and
- * those in it grow a little.
+ * those in it grow a little. Everything but the focus fade runs on the pausable animation clock, so a
+ * pause freezes walkers mid-step; a frame that arrives while paused starts its night out at the frozen
+ * time, so nobody moves until play resumes.
  */
 export function Crowd({
   world, layout, frames, slots, tickMs, focus,
@@ -190,11 +196,14 @@ export function Crowd({
     const m = motion.current;
     const frame = frames.current.current;
     if (!mesh || !m || !frame) return;
-    const now = performance.now();
+    const now = frames.current.clock.now();
+    const real = performance.now();
     const n = Math.min(slots, frame.alive.length);
 
     const dt = Math.min(0.1, Math.max(0, (now - m.last) / 1000));
     m.last = now;
+    const realDt = Math.min(0.1, Math.max(0, (real - m.lastReal) / 1000));
+    m.lastReal = real;
 
     if (frame !== m.frame) {
       let streets = streetsRef.current;
@@ -259,7 +268,7 @@ export function Crowd({
 
     const t = Math.min(1, (now - m.startedAt) / Math.max(1, tickMs));
     const blend = 1 - Math.exp(-dt / BLEND_S);
-    const focusBlend = 1 - Math.exp(-dt / FOCUS_S);
+    const focusBlend = 1 - Math.exp(-realDt / FOCUS_S);
     const f = focusRef.current;
     const arr = mesh.instanceMatrix.array as Float32Array;
     const col = mesh.instanceColor;

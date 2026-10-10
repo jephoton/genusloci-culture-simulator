@@ -1,9 +1,10 @@
 "use client";
 
 import { type ThreeEvent, useFrame } from "@react-three/fiber";
-import { type ReactNode, useEffect, useMemo, useRef } from "react";
+import { type ReactNode, type RefObject, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { type Focus, venueInFocus } from "@/render/focus";
+import type { FrameStore } from "@/render/frame-store";
 import { type CityLayout, LANDMARK_RADIUS, LANDMARK_SCALE } from "@/render/layout";
 import { type Rgb, sceneHuesOf, sceneRgb, WARNING_RGB } from "@/render/palette";
 import { type ClosureRules, isStruggling, type VenueView, venueViewsOf } from "@/render/venues";
@@ -48,9 +49,12 @@ const WARN_RING_MAX = 0.7;
 const WARN_S = 0.4;
 
 type Anim = {
-  y: number; vy: number; last: number; open: boolean; openedAt: number; flicker: number; lit: number; focus: number;
+  /** `last` is animation clock time (pausable); `lastReal` real time, for the focus fade. */
+  y: number; vy: number; last: number; lastReal: number; open: boolean; openedAt: number; flicker: number; lit: number; focus: number;
   /** Warning envelope in [0, 1]: 1 while struggling. */
   warn: number;
+  /** Frame epoch last drawn: a change (rewind, re-init) jumps straight to the new state. */
+  epoch: number;
 };
 
 /** Per-landmark materials, recoloured every animation frame. */
@@ -143,8 +147,12 @@ export function Body({ kind, mats: { neon, body, band } }: { kind: VenueKind; ma
 }
 
 function Landmark({
-  view, hues, selected, inFocus, struggling, onSelect,
+  frames, epoch, view, hues, selected, inFocus, struggling, onSelect,
 }: {
+  /** Holds the pausable animation clock every pulse and spring runs on. */
+  frames: RefObject<FrameStore>;
+  /** The frame's epoch (see Frame.epoch). */
+  epoch: number;
   view: VenueView;
   hues: Float32Array;
   selected: boolean;
@@ -188,26 +196,45 @@ function Landmark({
   );
 
   useFrame(() => {
-    const now = performance.now();
+    const { clock } = frames.current;
+    const now = clock.now();
+    const real = performance.now();
     let a = anim.current;
     if (!a) {
+      // Rises out of the ground while playing; mounted while paused (the first city, or a venue placed
+      // during a pause) it simply stands there, since a frozen clock would leave it buried.
+      const rise = view.open && clock.playing;
       a = {
-        y: view.open ? BURIED * view.scale : CLOSED_SINK,
+        y: view.open ? (rise ? BURIED * view.scale : 0) : CLOSED_SINK,
         vy: 0,
         last: now,
+        lastReal: real,
         open: view.open,
-        openedAt: view.open ? now : -Infinity,
+        openedAt: rise ? now : -Infinity,
         flicker: 1,
         lit: view.open ? 1 : CLOSED_LIT,
         focus: inFocus ? 1 : UNFOCUSED_LIT,
         warn: struggling ? 1 : 0,
+        epoch,
       };
       anim.current = a;
+    }
+    if (a.epoch !== epoch) {
+      // A rewind or re-init is a cut, not a story: jump to the new state (it may arrive while paused).
+      a.epoch = epoch;
+      a.y = view.open ? 0 : CLOSED_SINK;
+      a.vy = 0;
+      a.open = view.open;
+      a.openedAt = -Infinity;
+      a.lit = view.open ? 1 : CLOSED_LIT;
+      a.warn = struggling ? 1 : 0;
     }
     if (view.open && !a.open) a.openedAt = now;
     a.open = view.open;
     const dt = Math.min(1 / 30, Math.max(0, (now - a.last) / 1000));
     a.last = now;
+    const realDt = Math.min(1 / 30, Math.max(0, (real - a.lastReal) / 1000));
+    a.lastReal = real;
 
     // Rise and sink.
     const target = view.open ? 0 : CLOSED_SINK;
@@ -228,7 +255,7 @@ function Landmark({
       flickerTarget = n - Math.floor(n) >= 0.5 ? 1 : 0.35;
     }
     a.flicker += (flickerTarget - a.flicker) * (1 - Math.exp(-dt / 0.04));
-    a.focus += ((inFocus ? 1 : UNFOCUSED_LIT) - a.focus) * (1 - Math.exp(-dt / 0.2));
+    a.focus += ((inFocus ? 1 : UNFOCUSED_LIT) - a.focus) * (1 - Math.exp(-realDt / 0.2));
     // Struggling: pull the sign and band towards warning red, pulsing slowly.
     a.warn += ((struggling ? 1 : 0) - a.warn) * (1 - Math.exp(-dt / WARN_S));
     const pulse = 0.5 + 0.5 * Math.sin((now / 1000) * WARN_HZ * Math.PI * 2);
@@ -334,9 +361,10 @@ function Landmark({
 }
 
 export function Landmarks({
-  world, layout, frame, selected, focus, rules, onSelect,
+  world, layout, frames, frame, selected, focus, rules, onSelect,
 }: {
   world: World;
+  frames: RefObject<FrameStore>;
   layout: CityLayout;
   frame: Frame | null;
   /** The sim's closure rules, to tell which venues are struggling. */
@@ -350,7 +378,7 @@ export function Landmarks({
   return (
     <group>
       {views.map((v) => (
-        <Landmark key={v.slot} view={v} hues={hues} selected={selected === v.slot} inFocus={venueInFocus(focus, v)} struggling={frame ? isStruggling(frame, v.slot, rules) : false} onSelect={onSelect} />
+        <Landmark key={v.slot} frames={frames} epoch={frame?.epoch ?? -1} view={v} hues={hues} selected={selected === v.slot} inFocus={venueInFocus(focus, v)} struggling={frame ? isStruggling(frame, v.slot, rules) : false} onSelect={onSelect} />
       ))}
     </group>
   );

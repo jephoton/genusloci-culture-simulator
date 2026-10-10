@@ -65,8 +65,9 @@ export function Effects({
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
   }, []);
 
+  // Effect timers run on the pausable animation clock: a pause freezes waves mid-ring.
   useFrame(() => {
-    const now = performance.now();
+    const now = frames.current.clock.now();
     const d = director;
     const frame = frames.current.current;
     if (frame && frame !== lastFrame.current) {

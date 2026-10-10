@@ -1,8 +1,9 @@
 import { hash01 } from "@/render/layout";
 
 /**
- * A tick (one simulated week) is drawn as a night out: agents leave home in staggered waves, gather
- * at their venue, then walk home before the next week. All values are fractions of the tick.
+ * A tick (one simulated day in the demo; a week with weekly ticks) is drawn as a night out: agents
+ * leave home in staggered waves, gather at their venue, then walk home before the next tick. All values
+ * are fractions of the tick.
  */
 const MAX_STAGGER = 0.2;
 const TRAVEL = 0.25;
@@ -12,7 +13,7 @@ export const ARRIVE_AT = MAX_STAGGER + TRAVEL;
 export const RETURN_AT = 0.62;
 const RETURN_STAGGER = 0.6;
 
-/** Per-agent departure offset in [0, MAX_STAGGER): deterministic, so waves are stable across weeks. */
+/** Per-agent departure offset in [0, MAX_STAGGER): deterministic, so waves are stable across ticks. */
 export function staggerOf(agent: number): number {
   return hash01(agent * 7 + 11) * MAX_STAGGER;
 }

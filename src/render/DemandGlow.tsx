@@ -1,8 +1,9 @@
 "use client";
 
 import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { type RefObject, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import type { FrameStore } from "@/render/frame-store";
 import type { CityLayout } from "@/render/layout";
 
 /** Just above the scene auras (0.09), below ripples (0.12). */
@@ -48,7 +49,7 @@ const FRAGMENT = /* glsl */ `
  * Soft amber discs on the ground where residents' taste fits the headliner being scouted: one per cell,
  * brightness and size by the cell's share of the top demand. Fades in on mount and glides between maps.
  */
-export function DemandGlow({ layout, demand }: { layout: CityLayout; demand: number[] }) {
+export function DemandGlow({ frames, layout, demand }: { frames: RefObject<FrameStore>; layout: CityLayout; demand: number[] }) {
   const n = layout.cellX.length;
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const geometry = useMemo(() => {
@@ -90,7 +91,9 @@ export function DemandGlow({ layout, demand }: { layout: CityLayout; demand: num
     [geometry, material],
   );
 
-  useFrame((state, delta) => {
+  // The fade-in and glide answer the player (scouting pauses the city), so they run in real time; the
+  // breath is ambient and runs on the pausable animation clock.
+  useFrame((_, delta) => {
     const mesh = meshRef.current;
     if (!mesh) return;
     const dt = Math.min(1 / 15, Math.max(0, delta));
@@ -98,7 +101,7 @@ export function DemandGlow({ layout, demand }: { layout: CityLayout; demand: num
     const lv = levels.current;
     fade.current = Math.min(1, fade.current + dt / FADE_IN_S);
     const glide = 1 - Math.exp(-dt / GLIDE_S);
-    const breath = 1 + BREATH_DEPTH * Math.sin(state.clock.elapsedTime * BREATH_HZ * Math.PI * 2);
+    const breath = 1 + BREATH_DEPTH * Math.sin((frames.current.clock.now() / 1000) * BREATH_HZ * Math.PI * 2);
     const tint = mesh.geometry.getAttribute("aTint") as THREE.InstancedBufferAttribute;
     for (let c = 0; c < n; c++) {
       lv[c] += (targets[c] - lv[c]) * glide;

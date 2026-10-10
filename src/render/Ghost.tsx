@@ -70,6 +70,7 @@ export function Ghost({
     if (!root) return;
     root.visible = pointer.over;
     if (!pointer.over) return;
+    // Cursor feedback, so real time: the preview keeps pulsing and gliding while the city is paused.
     const now = performance.now();
     const pulse = 0.5 + 0.5 * Math.sin((now / 1000) * PULSE_HZ * Math.PI * 2);
 

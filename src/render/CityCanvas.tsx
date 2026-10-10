@@ -1,7 +1,7 @@
 "use client";
 
 import { MapControls } from "@react-three/drei";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
 import { type RefObject, useMemo, useRef } from "react";
 import { Buildings } from "@/render/Buildings";
@@ -61,6 +61,15 @@ export type ScoutOverlay = {
   best: number | null;
 };
 
+/**
+ * Advances the pausable animation clock once per rendered frame, before any renderer reads it (a
+ * negative priority runs first without taking over rendering).
+ */
+function ClockDriver({ frames }: { frames: RefObject<FrameStore> }) {
+  useFrame(() => frames.current.clock.sync(performance.now()), -1);
+  return null;
+}
+
 export function CityCanvas(props: CityCanvasProps) {
   const { layout } = props;
   const shockwave = useMemo(() => new ShockwaveEffect(), []);
@@ -74,17 +83,18 @@ export function CityCanvas(props: CityCanvasProps) {
         gl={{ powerPreference: "high-performance" }}
         camera={{ position: [x, size * 0.16, z + size * 0.2], fov: 42, near: 0.5, far: size * 8 }}
       >
+        <ClockDriver frames={props.frames} />
         <color attach="background" args={["#07080b"]} />
         <fog attach="fog" args={["#07080b", size * 0.25, size * 1.1]} />
         <ambientLight intensity={0.35} color="#9aa7ff" />
         <directionalLight position={[x + size, size, z + size * 0.4]} intensity={0.6} color="#b8c4ff" />
         <Ground layout={layout} onGroundClick={props.onGroundClick} pointerRef={pointerRef} />
         <Streets layout={layout} />
-        <Buildings layout={layout} />
-        <SceneAuras world={props.world} layout={layout} frame={props.frame} focus={props.focus} dimmed={!!props.scout} />
-        {props.scout?.demand && <DemandGlow layout={layout} demand={props.scout.demand} />}
-        {props.scout && <ScoutPins layout={layout} pins={props.scout.pins} highlighted={props.scout.highlighted} best={props.scout.best} />}
-        <Landmarks world={props.world} layout={layout} frame={props.frame} selected={props.selectedVenue} focus={props.focus} rules={props.rules} onSelect={props.onVenueClick} />
+        <Buildings frames={props.frames} layout={layout} />
+        <SceneAuras world={props.world} layout={layout} frames={props.frames} frame={props.frame} focus={props.focus} dimmed={!!props.scout} />
+        {props.scout?.demand && <DemandGlow frames={props.frames} layout={layout} demand={props.scout.demand} />}
+        {props.scout && <ScoutPins frames={props.frames} layout={layout} pins={props.scout.pins} highlighted={props.scout.highlighted} best={props.scout.best} />}
+        <Landmarks world={props.world} layout={layout} frames={props.frames} frame={props.frame} selected={props.selectedVenue} focus={props.focus} rules={props.rules} onSelect={props.onVenueClick} />
         <Crowd world={props.world} layout={layout} frames={props.frames} slots={props.agentSlots} tickMs={props.tickMs} focus={props.focus} />
         {props.ghost && <Ghost layout={layout} frames={props.frames} pointerRef={pointerRef} spec={props.ghost} />}
         <Effects world={props.world} layout={layout} frames={props.frames} shockwave={shockwave} rules={props.rules} onChanges={props.onFrameChanges} classify={props.classifyChange} />

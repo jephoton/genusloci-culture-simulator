@@ -1,6 +1,7 @@
 "use client";
 
 import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
+import { SimClock } from "@/render/clock";
 import type { FrameStore } from "@/render/frame-store";
 import type { Action } from "@/sim/actions/schema";
 import type { SimConfig } from "@/sim/config";
@@ -40,7 +41,8 @@ const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 /** Owns the simulation worker: initialises the world, streams frames, and applies user actions. */
 export function useSimulation(world: World, seed: number, config: Partial<SimConfig>): Simulation {
   const clientRef = useRef<SimClient | null>(null);
-  const frames = useRef<FrameStore>({ current: null, previous: null, receivedAt: 0 });
+  const [clock] = useState(() => new SimClock());
+  const frames = useRef<FrameStore>({ current: null, previous: null, receivedAt: 0, clock });
   const playingRef = useRef(false);
   const speedRef = useRef(DEFAULT_SPEED);
   const [frame, setFrame] = useState<Frame | null>(null);
@@ -51,7 +53,10 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
   const [speed, setSpeedState] = useState(DEFAULT_SPEED);
 
   const accept = useCallback((f: Frame) => {
-    frames.current = { previous: frames.current.current, current: f, receivedAt: performance.now() };
+    const store = frames.current;
+    store.previous = store.current;
+    store.current = f;
+    store.receivedAt = store.clock.now();
     setFrame(f);
     if (f.digest) setDigest(f.digest);
   }, []);
@@ -62,6 +67,7 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
     const off = client.onFrame(accept);
     const offStopped = client.onStopped(({ error: reason }) => {
       playingRef.current = false;
+      clock.setPlaying(false, performance.now());
       setPlaying(false);
       setError(reason);
     });
@@ -88,8 +94,9 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
       client.terminate();
       clientRef.current = null;
       playingRef.current = false;
+      clock.setPlaying(false, performance.now());
     };
-  }, [world, seed, config, accept]);
+  }, [world, seed, config, accept, clock]);
 
   const report = useCallback((e: unknown) => setError(message(e)), []);
 
@@ -104,21 +111,25 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
     const client = clientRef.current;
     if (!client) return;
     playingRef.current = true;
+    clock.setPlaying(true, performance.now());
     setPlaying(true);
     client.play(MAIN_TIMELINE, speedRef.current).catch((e: unknown) => {
       playingRef.current = false;
+      clock.setPlaying(false, performance.now());
       setPlaying(false);
       report(e);
     });
-  }, [report]);
+  }, [clock, report]);
 
   const pause = useCallback(() => {
     const client = clientRef.current;
     if (!client) return;
+    // Freeze the animation clock first: a frame that still arrives after this waits, frozen, for play.
     playingRef.current = false;
+    clock.setPlaying(false, performance.now());
     setPlaying(false);
     client.pause().catch(report);
-  }, [report]);
+  }, [clock, report]);
 
   const setSpeed = useCallback(
     (ticksPerSecond: number) => {
