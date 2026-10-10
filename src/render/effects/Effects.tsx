@@ -10,7 +10,7 @@ import type { ShockwaveEffect } from "@/render/effects/ShockwaveEffect";
 import type { FrameStore } from "@/render/frame-store";
 import type { CityLayout } from "@/render/layout";
 import { type Rgb, sceneHuesOf, sceneRgb } from "@/render/palette";
-import { venueViewsOf } from "@/render/venues";
+import { type ClosureRules, venueViewsOf } from "@/render/venues";
 import type { Frame } from "@/sim/frame";
 import type { World } from "@/world/schema";
 
@@ -23,9 +23,11 @@ const NEUTRAL: Rgb = [0.9, 0.85, 0.75];
  * player's own changes (full shockwave) from the simulation's (softer); without it, all count as the player's.
  */
 export function Effects({
-  world, layout, frames, shockwave, onChanges, classify,
+  world, layout, frames, shockwave, rules, onChanges, classify,
 }: {
   world: World;
+  /** The sim's closure rules, so the diff can tell when a venue starts struggling. */
+  rules: ClosureRules;
   layout: CityLayout;
   frames: RefObject<FrameStore>;
   shockwave: ShockwaveEffect;
@@ -68,7 +70,7 @@ export function Effects({
     const d = director;
     const frame = frames.current.current;
     if (frame && frame !== lastFrame.current) {
-      const changes = diffFrames(lastFrame.current, frame);
+      const changes = diffFrames(lastFrame.current, frame, rules);
       if (changes.length > 0) {
         const views = venueViewsOf(frame, layout, world);
         const hues = sceneHuesOf(frame.lineageParents);

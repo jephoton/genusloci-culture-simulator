@@ -19,6 +19,7 @@ import { Landmarks } from "@/render/Landmarks";
 import type { CityLayout } from "@/render/layout";
 import { SceneAuras } from "@/render/SceneAuras";
 import { Streets } from "@/render/Streets";
+import type { ClosureRules } from "@/render/venues";
 import type { Frame } from "@/sim/frame";
 import type { World } from "@/world/schema";
 
@@ -41,6 +42,8 @@ export type CityCanvasProps = {
   flyTo: RefObject<FlyTo | null>;
   /** Visible changes between consecutive frames (the ones the effects play), for toasts. */
   onFrameChanges: (changes: FrameChange[], frame: Frame) => void;
+  /** The sim's closure rules: when a venue counts as struggling. */
+  rules: ClosureRules;
   /** Whether a change was the player's doing (full shockwave) or the simulation's (softer). */
   classifyChange?: (change: FrameChange, frame: Frame) => Origin;
 };
@@ -66,10 +69,10 @@ export function CityCanvas(props: CityCanvasProps) {
         <Streets layout={layout} />
         <Buildings layout={layout} />
         <SceneAuras layout={layout} frame={props.frame} focus={props.focus} />
-        <Landmarks world={props.world} layout={layout} frame={props.frame} selected={props.selectedVenue} focus={props.focus} onSelect={props.onVenueClick} />
+        <Landmarks world={props.world} layout={layout} frame={props.frame} selected={props.selectedVenue} focus={props.focus} rules={props.rules} onSelect={props.onVenueClick} />
         <Crowd world={props.world} layout={layout} frames={props.frames} slots={props.agentSlots} tickMs={props.tickMs} focus={props.focus} />
         {props.ghost && <Ghost layout={layout} frames={props.frames} pointerRef={pointerRef} spec={props.ghost} />}
-        <Effects world={props.world} layout={layout} frames={props.frames} shockwave={shockwave} onChanges={props.onFrameChanges} classify={props.classifyChange} />
+        <Effects world={props.world} layout={layout} frames={props.frames} shockwave={shockwave} rules={props.rules} onChanges={props.onFrameChanges} classify={props.classifyChange} />
         <MapControls
           makeDefault
           target={[x, 0, z]}

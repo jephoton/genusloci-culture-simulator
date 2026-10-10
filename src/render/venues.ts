@@ -2,6 +2,22 @@ import { type CityLayout, landmarkPosition, landmarkScale, type XZ } from "@/ren
 import type { Frame } from "@/sim/frame";
 import type { VenueKind, World } from "@/world/schema";
 
+/** The simulation's closure rules (from SimConfig) that decide when a venue is on its way out. */
+export type ClosureRules = { closeThreshold: number; graceTicks: number };
+
+/**
+ * Whether venue slot `v` is struggling: open, permanent (not an event), past the grace period and with
+ * health below the closure threshold, so it closes if it stays there. Frame tick T is the state after
+ * the step at tick T - 1, which is the first to count low health once T - 1 >= graceTicks.
+ */
+export function isStruggling(
+  frame: Pick<Frame, "tick" | "venueOpen" | "venueExpires" | "venueHealth">,
+  v: number,
+  rules: ClosureRules,
+): boolean {
+  return frame.venueOpen[v] === 1 && frame.venueExpires[v] < 0 && frame.tick > rules.graceTicks && frame.venueHealth[v] < rules.closeThreshold;
+}
+
 export type VenueView = {
   slot: number;
   entity: number;

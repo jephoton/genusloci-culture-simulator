@@ -10,8 +10,8 @@ import type { Focus } from "@/render/focus";
 import type { GhostSpec } from "@/render/Ghost";
 import { type CityLayout, nearestCell, type XZ } from "@/render/layout";
 import { chooseVenueEntity } from "@/render/placement";
-import { venueViewsOf } from "@/render/venues";
-import type { SimConfig } from "@/sim/config";
+import { type ClosureRules, venueViewsOf } from "@/render/venues";
+import { DEFAULT_CONFIG, type SimConfig } from "@/sim/config";
 import type { Frame } from "@/sim/frame";
 import { Hud } from "@/ui/Hud";
 import { SceneLegend } from "@/ui/SceneLegend";
@@ -28,6 +28,11 @@ import { areaName, kindWord } from "@/ui/words";
 
 const DEMO_SEED = 7;
 const DEMO_CONFIG: Partial<SimConfig> = { nAgents: 2500, agentReserve: 300 };
+/** When the running sim closes venues, so struggling ones can be flagged before they go. */
+const CLOSURE_RULES: ClosureRules = {
+  closeThreshold: DEMO_CONFIG.closeThreshold ?? DEFAULT_CONFIG.closeThreshold,
+  graceTicks: DEMO_CONFIG.graceTicks ?? DEFAULT_CONFIG.graceTicks,
+};
 const AGENT_SLOTS = 2800;
 const EVENT = { duration: 3, reachKm: 25, capacity: 3000 } as const;
 const MAX_TOASTS = 4;
@@ -181,8 +186,9 @@ function Game({
           const view = views[c.slot];
           if (!view) continue;
           if (c.kind === "venueClosed") {
-            closedByPlayer.current.delete(placementKey(view.entity, frame.venueCell[c.slot]));
-            announce(`${view.name} closed`, view.position);
+            // The player's own closures were their choice; the rest ran out of visitors.
+            const byPlayer = closedByPlayer.current.delete(placementKey(view.entity, frame.venueCell[c.slot]));
+            announce(byPlayer ? `${view.name} closed` : `${view.name} closed: not enough visitors`, view.position);
             continue;
           }
           // The player's own placements were confirmed when they were made.
@@ -193,6 +199,9 @@ function Game({
             const scene = homeScene(frame, frame.venueCell[c.slot]);
             announce(scene >= 0 ? `${view.name} opened (demand from Scene ${scene})` : `${view.name} opened`, view.position);
           }
+        } else if (c.kind === "venueStruggling") {
+          const view = views[c.slot];
+          if (view) announce(`${view.name} is struggling: few visitors`, view.position);
         } else if (c.kind === "sceneBorn") {
           const anchor = sceneAnchor(frame, layout, c.scene) ?? undefined;
           announce(c.parent === null ? `A new scene formed: Scene ${c.scene}` : `Scene ${c.scene} split off from Scene ${c.parent}`, anchor);
@@ -271,6 +280,7 @@ function Game({
         flyTo={flyRef}
         onFrameChanges={onFrameChanges}
         classifyChange={classifyChange}
+        rules={CLOSURE_RULES}
       />
       <Hud
         city={world.city.name}

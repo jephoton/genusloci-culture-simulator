@@ -85,4 +85,15 @@ describe("EffectsDirector", () => {
     player.ingest([{ kind: "venueClosed", slot: 1 }], 0, anchors, () => "player");
     expect(player.shake(50)).not.toEqual([0, 0]);
   });
+
+  it("marks a struggling venue with a small red ripple and nothing on screen", () => {
+    const d = new EffectsDirector();
+    d.ingest([{ kind: "venueStruggling", slot: 2 }], 0, anchors, () => "auto");
+    expect(d.waves).toHaveLength(0);
+    expect(d.ripples).toHaveLength(1);
+    expect(d.ripples[0]).toMatchObject({ x: 20, z: 0 });
+    const [r, g, b] = d.ripples[0].rgb;
+    expect(r).toBeGreaterThan(g + b);
+    expect(d.shake(50)).toEqual([0, 0]);
+  });
 });

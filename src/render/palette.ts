@@ -2,6 +2,8 @@ const GOLDEN_ANGLE = 137.508;
 
 export type Rgb = [number, number, number];
 export const UNASSIGNED_RGB: Rgb = [0.55, 0.57, 0.62];
+/** Warning red for venues on their way to closing: the landmark's pulse and the ripple when it starts. */
+export const WARNING_RGB: Rgb = [1, 0.14, 0.08];
 
 /**
  * Hue in degrees per lineage id. Roots are spread by the golden angle. Children are offset from their

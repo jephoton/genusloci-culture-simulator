@@ -1,6 +1,6 @@
 import type { FrameChange } from "@/render/effects/diff";
 import type { XZ } from "@/render/layout";
-import type { Rgb } from "@/render/palette";
+import { type Rgb, WARNING_RGB } from "@/render/palette";
 
 export const MAX_WAVES = 4;
 /** At most this many automatic waves start per frame, so a burst of auto-openings doesn't stack distortion. */
@@ -25,6 +25,7 @@ export type Anchors = {
 
 const GREY: Rgb = [0.6, 0.62, 0.7];
 
+
 /**
  * Turns frame changes into timed effects. Pure apart from its own state: time is passed in, so it
  * is testable and deterministic. Renderers read `waves`, `ripples` and `shake(now)` every frame.
@@ -43,7 +44,10 @@ export class EffectsDirector {
   ingest(changes: FrameChange[], now: number, anchors: Anchors, originOf: (change: FrameChange) => Origin = () => "player"): void {
     let autoWaves = 0;
     for (const c of changes) {
-      if (c.kind === "venueOpened" || c.kind === "venueClosed" || c.kind === "eventStarted" || c.kind === "eventEnded") {
+      if (c.kind === "venueStruggling") {
+        const p = anchors.venue(c.slot);
+        if (p) this.ripples.push({ x: p[0], z: p[1], start: now, duration: 1600, radius: 14, rgb: WARNING_RGB });
+      } else if (c.kind === "venueOpened" || c.kind === "venueClosed" || c.kind === "eventStarted" || c.kind === "eventEnded") {
         const p = anchors.venue(c.slot);
         if (!p) continue;
         const opening = c.kind === "venueOpened" || c.kind === "eventStarted";
