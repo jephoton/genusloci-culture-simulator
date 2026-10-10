@@ -16,6 +16,7 @@ import { Ghost, type GhostSpec } from "@/render/Ghost";
 import { Ground, type GroundPointer } from "@/render/Ground";
 import { Landmarks } from "@/render/Landmarks";
 import type { CityLayout } from "@/render/layout";
+import { SceneAuras } from "@/render/SceneAuras";
 import { Streets } from "@/render/Streets";
 import type { Frame } from "@/sim/frame";
 import type { World } from "@/world/schema";
@@ -61,6 +62,7 @@ export function CityCanvas(props: CityCanvasProps) {
         <Ground layout={layout} onGroundClick={props.onGroundClick} pointerRef={pointerRef} />
         <Streets layout={layout} />
         <Buildings layout={layout} />
+        <SceneAuras layout={layout} frame={props.frame} focus={props.focus} />
         <Landmarks world={props.world} layout={layout} frame={props.frame} selected={props.selectedVenue} focus={props.focus} onSelect={props.onVenueClick} />
         <Crowd world={props.world} layout={layout} frames={props.frames} slots={props.agentSlots} tickMs={props.tickMs} focus={props.focus} />
         {props.ghost && <Ghost layout={layout} frames={props.frames} pointerRef={pointerRef} spec={props.ghost} />}
