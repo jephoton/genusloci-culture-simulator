@@ -11,7 +11,7 @@ import type { GhostSpec } from "@/render/Ghost";
 import { type CityLayout, nearestCell, type XZ } from "@/render/layout";
 import { chooseVenueEntity } from "@/render/placement";
 import { type ClosureRules, venueViewsOf } from "@/render/venues";
-import { DEFAULT_CONFIG, type SimConfig } from "@/sim/config";
+import { DEFAULT_CONFIG } from "@/sim/config";
 import type { Frame } from "@/sim/frame";
 import { Hud } from "@/ui/Hud";
 import { SceneLegend } from "@/ui/SceneLegend";
@@ -25,9 +25,8 @@ import { Attribution } from "@/ui/Attribution";
 import { useCityWorld } from "@/ui/useCityWorld";
 import { CITIES } from "@/geo/cities";
 import { areaName, kindWord } from "@/ui/words";
+import { DEMO_CONFIG, DEMO_SEED } from "@/ui/demo-config";
 
-const DEMO_SEED = 7;
-const DEMO_CONFIG: Partial<SimConfig> = { nAgents: 2500, agentReserve: 300 };
 /** When the running sim closes venues, so struggling ones can be flagged before they go. */
 const CLOSURE_RULES: ClosureRules = {
   closeThreshold: DEMO_CONFIG.closeThreshold ?? DEFAULT_CONFIG.closeThreshold,
