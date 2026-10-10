@@ -49,10 +49,11 @@
 ## Queued (user feedback 2026-10-10; do these next)
 1. **Speed:** 1 wk/s is the maximum: at 1 wk/s agents already move almost straight to their venues each tick. Offer only speeds at or below 1 (e.g. ⅛, ¼, ½, 1).
 2. **Start-up signal:** implemented on `feat/plan-05b1-juice`, awaiting visual review.
-   - Scene auras (`src/render/SceneAuras.tsx`, `scene-territory.ts`): additive ground discs in each scene's colour at its members' home centroid, radius `clamp(1.6 × RMS spread, 15, 0.45 × city size)`, centre brightness `0.13 × sqrt(size / largest) × compactness` (compactness = `clamp(0.12 × city size / radius, 0.2, 1)`, floor 0.025). On London today all six scenes spread city-wide (RMS ≈ 110 of a 300-unit city) with near-central centroids, so the auras overlap into one faint tint; showing *where* clearly may need per-neighbourhood blobs (e.g. a density field per scene) instead of one disc each. Newborn scenes pulse in (2×, ≈ 1.5 s); gone scenes fade out over 1 s; scene focus dims the others to 25%.
+   - Scene auras (`src/render/SceneAuras.tsx`, `scene-hotspots.ts`): an additive ground glow in a scene's colour on each of its **hotspots**, the cells where its share of residents is ≥ 2× its citywide share with ≥ 8 members (each scene keeps its 4 strongest). Radius `0.6 × cell spacing × (0.7 + 0.3 × strength)`; brightness `max(0.03, 0.2 × strength)`, with the scenes sharing a cell capped at 0.24 together. Strength = `min(1, (ratio − 1) / 2) × sqrt(members / largest hotspot)`. On London at week 10: 24 hotspots in 23 cells (one cell shared), 4 per scene (4–6 before the cap). Newborn scenes pulse in (2×, ≈ 1.5 s); gone hotspots fade out over 1 s; scene focus dims the others to 25%.
+   - Synthetic neighbourhoods (`makeSyntheticCity`): softmax over −distance-to-home with falloff `width / 12`, blended with 15% uniform mix (≥ 10% minority everywhere). On London the median cell's dominant scene holds 53% (top two: 77%).
    - Automatic openings get a 0.3-strength wave and no shake (at most 2 auto waves per frame); the player's placements and closures keep the full wave and shake (`Effects` `classify`, fed from `GameShell`'s `placed` / `closedByPlayer` sets).
 3. **Ecosystem readability and product alignment:**
-   - Venues do auto-close (health below a threshold for several weeks), but it's rare and easy to miss; make closures visible and legible. **Implemented, awaiting visual review:** a venue below `closeThreshold` after `graceTicks` (`isStruggling` in `src/render/venues.ts`) pulses red (sign tint and a ground ring, 0.5 Hz), gets a red ripple and a "{name} is struggling: few visitors" toast once, and closes with "{name} closed: not enough visitors".
+   - Venues do auto-close (health below a threshold for several weeks). The demo (`src/ui/demo-config.ts`, tuned with `pnpm calibrate --london`) closes after 8 weeks below 0.4 occupancy and auto-opens at niche score 2.5: about 4–5 closures and 6–7 openings per 100 weeks, mostly in the first 30 weeks, then occasional. Make closures visible and legible. **Implemented, awaiting visual review:** a venue below `closeThreshold` after `graceTicks` (`isStruggling` in `src/render/venues.ts`) pulses red (sign tint and a ground ring, 0.5 Hz), gets a red ripple and a "{name} is struggling: few visitors" toast once, and closes with "{name} closed: not enough visitors".
    - Design a promoter flow for "where should I host what?": e.g. a scene's demand map, suggested locations or venues for an event or headliner, and comparing candidate spots.
    - See `docs/pitch-and-demo.md`.
 4. **5b-2:** name scenes from their dominant Qloo tags (plus a mock-Latin binomial) so scenes are self-explanatory.
@@ -90,11 +91,11 @@
 - **Timeline snapshots.** Eviction keeps tick 0 and drops the next oldest, so old rewinds get slow (≈ 1–4 s). Use thinned retention, e.g. every 10 recent, 40 older, 160 oldest.
 - **Memory.** About 2.5 MB per snapshot, ≈ 78 MB per timeline at bench scale. `venueProfile` depends only on the entity: precompute per place in `cw` and drop it from the state. Cap live forks at about 3.
 - **Ecology is too static on the fixture.**
-  - No natural closures and no splits.
+  - No splits. Scene membership barely changes after the first clustering (London: identical hotspots at weeks 10, 50 and 100), so turnover settles after about 30 weeks, and closures read as "weakest of several same-scene venues in one neighbourhood" rather than "a scene moved away".
   - Tune venues on real worlds, e.g. `closeThreshold` relative to median health, capacity from the outing rate.
   - Add bisecting splits of dispersed scenes, venues drifting toward their crowd, rent-driven residential moves, and a small agent turnover using the `alive` mask.
   - Add bridge entities to the fixture.
-- **Auto-open quirks.** It ignores `entity.capacity`, can duplicate an already-open entity, and counts supply city-wide rather than near the niche.
+- **Auto-open quirks.** It can duplicate an already-open entity, and counts supply city-wide rather than near the niche.
 - **Venue slots.** Closed permanent venue slots are never reused, so `venueReserve` can run out under heavy churn.
 - **Protocol for the co-pilot (Plan 6).**
   - Results:
