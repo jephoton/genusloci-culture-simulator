@@ -1,12 +1,14 @@
 import { affinityToEntity, geneSlot } from "@/sim/genome";
 import { cloneState, type SimState } from "@/sim/state";
 import { step } from "@/sim/step";
+import { weeksToTicks } from "@/sim/time";
 import { distKm } from "@/sim/world-index";
 
 export type ScoutOptions = {
   entity: number;
-  /** Weeks to simulate per candidate. */
+  /** Weeks to simulate per candidate (weeks × ticksPerWeek ticks). */
   weeks: number;
+  /** Event length in weeks. */
   duration: number;
   reachKm: number;
   capacity: number;
@@ -61,7 +63,8 @@ export function scoutCandidates(live: SimState, cells: number[], o: ScoutOptions
   const before = fansOf(live, o.entity);
   const baseline = cloneState(live);
   const baseVisits = new Float64Array(baseline.venueEntity.length);
-  for (let w = 0; w < o.weeks; w++) {
+  const ticks = weeksToTicks(o.weeks, live.config.ticksPerWeek);
+  for (let t = 0; t < ticks; t++) {
     step(baseline);
     for (let v = 0; v < baseline.nVenues; v++) baseVisits[v] += baseline.venueAttendance[v];
   }
@@ -87,7 +90,7 @@ export function scoutCandidates(live: SimState, cells: number[], o: ScoutOptions
       }
     };
     tally();
-    for (let w = 1; w < o.weeks; w++) {
+    for (let t = 1; t < ticks; t++) {
       step(s);
       tally();
     }

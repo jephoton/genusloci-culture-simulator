@@ -80,3 +80,22 @@ describe("scoutCandidates", () => {
     expect(first.cell).toBe(best);
   });
 });
+
+describe("scoutCandidates with daily ticks", () => {
+  const opts = { entity: idx(0, 5), weeks: 2, duration: 3, reachKm: 25, capacity: 3000, nearbyKm: 1 };
+  const freshWith = (ticksPerWeek: number) => {
+    const s = initState(world, { ...config, ticksPerWeek }, 3);
+    step(s);
+    return s;
+  };
+
+  it("simulates `weeks` weeks of days, so turnout matches weekly ticks", () => {
+    const daily = freshWith(7);
+    const before = hashState(daily);
+    const [dailyResult] = scoutCandidates(daily, [0], opts);
+    expect(hashState(daily)).toBe(before);
+    const [weeklyResult] = scoutCandidates(freshWith(1), [0], opts);
+    expect(dailyResult.turnout / weeklyResult.turnout).toBeGreaterThan(0.6);
+    expect(dailyResult.turnout / weeklyResult.turnout).toBeLessThan(1.6);
+  });
+});
