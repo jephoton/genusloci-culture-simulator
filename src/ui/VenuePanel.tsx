@@ -28,7 +28,7 @@ export function VenuePanel({
         <dd>{open ? "Open" : "Closed"}</dd>
         <dt className="text-zinc-400">Health</dt>
         <dd className="font-mono tabular-nums">{Math.round(frame.venueHealth[slot] * 100)}%</dd>
-        <dt className="text-zinc-400">Visitors this week</dt>
+        <dt className="text-zinc-400">{frame.ticksPerWeek === 1 ? "Visitors this week" : "Visitors tonight"}</dt>
         <dd className="font-mono tabular-nums">{frame.venueAttendance[slot]}</dd>
       </dl>
       {open && !isEvent && (

@@ -1,4 +1,5 @@
 import type { SimDigest } from "@/sim/digest";
+import { dayLabel } from "@/ui/words";
 
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
@@ -12,11 +13,13 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 export type CityOption = { slug: string; name: string };
 
 export function Hud({
-  city, digest, tick, cities, citySlug, onCityChange,
+  city, digest, tick, ticksPerWeek, cities, citySlug, onCityChange,
 }: {
   city: string;
   digest: SimDigest | null;
   tick: number;
+  /** Ticks per simulated week (7: daily ticks, so the weekday shows). */
+  ticksPerWeek: number;
   cities: CityOption[];
   citySlug: string;
   onCityChange: (slug: string) => void;
@@ -42,7 +45,7 @@ export function Hud({
           <p className="text-lg font-medium">{city}</p>
         )}
       </div>
-      <Stat label="Week" value={tick} />
+      <Stat label="Date" value={dayLabel(tick, ticksPerWeek)} />
       <Stat label="Residents" value={digest?.agents ?? "—"} />
       <Stat label="Venues" value={digest ? `${digest.venues.open} open · ${digest.venues.closed} closed` : "—"} />
       <Stat label="Events" value={digest?.venues.events ?? "—"} />

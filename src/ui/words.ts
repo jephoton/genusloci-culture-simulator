@@ -36,3 +36,17 @@ export function areaName(layout: Pick<CityLayout, "center" | "bounds">, x: numbe
   const octant = ((Math.round(angle / (Math.PI / 4)) % 8) + 8) % 8;
   return `the ${DIRECTIONS[octant]}`;
 }
+
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
+
+/** The simulated week of `tick`, and its weekday name with daily ticks (Monday = tick 0), else null. */
+export function weekAndDay(tick: number, ticksPerWeek: number): { week: number; day: string | null } {
+  const perWeek = Math.max(1, ticksPerWeek);
+  return { week: Math.floor(tick / perWeek), day: perWeek === 7 ? WEEKDAYS[tick % 7] : null };
+}
+
+/** "Week 3 · Fri" with daily ticks, "Week 3" otherwise. */
+export function dayLabel(tick: number, ticksPerWeek: number): string {
+  const { week, day } = weekAndDay(tick, ticksPerWeek);
+  return day ? `Week ${week} · ${day}` : `Week ${week}`;
+}

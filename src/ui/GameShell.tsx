@@ -480,6 +480,7 @@ function Game({
         city={world.city.name}
         digest={sim.digest}
         tick={sim.frame?.tick ?? 0}
+        ticksPerWeek={sim.frame?.ticksPerWeek ?? 1}
         cities={CITY_OPTIONS}
         citySlug={citySlug}
         onCityChange={onCityChange}
@@ -524,6 +525,7 @@ function Game({
       </div>
       <TimelineBar
         tick={sim.frame?.tick ?? 0}
+        ticksPerWeek={sim.frame?.ticksPerWeek ?? 1}
         earliest={sim.frame?.earliestTick ?? 0}
         playing={sim.playing}
         speed={sim.speed}

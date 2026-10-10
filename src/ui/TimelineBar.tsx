@@ -1,19 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import { dayLabel } from "@/ui/words";
 
-/** Weeks per second. Each week plays as a night out; at 1 wk/s agents barely have time to linger, so 1 is the maximum. */
+/** Ticks (days, in the demo) per second. Each tick plays as a night out, so 4 is about as fast as it reads. */
 const SPEEDS = [
-  { value: 0.125, label: "⅛" },
-  { value: 0.25, label: "¼" },
   { value: 0.5, label: "½" },
   { value: 1, label: "1" },
+  { value: 2, label: "2" },
+  { value: 4, label: "4" },
 ];
 
 export function TimelineBar({
-  tick, earliest, playing, speed, onPlay, onPause, onSpeed, onRewind,
+  tick, ticksPerWeek, earliest, playing, speed, onPlay, onPause, onSpeed, onRewind,
 }: {
   tick: number;
+  /** Ticks per simulated week: 7 means each tick is a day. */
+  ticksPerWeek: number;
   earliest: number;
   playing: boolean;
   speed: number;
@@ -23,6 +26,7 @@ export function TimelineBar({
   onRewind: (tick: number) => void;
 }) {
   const [scrub, setScrub] = useState<number | null>(null);
+  const unit = ticksPerWeek === 7 ? "day" : "week";
   const value = scrub ?? tick;
   const commit = () => {
     if (scrub !== null && scrub !== tick) onRewind(scrub);
@@ -37,24 +41,24 @@ export function TimelineBar({
       >
         {playing ? "Pause" : "Play"}
       </button>
-      <div className="flex items-center gap-1" role="group" aria-label="Speed in weeks per second">
+      <div className="flex items-center gap-1" role="group" aria-label={`Speed in ${unit}s per second`}>
         {SPEEDS.map((s) => (
           <button
             key={s.value}
             type="button"
             onClick={() => onSpeed(s.value)}
             aria-pressed={s.value === speed}
-            aria-label={`${s.value} weeks per second`}
+            aria-label={`${s.value} ${unit}s per second`}
             className={`rounded-md px-2 py-1 text-xs ${s.value === speed ? "bg-white/15" : "hover:bg-white/5"}`}
           >
             {s.label}
           </button>
         ))}
-        <span className="ml-1 text-[10px] text-zinc-500">wk/s</span>
+        <span className="ml-1 text-[10px] text-zinc-500">{unit === "day" ? "day/s" : "wk/s"}</span>
       </div>
       <input
         type="range"
-        aria-label="Rewind to week"
+        aria-label={`Rewind to ${unit}`}
         className="flex-1 accent-violet-400"
         min={earliest}
         max={Math.max(tick, earliest)}
@@ -63,7 +67,7 @@ export function TimelineBar({
         onPointerUp={commit}
         onKeyUp={commit}
       />
-      <span className="w-20 text-right font-mono text-sm tabular-nums">Week {value}</span>
+      <span className="w-28 whitespace-nowrap text-right font-mono text-sm tabular-nums">{dayLabel(value, ticksPerWeek)}</span>
     </footer>
   );
 }
