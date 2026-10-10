@@ -68,7 +68,7 @@ export function CityCanvas(props: CityCanvasProps) {
         <Ground layout={layout} onGroundClick={props.onGroundClick} pointerRef={pointerRef} />
         <Streets layout={layout} />
         <Buildings layout={layout} />
-        <SceneAuras layout={layout} frame={props.frame} focus={props.focus} />
+        <SceneAuras world={props.world} layout={layout} frame={props.frame} focus={props.focus} />
         <Landmarks world={props.world} layout={layout} frame={props.frame} selected={props.selectedVenue} focus={props.focus} rules={props.rules} onSelect={props.onVenueClick} />
         <Crowd world={props.world} layout={layout} frames={props.frames} slots={props.agentSlots} tickMs={props.tickMs} focus={props.focus} />
         {props.ghost && <Ghost layout={layout} frames={props.frames} pointerRef={pointerRef} spec={props.ghost} />}
