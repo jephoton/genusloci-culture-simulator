@@ -21,9 +21,15 @@ const MAX_RADIUS_FRAC = 0.45;
  * Centre brightness of the largest scene's aura (× its colour); smaller scenes scale by sqrt(size / largest).
  * Kept well under the bloom threshold (0.55) so overlapping auras still read as a tint, not a glow.
  */
-const PEAK = 0.16;
+const PEAK = 0.13;
+/**
+ * Auras wider than COMPACT_FRAC × city size dim in proportion (down to MIN_COMPACT): a scene spread
+ * over the whole city has no "where", and big overlapping discs would otherwise wash the ground out.
+ */
+const COMPACT_FRAC = 0.12;
+const MIN_COMPACT = 0.2;
 /** The faintest a live aura gets, so a small scene still shows. */
-const FLOOR = 0.04;
+const FLOOR = 0.025;
 /** Time constant of the glide towards a new centroid and radius. */
 const GLIDE_S = 0.8;
 const FADE_IN_S = 0.8;
@@ -141,7 +147,8 @@ export function SceneAuras({ layout, frame, focus }: { layout: CityLayout; frame
       for (const a of auras.values()) a.live = false;
       for (const t of territories) {
         const r = Math.min(MAX_RADIUS_FRAC * size, Math.max(MIN_RADIUS, RADIUS_PER_SPREAD * t.spread));
-        const target = Math.max(FLOOR, PEAK * Math.sqrt(t.size / largest));
+        const compact = Math.max(MIN_COMPACT, Math.min(1, (COMPACT_FRAC * size) / r));
+        const target = Math.max(FLOOR, PEAK * Math.sqrt(t.size / largest) * compact);
         let a = auras.get(t.id);
         if (!a) {
           a = { x: t.x, z: t.z, r: r * 0.6, tx: t.x, tz: t.z, tr: r, opacity: 0, target, level: target, focus: 1, rgb: sceneRgb(hues, t.id), age: continuous ? 0 : Infinity, live: true };
