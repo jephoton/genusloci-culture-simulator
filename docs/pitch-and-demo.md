@@ -55,8 +55,8 @@ Every week, residents go out to a venue that suits their taste. There they're ex
 
 ### Open alignment questions (to resolve next)
 
-- How a promoter uses the tool to decide **where to host what**: there's no explicit "recommend a location or lineup" flow yet. See `docs/current-state.md`, "Queued".
-- Venue closure isn't visible enough to read as a two-way ecosystem; venues mostly appear to auto-open.
+- ~~Where to host what~~: **resolved** by **Scout a location** (Plan 5c). *Book for my venue* (what to put on at a venue) is next.
+- ~~Closures invisible~~: struggling venues now pulse red and get a toast before they close; the demo city turns over (about 7 opens and 5 closes per 100 weeks). Closures don't yet explain *why* (e.g. "a rival nearby took its crowd").
 
 ## Demo runbook (about 3 minutes, as intended for demo day)
 
@@ -68,8 +68,12 @@ Every week, residents go out to a venue that suits their taste. There they're ex
 3. **The proof (15 s):** point at **Fidelity** in the HUD: the simulated city matches where these tastes really live, according to Qloo heatmaps. *(needs real data)*
 4. **The shock (40 s):** select the venue at the heart of the biggest scene, then **Close venue**. You see the implosion and the regulars scattering. Play a few weeks: toasts report the scene splitting or fading, and a venue auto-opening in the gap. *(today)*
 5. **The what-if (40 s):** rewind with the timeline slider, which is exact. Instead, **Open a venue** nearby: pick a kind, watch the ghost preview, place it. The scene survives. "Two futures, one decision apart." *(today; side-by-side compare comes in Plan 7)*
-6. **The co-pilot (30 s):** *"What happens to the techno scene if Fabric closes?"* The agent sets up the scenario through Qloo and the simulation, runs it, and answers with numbers and named places. *(Plan 6)*
-7. **Close (10 s):** "Agents with taste. Genus Loci: every city's culture is a living species."
+6. **The promoter (40 s):** "You're a promoter. Where should this headliner play?" Open **Scout a location** and pick the headliner.
+   - The city pauses, an amber demand glow shows where their fans live, and pins A–C appear.
+   - The tool simulates 4 weeks at each spot and ranks them on turnout, new fans, scenes reached and harm to neighbours.
+   - Drop your own pin D to compare, then **Book it**: shockwave, beacon, and the crowd converges. *(today)*
+7. **The co-pilot (30 s):** *"What happens to the techno scene if Fabric closes?"* The agent sets up the scenario through Qloo and the simulation, runs it, and answers with numbers and named places. *(Plan 6)*
+8. **Close (10 s):** "Agents with taste. Genus Loci: every city's culture is a living species."
 
 **Fallbacks:**
 - **If Qloo is slow:** prebuilt cities load from cached files.
