@@ -5,7 +5,7 @@ import type { Frame } from "@/sim/frame";
 
 export const MAIN_TIMELINE = "main";
 export const MAX_TICKS_PER_RUN = 520;
-export const MIN_TICKS_PER_SECOND = 0.25;
+export const MIN_TICKS_PER_SECOND = 0.125;
 export const MAX_TICKS_PER_SECOND = 30;
 /** Pushed frames carry a digest every Nth tick (the digest's fidelity costs a few ms). */
 export const DIGEST_EVERY = 4;

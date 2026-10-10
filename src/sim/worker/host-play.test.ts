@@ -76,6 +76,8 @@ describe("SimHost streaming", () => {
     send(host, { type: "init", world: makeTinyWorld(), seed: 1, config });
     expect(send(host, { type: "play", timeline: "main", ticksPerSecond: 0 }).ok).toBe(false);
     expect(send(host, { type: "play", timeline: "main", ticksPerSecond: 100 }).ok).toBe(false);
+    expect(send(host, { type: "play", timeline: "main", ticksPerSecond: 0.125 }).ok).toBe(true);
+    send(host, { type: "pause" });
     expect(send(host, { type: "play", timeline: "nope", ticksPerSecond: 2 }).ok).toBe(false);
     const r = send(host, { type: "frame", timeline: "main" });
     if (!r.ok) throw new Error(r.error);

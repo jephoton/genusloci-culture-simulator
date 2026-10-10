@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 
-/** Weeks per second. Each week plays as a night out, so slower speeds read as a story. */
+/** Weeks per second. Each week plays as a night out; at 1 wk/s agents barely have time to linger, so 1 is the maximum. */
 const SPEEDS = [
+  { value: 0.125, label: "⅛" },
   { value: 0.25, label: "¼" },
   { value: 0.5, label: "½" },
   { value: 1, label: "1" },
-  { value: 2, label: "2" },
 ];
 
 export function TimelineBar({
