@@ -52,6 +52,48 @@ describe("SimHost", () => {
     expect(ok(send(host, { type: "digest", timeline: "main" })).digest.tick).toBe(2);
   });
 
+  it("maps demand for a headliner and proposes up to 3 candidate cells", () => {
+    const host = new SimHost();
+    send(host, { type: "init", world: makeTinyWorld(), seed: 1, config });
+    send(host, { type: "run", timeline: "main", ticks: 1 });
+    const r = ok(send(host, { type: "demand", timeline: "main", entity: 5 })) as unknown as { demand: number[]; candidates: number[] };
+    expect(r.demand).toHaveLength(makeTinyWorld().cells.length);
+    expect(r.candidates.length).toBeGreaterThan(0);
+    expect(r.candidates.length).toBeLessThanOrEqual(3);
+    expect(new Set(r.candidates).size).toBe(r.candidates.length);
+    expect(r.candidates[0]).toBe(r.demand.indexOf(Math.max(...r.demand)));
+  });
+
+  it("scouts candidates in forked futures and leaves the timeline's tick unchanged", () => {
+    const host = new SimHost();
+    send(host, { type: "init", world: makeTinyWorld(), seed: 1, config });
+    send(host, { type: "run", timeline: "main", ticks: 2 });
+    const r = ok(send(host, { type: "scout", timeline: "main", entity: 5, cells: [0, 5, 10], weeks: 2 })) as unknown as {
+      results: { cell: number; score: number }[];
+      baselineTick: number;
+    };
+    expect(r.baselineTick).toBe(2);
+    expect(r.results.map((x) => x.cell).sort((a, b) => a - b)).toEqual([0, 5, 10]);
+    for (let i = 1; i < r.results.length; i++) expect(r.results[i - 1].score).toBeGreaterThanOrEqual(r.results[i].score);
+    expect(ok(send(host, { type: "digest", timeline: "main" })).digest.tick).toBe(2);
+  });
+
+  it("rejects invalid demand and scout requests", () => {
+    const host = new SimHost();
+    send(host, { type: "init", world: makeTinyWorld(), seed: 1, config });
+    const nE = makeTinyWorld().entities.length;
+    const nC = makeTinyWorld().cells.length;
+    expect(send(host, { type: "demand", timeline: "main", entity: nE }).ok).toBe(false);
+    expect(send(host, { type: "demand", timeline: "main", entity: -1 }).ok).toBe(false);
+    expect(send(host, { type: "scout", timeline: "main", entity: nE, cells: [0] }).ok).toBe(false);
+    expect(send(host, { type: "scout", timeline: "main", entity: 5, cells: [nC] }).ok).toBe(false);
+    expect(send(host, { type: "scout", timeline: "main", entity: 5, cells: [0.5] }).ok).toBe(false);
+    expect(send(host, { type: "scout", timeline: "main", entity: 5, cells: [] }).ok).toBe(false);
+    expect(send(host, { type: "scout", timeline: "main", entity: 5, cells: [0, 1, 2, 3, 4] }).ok).toBe(false);
+    expect(send(host, { type: "scout", timeline: "main", entity: 5, cells: [0], weeks: 0 }).ok).toBe(false);
+    expect(send(host, { type: "scout", timeline: "main", entity: 5, cells: [0], weeks: 13 }).ok).toBe(false);
+  });
+
   it("rejects unknown commands", () => {
     const host = new SimHost();
     const res = host.handle({ id: 1, type: "bogus" } as never);

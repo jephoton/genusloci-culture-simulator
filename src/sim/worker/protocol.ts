@@ -2,6 +2,7 @@ import type { ActionResult } from "@/sim/actions/schema";
 import type { SimConfig } from "@/sim/config";
 import type { SimDigest } from "@/sim/digest";
 import type { Frame } from "@/sim/frame";
+import type { ScoutResult } from "@/sim/scout";
 
 export const MAIN_TIMELINE = "main";
 export const MAX_TICKS_PER_RUN = 520;
@@ -9,6 +10,15 @@ export const MIN_TICKS_PER_SECOND = 0.125;
 export const MAX_TICKS_PER_SECOND = 30;
 /** Pushed frames carry a digest every Nth tick (the digest's fidelity costs a few ms). */
 export const DIGEST_EVERY = 4;
+/** Scout limits: candidates per request and simulated weeks. */
+export const MAX_SCOUT_CELLS = 4;
+export const MAX_SCOUT_WEEKS = 12;
+/**
+ * The night a scout tests (and "Book it" books). Events carry no distance penalty inside their reach,
+ * so a city-wide reach would make every spot draw the same crowd; 1.5 km (the demo cities span about
+ * 3.5 km) keeps the night local, so turnout follows the demand around each spot.
+ */
+export const SCOUT_DEFAULTS = { weeks: 4, duration: 3, reachKm: 1.5, capacity: 3000, nearbyKm: 1 } as const;
 
 export type WorkerCommand =
   | { type: "init"; world: unknown; seed: number; config?: Partial<SimConfig> }
@@ -20,7 +30,9 @@ export type WorkerCommand =
   | { type: "dispose"; timeline: string }
   | { type: "play"; timeline: string; ticksPerSecond: number }
   | { type: "pause" }
-  | { type: "frame"; timeline: string };
+  | { type: "frame"; timeline: string }
+  | { type: "demand"; timeline: string; entity: number }
+  | { type: "scout"; timeline: string; entity: number; cells: number[]; weeks?: number };
 
 export type WorkerRequest = WorkerCommand & { id: number };
 
@@ -35,6 +47,8 @@ export type CommandResults = {
   play: { playing: true };
   pause: { playing: false };
   frame: { frame: Frame };
+  demand: { demand: number[]; candidates: number[] };
+  scout: { results: ScoutResult[]; baselineTick: number };
 };
 
 export type CommandResult = CommandResults[keyof CommandResults];

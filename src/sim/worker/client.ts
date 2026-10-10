@@ -102,6 +102,14 @@ export class SimClient {
   frame(timeline: string) {
     return this.request<"frame">({ type: "frame", timeline });
   }
+  /** Per-cell demand for `entity` plus up to 3 well-spaced candidate cells. */
+  demand(timeline: string, entity: number) {
+    return this.request<"demand">({ type: "demand", timeline, entity });
+  }
+  /** Simulates an event for `entity` at each cell in forked futures; results come ranked, best first. */
+  scout(timeline: string, entity: number, cells: number[], weeks?: number) {
+    return this.request<"scout">({ type: "scout", timeline, entity, cells, weeks });
+  }
 
   /** Stops the worker and rejects anything still waiting. */
   terminate(): void {
