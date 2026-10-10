@@ -58,7 +58,20 @@
      - **Noisy neighbour-loss metric.** Each fork diverges randomly from the baseline. Use common random numbers or average over a few seeds.
      - **Closures don't explain *why*.**
      - **Scenes stop moving after about week 4.**
-4. **5b-2:** name scenes from their dominant Qloo tags (plus a mock-Latin binomial) so scenes are self-explanatory.
+4. ~~Daily ticks and true pause~~: done (Plan 5d).
+   - **Daily simulation:** `ticksPerWeek`, default 1, so weekly mode is identical, as the unchanged tests prove; the demo uses 7.
+     - Weekly rates convert per tick. Outings use a share (`rate / ticksPerWeek`) so weekly visit totals stay equal.
+     - Weekday weights favour Friday and Saturday. Venue health uses a rolling 7-day visit sum.
+   - **Pausable clock** (`SimClock` on `FrameStore`): pause freezes walkers, waves and pulses mid-motion.
+   - **Day-based UI:** HUD "Week W · Fri"; speeds ½, 1, 2 and 4 day/s, default 1.
+   - **Venue identity colour:** the body and roof band use the venue's own scene (`frame.venueScene`); the sign shows tonight's crowd.
+   - **About 1.2 ms per daily tick** on London.
+   - **Watch:**
+     - at 1 day/s a night out lasts 1 s, possibly too fast, and ½ is available;
+     - actions taken while paused only play out on resume;
+     - signs can flicker on quiet days;
+     - landmarks mounted while paused appear without rising.
+5. **5b-2:** name scenes from their dominant Qloo tags (plus a mock-Latin binomial) so scenes are self-explanatory.
 
 ## Next
 1. Request the Qloo hackathon API key if not already done (issued manually; takes days).
