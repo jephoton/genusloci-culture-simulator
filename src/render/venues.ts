@@ -34,6 +34,8 @@ export type VenueView = {
   visitors: number;
   /** Lineage id of the most common scene among this tick's visitors, or -1. */
   dominantScene: number;
+  /** Lineage id of the live scene the venue's own taste best matches (its identity), or -1. */
+  identityScene: number;
 };
 
 /** Per venue slot render data. Venues in the same cell take landmark pads in slot order. */
@@ -72,6 +74,7 @@ export function venueViews(frame: Frame, layout: CityLayout, world: World): Venu
       health: frame.venueHealth[v],
       visitors: frame.venueAttendance[v],
       dominantScene,
+      identityScene: frame.venueScene[v] ?? -1,
     });
   }
   return views;

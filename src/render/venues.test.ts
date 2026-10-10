@@ -41,6 +41,16 @@ describe("venueViews", () => {
     expect(views[0].dominantScene).toBe(7);
     expect(views[1].dominantScene).toBe(-1);
   });
+
+  it("carries each venue's identity scene, separate from tonight's crowd", () => {
+    const s = initState(world, { ...DEFAULT_CONFIG, nAgents: 10, agentReserve: 0 }, 1);
+    const { frame } = buildFrame(s, "main", 0, false, 0);
+    frame.venueScene.fill(-1);
+    frame.venueScene[0] = 5;
+    const views = venueViews(frame, layout, world);
+    expect(views[0].identityScene).toBe(5);
+    expect(views[1].identityScene).toBe(-1);
+  });
 });
 
 describe("isStruggling", () => {

@@ -13,11 +13,11 @@ import type { VenueKind, World } from "@/world/schema";
 
 const BODY = "#151821";
 const GALLERY_BODY = "#2a2d36";
-/** Sign colour of a venue with no dominant scene: a neutral warm white. */
+/** Sign colour of a venue with no dominant scene (and body colour of one with no identity): a neutral warm white. */
 const NEUTRAL_SIGN: Rgb = [0.9, 0.85, 0.75];
-/** Bodies glow faintly in the sign colour, so every landmark reads as a lit object. */
+/** Bodies glow faintly in their identity colour, so every landmark reads as a lit object. */
 const BODY_EMISSIVE = 0.18;
-/** Strength of the lit band near the roofline, relative to the sign colour. */
+/** Strength of the lit band near the roofline, relative to the identity colour. */
 const BAND = 0.6;
 /** Closed venues keep this fraction of their body and band light: dim, but visible. */
 const CLOSED_LIT = 0.15;
@@ -62,8 +62,8 @@ export type Materials = { neon: THREE.MeshBasicMaterial; body: THREE.MeshStandar
 
 /**
  * The neon parts share one material per landmark (`neon`), so the sign colour and its dying flicker
- * are set in one place. The body glows faintly in the sign colour (`body`), and a thin lit band runs
- * just under the roofline (`band`).
+ * are set in one place. The body glows faintly (`body`), and a thin lit band runs just under the
+ * roofline (`band`), both in the venue's identity colour (see Landmark).
  */
 export function Body({ kind, mats: { neon, body, band } }: { kind: VenueKind; mats: Materials }): ReactNode {
   switch (kind) {
@@ -163,8 +163,11 @@ function Landmark({
   onSelect: (slot: number) => void;
 }) {
   const [x, z] = view.position;
-  const base = view.dominantScene >= 0 ? sceneRgb(hues, view.dominantScene) : NEUTRAL_SIGN;
-  const [r, g, b] = base;
+  // The sign shows tonight's crowd (its dominant scene); the body and roof band show the venue's own
+  // identity (the live scene its taste best matches), so a venue taken over by another crowd shows it.
+  const tonight = view.dominantScene >= 0 ? sceneRgb(hues, view.dominantScene) : NEUTRAL_SIGN;
+  const identity = view.identityScene >= 0 ? sceneRgb(hues, view.identityScene) : NEUTRAL_SIGN;
+  const [r, g, b] = tonight;
   const glow = view.open ? 0.5 + 2.2 * view.health : 0.04;
   const sign: Rgb = [r * glow, g * glow, b * glow];
   const pillar = (24 * LANDMARK_SCALE) / view.scale;
@@ -269,15 +272,15 @@ function Landmark({
       (sign[2] + (WARNING_RGB[2] * redLevel - sign[2]) * red) * neon,
     );
 
-    // Body glow and roofline band in the sign colour; closing dims them smoothly, never to black.
+    // Body glow and roofline band in the identity colour; closing dims them smoothly, never to black.
     a.lit += ((view.open ? 1 : CLOSED_LIT) - a.lit) * (1 - Math.exp(-dt / 0.3));
     const glowBody = BODY_EMISSIVE * a.lit * a.focus;
-    mats.body.emissive.setRGB(base[0] * glowBody, base[1] * glowBody, base[2] * glowBody);
+    mats.body.emissive.setRGB(identity[0] * glowBody, identity[1] * glowBody, identity[2] * glowBody);
     const glowBand = BAND * a.lit * a.flicker * a.focus;
     mats.band.color.setRGB(
-      (base[0] + (WARNING_RGB[0] - base[0]) * red) * glowBand,
-      (base[1] + (WARNING_RGB[1] - base[1]) * red) * glowBand,
-      (base[2] + (WARNING_RGB[2] - base[2]) * red) * glowBand,
+      (identity[0] + (WARNING_RGB[0] - identity[0]) * red) * glowBand,
+      (identity[1] + (WARNING_RGB[1] - identity[1]) * red) * glowBand,
+      (identity[2] + (WARNING_RGB[2] - identity[2]) * red) * glowBand,
     );
     if (warnRef.current && warnMatRef.current) {
       warnRef.current.visible = a.warn > 0.01;
