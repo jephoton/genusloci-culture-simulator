@@ -1,18 +1,45 @@
 import type { GeoFile } from "@/geo/geo-file";
 import { clipPolyline, pointInPolygon } from "@/geo/geometry";
-import { createRng } from "@/sim/rng";
+import { createRng, type Rng } from "@/sim/rng";
 import { fromLocalMetres } from "@/world/projection";
 import { VENUE_KINDS, type World } from "@/world/schema";
 
 const VENUES_PER_CLUSTER = 4;
+/**
+ * A cluster's pull falls off as exp(-distance / (FALLOFF_FRAC × city width)): sharp enough that each
+ * neighbourhood is dominated by one or two scenes, as real Qloo heatmaps are local.
+ */
+const FALLOFF_FRAC = 1 / 12;
+/** Share of every cell spread evenly over all clusters, so no neighbourhood is a monoculture (≥ 10% minority). */
+const MIXING = 0.15;
+
+/** Each taste cluster's home district, drawn uniformly from the middle 70% of the bounds. */
+export function clusterHomes(b: GeoFile["geo"]["bounds"], clusters: number, rng: Rng): [number, number][] {
+  return Array.from({ length: clusters }, (): [number, number] => [
+    b.minX + (0.15 + 0.7 * rng.next()) * (b.maxX - b.minX),
+    b.minY + (0.15 + 0.7 * rng.next()) * (b.maxY - b.minY),
+  ]);
+}
+
+/**
+ * A point's archetype mix: a softmax over clusters of -distance-to-home / falloff (the temperature),
+ * blended with `mixing` of the uniform mix. Sums to 1.
+ */
+export function neighbourhoodMix(x: number, y: number, homes: [number, number][], falloff: number, mixing: number): number[] {
+  const logits = homes.map(([hx, hy]) => -Math.hypot(x - hx, y - hy) / falloff);
+  const top = Math.max(...logits);
+  const raw = logits.map((l) => Math.exp(l - top));
+  const total = raw.reduce((a, v) => a + v, 0);
+  return raw.map((v) => (1 - mixing) * (v / total) + mixing / homes.length);
+}
 
 /**
  * A synthetic population over real geography, used until Qloo data exists (Plan 4). Synthetic only:
  * it carries no Qloo responses.
  * - Cells: a square grid over the bounds, skipping cells whose centre is in water.
  * - Density: street length per cell (a proxy for urban density).
- * - Scenes: each taste cluster has a home district, and a cell's archetype mix falls off with
- *   distance to those homes, so scenes have neighbourhoods.
+ * - Scenes: each taste cluster has a home district, and a cell's archetype mix falls off sharply with
+ *   distance to those homes (`neighbourhoodMix`), so each neighbourhood has one or two dominant scenes.
  * - Venues: placed in cells weighted by density × that cluster's share there.
  */
 export function makeSyntheticCity(
@@ -45,22 +72,18 @@ export function makeSyntheticCity(
   });
   const maxLen = Math.max(1, ...streetLength);
 
-  const homes = Array.from({ length: clusters }, (): [number, number] => [
-    b.minX + (0.15 + 0.7 * rng.next()) * (b.maxX - b.minX),
-    b.minY + (0.15 + 0.7 * rng.next()) * (b.maxY - b.minY),
-  ]);
-  const falloff = (b.maxX - b.minX) / 4;
+  const homes = clusterHomes(b, clusters, rng);
+  const falloff = FALLOFF_FRAC * (b.maxX - b.minX);
 
   const cells: World["cells"] = centres.map(([x, y], i) => {
-    const raw = homes.map(([hx, hy]) => Math.exp(-Math.hypot(x - hx, y - hy) / falloff));
-    const total = raw.reduce((a, v) => a + v, 0);
+    const mix = neighbourhoodMix(x, y, homes, falloff, MIXING);
     const p = fromLocalMetres({ x, y }, city);
     return {
       geohash: `cell${i}`,
       lat: p.lat,
       lon: p.lon,
       density: 0.05 + streetLength[i] / maxLen,
-      archetypes: raw.map((v, archetype) => ({ archetype, weight: v / total })),
+      archetypes: mix.map((weight, archetype) => ({ archetype, weight })),
     };
   });
 

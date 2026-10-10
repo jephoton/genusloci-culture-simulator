@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { GeoFile } from "@/geo/geo-file";
 import { pointInPolygon } from "@/geo/geometry";
-import { makeSyntheticCity } from "@/world/fixtures/synthetic-city";
+import { createRng } from "@/sim/rng";
+import { clusterHomes, makeSyntheticCity, neighbourhoodMix } from "@/world/fixtures/synthetic-city";
 import { toLocalMetres } from "@/world/projection";
 import { parseWorld } from "@/world/schema";
 
@@ -58,5 +59,54 @@ describe("makeSyntheticCity", () => {
       expect(v.cell).toBeLessThan(world.cells.length);
       expect(v.kind).toBeDefined();
     }
+  });
+
+  it("gives the cells near each cluster's home that cluster as the dominant scene", () => {
+    const homes = clusterHomes(file.geo.bounds, 6, createRng(7));
+    const local = world.cells.map((c) => toLocalMetres(c, file.city));
+    const dist = (p: { x: number; y: number }, [hx, hy]: [number, number]) => Math.hypot(p.x - hx, p.y - hy);
+    let checked = 0;
+    homes.forEach((home, c) => {
+      const nearest = local.reduce((best, p, i) => (dist(p, home) < dist(local[best], home) ? i : best), 0);
+      // Skip a home whose nearest cell sits closer to another home (two homes in one district).
+      if (homes.some((other, k) => k !== c && dist(local[nearest], other) < dist(local[nearest], home))) return;
+      const mix = world.cells[nearest].archetypes;
+      const top = mix.reduce((a, b) => (b.weight > a.weight ? b : a));
+      expect(top.archetype).toBe(c);
+      expect(top.weight).toBeGreaterThan(0.4);
+      checked++;
+    });
+    expect(checked).toBeGreaterThanOrEqual(3);
+  });
+
+  it("makes most neighbourhoods distinctive: one or two scenes dominate each cell", () => {
+    const topTwo = world.cells.map((c) => {
+      const w = c.archetypes.map((a) => a.weight).sort((a, b) => b - a);
+      return w[0] + w[1];
+    });
+    expect(topTwo.filter((t) => t >= 0.6).length / topTwo.length).toBeGreaterThanOrEqual(0.8);
+  });
+});
+
+describe("neighbourhoodMix", () => {
+  const homes: [number, number][] = [[0, 0], [1000, 0], [0, 1000]];
+
+  it("is a distribution dominated by the nearest home", () => {
+    const mix = neighbourhoodMix(50, 0, homes, 300, 0.15);
+    expect(mix.reduce((a, v) => a + v, 0)).toBeCloseTo(1);
+    expect(mix[0]).toBeGreaterThan(0.7);
+  });
+
+  it("keeps at least a 10% minority share everywhere", () => {
+    for (const [x, y] of [[0, 0], [1000, 0], [500, 500], [-2000, -2000]]) {
+      const mix = neighbourhoodMix(x, y, homes, 300, 0.15);
+      expect(1 - Math.max(...mix)).toBeGreaterThanOrEqual(0.1);
+    }
+  });
+
+  it("splits a cell between two equally near homes", () => {
+    const mix = neighbourhoodMix(500, 0, homes, 300, 0.15);
+    expect(mix[0]).toBeCloseTo(mix[1]);
+    expect(mix[0]).toBeGreaterThan(mix[2]);
   });
 });
