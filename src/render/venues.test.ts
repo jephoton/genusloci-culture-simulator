@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildLayout, landmarkPosition, landmarkScale } from "@/render/layout";
-import { venueViews } from "@/render/venues";
+import { isStruggling, venueViews } from "@/render/venues";
 import { DEFAULT_CONFIG } from "@/sim/config";
 import { buildFrame } from "@/sim/frame";
 import { initState } from "@/sim/state";
@@ -40,5 +40,24 @@ describe("venueViews", () => {
     const views = venueViews(frame, layout, world);
     expect(views[0].dominantScene).toBe(7);
     expect(views[1].dominantScene).toBe(-1);
+  });
+});
+
+describe("isStruggling", () => {
+  const rules = { closeThreshold: 0.1, graceTicks: 4 };
+  const frameAt = (tick: number, ticksPerWeek: number) => ({
+    tick,
+    ticksPerWeek,
+    venueOpen: Uint8Array.of(1),
+    venueExpires: Int32Array.of(-1),
+    venueHealth: Float32Array.of(0.05),
+  });
+
+  it("counts the grace period in weeks, whatever the tick length", () => {
+    expect(isStruggling(frameAt(4, 1), 0, rules)).toBe(false);
+    expect(isStruggling(frameAt(5, 1), 0, rules)).toBe(true);
+    expect(isStruggling(frameAt(5, 7), 0, rules)).toBe(false);
+    expect(isStruggling(frameAt(28, 7), 0, rules)).toBe(false);
+    expect(isStruggling(frameAt(29, 7), 0, rules)).toBe(true);
   });
 });

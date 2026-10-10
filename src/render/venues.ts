@@ -1,21 +1,23 @@
 import { type CityLayout, landmarkPosition, landmarkScale, type XZ } from "@/render/layout";
 import type { Frame } from "@/sim/frame";
+import { weeksToTicks } from "@/sim/time";
 import type { VenueKind, World } from "@/world/schema";
 
-/** The simulation's closure rules (from SimConfig) that decide when a venue is on its way out. */
+/** The simulation's closure rules (from SimConfig) that decide when a venue is on its way out; `graceTicks` is in weeks. */
 export type ClosureRules = { closeThreshold: number; graceTicks: number };
 
 /**
  * Whether venue slot `v` is struggling: open, permanent (not an event), past the grace period and with
  * health below the closure threshold, so it closes if it stays there. Frame tick T is the state after
- * the step at tick T - 1, which is the first to count low health once T - 1 >= graceTicks.
+ * the step at tick T - 1, which is the first to count low health once T - 1 >= the grace period in ticks.
  */
 export function isStruggling(
-  frame: Pick<Frame, "tick" | "venueOpen" | "venueExpires" | "venueHealth">,
+  frame: Pick<Frame, "tick" | "ticksPerWeek" | "venueOpen" | "venueExpires" | "venueHealth">,
   v: number,
   rules: ClosureRules,
 ): boolean {
-  return frame.venueOpen[v] === 1 && frame.venueExpires[v] < 0 && frame.tick > rules.graceTicks && frame.venueHealth[v] < rules.closeThreshold;
+  const grace = weeksToTicks(rules.graceTicks, frame.ticksPerWeek);
+  return frame.venueOpen[v] === 1 && frame.venueExpires[v] < 0 && frame.tick > grace && frame.venueHealth[v] < rules.closeThreshold;
 }
 
 export type VenueView = {
