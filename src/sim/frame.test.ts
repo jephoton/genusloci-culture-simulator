@@ -52,3 +52,35 @@ describe("buildFrame", () => {
     expect(frame.sceneEvents.every((e) => e.tick === frame.tick - 1)).toBe(true);
   });
 });
+
+describe("buildFrame venue identity and week length", () => {
+  it("carries ticksPerWeek from the config", () => {
+    expect(buildFrame(initState(makeTinyWorld(), config, 1), "main", 0, false, 0).frame.ticksPerWeek).toBe(1);
+    const daily = initState(makeTinyWorld(), { ...config, ticksPerWeek: 7 }, 1);
+    expect(buildFrame(daily, "main", 0, false, 0).frame.ticksPerWeek).toBe(7);
+  });
+
+  it("has no venue scene before any scenes exist", () => {
+    const s = initState(makeTinyWorld(), config, 1);
+    const { frame } = buildFrame(s, "main", 0, false, 0);
+    expect(frame.venueScene).toHaveLength(s.nVenues);
+    expect(Array.from(frame.venueScene).every((x) => x === -1)).toBe(true);
+  });
+
+  it("gives each venue the live scene dominated by its own taste cluster", () => {
+    const s = initState(makeTinyWorld(), config, 1);
+    step(s);
+    expect(s.scenes.live.length).toBeGreaterThanOrEqual(3);
+    const { frame } = buildFrame(s, "main", 0, false, 0);
+    const clusterOf = (e: number) => Math.floor(e / 12);
+    const dominantCluster = (id: number) => {
+      const counts = [0, 0, 0];
+      for (const e of s.scenes.lineages[id].topEntities) counts[clusterOf(e)]++;
+      return counts.indexOf(Math.max(...counts));
+    };
+    for (let v = 0; v < s.nVenues; v++) {
+      expect(s.scenes.live).toContain(frame.venueScene[v]);
+      expect(dominantCluster(frame.venueScene[v])).toBe(clusterOf(s.venueEntity[v]));
+    }
+  });
+});

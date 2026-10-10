@@ -1,4 +1,5 @@
 import { digest, type SimDigest } from "@/sim/digest";
+import { profileCosine } from "@/sim/niches";
 import type { SceneEvent } from "@/sim/scenes/types";
 import type { SimState } from "@/sim/state";
 
@@ -6,6 +7,8 @@ import type { SimState } from "@/sim/state";
 export type Frame = {
   timeline: string;
   tick: number;
+  /** Ticks per simulated week (1 = weekly ticks, 7 = daily: tick % 7 is the weekday, Monday = 0). */
+  ticksPerWeek: number;
   earliestTick: number;
   /** Bumped on init and rewind: only frames of the same epoch with consecutive ticks are a continuous story. */
   epoch: number;
@@ -25,8 +28,28 @@ export type Frame = {
   venueHealth: Float32Array;
   venueAttendance: Int32Array;
   venueExpires: Int32Array;
+  /** Per venue slot: lineage id of the live scene its taste profile best matches (its identity), or -1. */
+  venueScene: Int32Array;
   digest?: SimDigest;
 };
+
+/** Per venue slot: the live scene whose centroid has the highest cosine with the venue's profile, or -1. */
+export function venueScenes(s: SimState): Int32Array {
+  const out = new Int32Array(s.nVenues).fill(-1);
+  const { live, centroids } = s.scenes;
+  const nE = s.cw.nEntities;
+  for (let v = 0; v < s.nVenues; v++) {
+    let best = -Infinity;
+    for (let a = 0; a < live.length; a++) {
+      const match = profileCosine(s.venueProfile, v * nE, nE, centroids[a]);
+      if (match > best) {
+        best = match;
+        out[v] = live[a];
+      }
+    }
+  }
+  return out;
+}
 
 export function buildFrame(
   s: SimState,
@@ -48,6 +71,7 @@ export function buildFrame(
   const frame: Frame = {
     timeline,
     tick: s.tick,
+    ticksPerWeek: s.config.ticksPerWeek,
     earliestTick,
     epoch,
     sceneEvents: events.slice(first),
@@ -63,8 +87,10 @@ export function buildFrame(
     venueHealth: s.venueHealth.slice(0, n),
     venueAttendance: s.venueAttendance.slice(0, n),
     venueExpires: s.venueExpires.slice(0, n),
+    venueScene: venueScenes(s),
   };
   if (withDigest) frame.digest = digest(s);
+  // venueScene (one int per venue) is small enough to copy rather than transfer.
   const transfer = [
     frame.alive, frame.homeCell, frame.attendance, frame.scene, frame.lineageParents,
     frame.venueEntity, frame.venueCell, frame.venueOpen, frame.venueHealth, frame.venueAttendance, frame.venueExpires,

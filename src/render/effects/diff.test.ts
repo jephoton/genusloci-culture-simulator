@@ -6,13 +6,13 @@ const RULES = { closeThreshold: 0.1, graceTicks: 4 };
 
 function frame(overrides: Partial<Frame>): Frame {
   return {
-    timeline: "main", tick: 1, earliestTick: 0, epoch: 0,
+    timeline: "main", tick: 1, ticksPerWeek: 1, earliestTick: 0, epoch: 0,
     alive: new Uint8Array(0), homeCell: new Int32Array(0), attendance: new Int32Array(0), scene: new Int32Array(0),
     lineageParents: new Int32Array(0), sceneEvents: [],
     nVenues: 3,
     venueEntity: Int32Array.from([0, 1, 2]), venueCell: Int32Array.from([0, 0, 1]),
     venueOpen: Uint8Array.from([1, 1, 1]), venueHealth: Float32Array.from([0.5, 0.5, 0.5]),
-    venueAttendance: new Int32Array(3), venueExpires: Int32Array.from([-1, -1, -1]),
+    venueAttendance: new Int32Array(3), venueExpires: Int32Array.from([-1, -1, -1]), venueScene: Int32Array.from([-1, -1, -1]),
     ...overrides,
   };
 }

@@ -5,7 +5,8 @@ import { DEFAULT_VENUE_CAPACITY, writeVenueProfile } from "@/sim/world-index";
 /** An underserved scene, where it lives, and the real place that best matches its taste. */
 export type Niche = { scene: number; score: number; cell: number; entity: number };
 
-function cosine(profile: Float32Array, offset: number, nE: number, centroid: Float32Array): number {
+/** Cosine between a taste-profile row (profile[offset..offset+nE)) and a unit-length scene centroid. */
+export function profileCosine(profile: Float32Array, offset: number, nE: number, centroid: Float32Array): number {
   let dot = 0;
   let norm = 0;
   for (let e = 0; e < nE; e++) {
@@ -42,7 +43,7 @@ export function findNiches(s: SimState, limit: number): Niche[] {
       let served = 0;
       for (let v = 0; v < s.nVenues; v++) {
         if (!s.venueOpen[v] || s.venueExpires[v] >= 0) continue;
-        const match = cosine(s.venueProfile, v * nE, nE, sc.centroids[a]);
+        const match = profileCosine(s.venueProfile, v * nE, nE, sc.centroids[a]);
         if (match > 0) served += (match * s.venueCapacity[v]) / s.cellRent[s.venueCell[v]];
       }
       return { a, id, score: sizes[a] / (1 + served) };
@@ -64,7 +65,7 @@ export function findNiches(s: SimState, limit: number): Niche[] {
     let best = -Infinity;
     for (const p of s.cw.places) {
       writeVenueProfile(s.cw, p, row, 0);
-      const match = cosine(row, 0, nE, sc.centroids[a]);
+      const match = profileCosine(row, 0, nE, sc.centroids[a]);
       if (match > best) {
         best = match;
         entity = p;
