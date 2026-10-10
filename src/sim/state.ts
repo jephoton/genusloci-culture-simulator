@@ -40,6 +40,10 @@ export type SimState = {
   venueLowTicks: Int32Array;
   /** Visitors per venue in the last tick. */
   venueAttendance: Int32Array;
+  /** venue slots × ticksPerWeek ring buffer of per-tick visitors (index tick % ticksPerWeek). */
+  venueVisitHistory: Int32Array;
+  /** Per venue slot: visitors over the last ticksPerWeek ticks (the sum of its history row). */
+  venueWeekVisits: Int32Array;
   /** Tick at which an event venue ends; -1 for permanent venues. */
   venueExpires: Int32Array;
   /** Event reach in km; 0 for permanent venues. */
@@ -186,6 +190,8 @@ export function initState(world: World, config: SimConfig = DEFAULT_CONFIG, seed
     venueHealth: new Float32Array(vSlots),
     venueLowTicks: new Int32Array(vSlots),
     venueAttendance: new Int32Array(vSlots),
+    venueVisitHistory: new Int32Array(vSlots * config.ticksPerWeek),
+    venueWeekVisits: new Int32Array(vSlots),
     venueExpires: new Int32Array(vSlots).fill(-1),
     venueReach: new Float32Array(vSlots),
     nearbyVenues: [],

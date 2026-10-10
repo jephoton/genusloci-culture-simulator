@@ -123,3 +123,19 @@ describe("step with actions", () => {
     expect(s.log).toEqual([{ tick: 1, action: { type: "closeVenue", venue: 1 } }]);
   });
 });
+
+describe("scheduleEvent with daily ticks", () => {
+  it("measures duration in weeks: duration 2 stays open for 14 daily ticks", () => {
+    const s = fresh({ ticksPerWeek: 7 });
+    const r = step(s, [{ type: "scheduleEvent", entity: idx(0, 5), cell: 0, duration: 2, reachKm: 50, capacity: 1e6 }]);
+    expect(r[0].ok).toBe(true);
+    const ev = r[0].ok ? (r[0].venue as number) : -1;
+    expect(s.venueExpires[ev]).toBe(14);
+    let ticksOpen = 1;
+    while (s.venueOpen[ev] && ticksOpen < 100) {
+      step(s);
+      ticksOpen++;
+    }
+    expect(ticksOpen).toBe(14);
+  });
+});

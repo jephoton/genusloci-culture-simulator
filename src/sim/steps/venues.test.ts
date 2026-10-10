@@ -49,3 +49,36 @@ describe("updateVenues", () => {
     expect(updateVenues(s)).toBe(true);
   });
 });
+
+describe("updateVenues with daily ticks", () => {
+  const daily = { ...config, ticksPerWeek: 7 };
+
+  it("judges a venue on its rolling week: full Friday and Saturday is healthy all week", () => {
+    const s = initState(makeTinyWorld(), { ...daily, graceTicks: 0 }, 1);
+    const capacity = s.venueCapacity[0];
+    for (let t = 0; t < 70; t++) {
+      s.tick = t;
+      s.venueAttendance.fill(0);
+      if (t % 7 === 4 || t % 7 === 5) s.venueAttendance[0] = capacity / 2;
+      updateVenues(s);
+      expect(s.venueLowTicks[0]).toBe(0);
+    }
+    expect(s.venueWeekVisits[0]).toBe(capacity);
+    expect(s.venueOpen[0]).toBe(1);
+    expect(s.venueHealth[0]).toBeGreaterThan(0.9);
+  });
+
+  it("closes an empty venue after closeAfterTicks weeks of low days past a grace period in weeks", () => {
+    const s = initState(makeTinyWorld(), daily, 1);
+    s.venueHealth[0] = 0;
+    s.venueAttendance.fill(0);
+    let closedAt = -1;
+    for (let t = 0; t < 60 && closedAt < 0; t++) {
+      s.tick = t;
+      updateVenues(s);
+      if (!s.venueOpen[0]) closedAt = t;
+    }
+    // Grace: 1 week = ticks 0..6; then 2 weeks = 14 low ticks (7..20).
+    expect(closedAt).toBe(20);
+  });
+});

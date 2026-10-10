@@ -47,3 +47,32 @@ describe("chooseOutings", () => {
     expect(match / total).toBeGreaterThan(0.5);
   });
 });
+
+describe("chooseOutings with daily ticks", () => {
+  const visits = (ticksPerWeek: number, ticks: number) => {
+    const s = initState(world, { ...DEFAULT_CONFIG, nAgents: 600, agentReserve: 0, ticksPerWeek }, 5);
+    const rng = createRng(5);
+    const perDay = new Array<number>(7).fill(0);
+    let total = 0;
+    for (let t = 0; t < ticks; t++) {
+      s.tick = t;
+      chooseOutings(s, rng);
+      const out = Array.from(s.attendance).filter((v) => v >= 0).length;
+      total += out;
+      perDay[t % 7] += out;
+    }
+    return { total, perDay };
+  };
+
+  it("keeps weekly visits about the same as weekly ticks", () => {
+    const weeklyPerWeek = visits(1, 4).total / 4;
+    const dailyPerWeek = visits(7, 28).total / 4;
+    expect(dailyPerWeek / weeklyPerWeek).toBeGreaterThan(0.75);
+    expect(dailyPerWeek / weeklyPerWeek).toBeLessThan(1.25);
+  });
+
+  it("sends more people out on Saturday than on Monday", () => {
+    const { perDay } = visits(7, 28);
+    expect(perDay[5]).toBeGreaterThan(perDay[0]);
+  });
+});

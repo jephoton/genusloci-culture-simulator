@@ -22,3 +22,17 @@ describe("parseConfigOverrides", () => {
     expect("outingRate" in out).toBe(false);
   });
 });
+
+describe("time settings", () => {
+  it("accepts daily ticks with custom weekday weights", () => {
+    const weekdayWeights = [1, 1, 1, 1, 2, 2, 1];
+    expect(parseConfigOverrides({ ticksPerWeek: 7, weekdayWeights })).toEqual({ ticksPerWeek: 7, weekdayWeights });
+  });
+
+  it.each([{ ticksPerWeek: 0 }, { ticksPerWeek: 8 }, { ticksPerWeek: 1.5 }, { weekdayWeights: [1, 1] }, { weekdayWeights: [1, 1, 1, 1, 1, 1, -1] }])(
+    "rejects %j",
+    (bad) => {
+      expect(() => parseConfigOverrides(bad)).toThrow();
+    },
+  );
+});

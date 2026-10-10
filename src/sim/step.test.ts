@@ -78,3 +78,27 @@ describe("step", () => {
     expect(reopened.length).toBeGreaterThan(0);
   });
 });
+
+describe("step with daily ticks", () => {
+  const daily = { ...config, ticksPerWeek: 7 };
+  const runDaily = (seed: number, ticks: number) => {
+    const s = initState(makeTinyWorld(), daily, seed);
+    for (let t = 0; t < ticks; t++) step(s);
+    return s;
+  };
+
+  it("is deterministic: same seed gives the same hash", () => {
+    expect(hashState(runDaily(11, 30))).toBe(hashState(runDaily(11, 30)));
+  });
+
+  it("clusters scenes every sceneEvery weeks, not ticks", () => {
+    const s = runDaily(4, 1);
+    const assigned = () => Array.from(s.scenes.assignment).filter((a) => a >= 0).length;
+    expect(assigned()).toBeGreaterThan(0);
+    s.scenes.assignment.fill(-1);
+    while (s.tick < 28) step(s);
+    expect(assigned()).toBe(0);
+    step(s);
+    expect(assigned()).toBeGreaterThan(0);
+  });
+});

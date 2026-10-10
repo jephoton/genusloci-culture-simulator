@@ -37,6 +37,9 @@ export function addVenue(
   s.venueHealth[v] = 0.5;
   s.venueLowTicks[v] = 0;
   s.venueAttendance[v] = 0;
+  const tpw = s.config.ticksPerWeek;
+  s.venueVisitHistory.fill(0, v * tpw, (v + 1) * tpw);
+  s.venueWeekVisits[v] = 0;
   s.venueExpires[v] = expires;
   s.venueReach[v] = reachKm;
   if (v === s.nVenues) s.nVenues = v + 1;

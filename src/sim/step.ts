@@ -11,10 +11,11 @@ import { applyDrift } from "@/sim/steps/drift";
 import { applyExposure } from "@/sim/steps/exposure";
 import { chooseOutings } from "@/sim/steps/outing";
 import { updateVenues } from "@/sim/steps/venues";
+import { weeksToTicks } from "@/sim/time";
 import { buildNearbyVenues } from "@/sim/venue-table";
 
 /**
- * One tick = one simulated week. Applies `actions` first (logging the successful ones at the current
+ * One tick = one simulated week, or one day when config.ticksPerWeek is 7. Applies `actions` first (logging the successful ones at the current
  * tick), then runs the ecology. Mutates `s` in place and returns one result per action.
  * Deterministic: randomness comes only from s.rngState. Use cloneState() for snapshots.
  */
@@ -31,7 +32,7 @@ export function step(s: SimState, actions: readonly Action[] = []): ActionResult
   applyDrift(s, rng);
   applyDecay(s);
   if (updateVenues(s)) s.nearbyVenues = buildNearbyVenues(s);
-  if (s.tick % s.config.sceneEvery === 0) {
+  if (s.tick % weeksToTicks(s.config.sceneEvery, s.config.ticksPerWeek) === 0) {
     updateLineages(s.scenes, clusterAgents(s, s.scenes.centroids, rng), s.tick, s.config);
     autoOpenVenue(s);
   }

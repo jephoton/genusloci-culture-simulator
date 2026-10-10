@@ -1,17 +1,19 @@
 import { GENOME_CAP, addGene } from "@/sim/genome";
 import type { Rng } from "@/sim/rng";
 import type { SimState } from "@/sim/state";
+import { perTick } from "@/sim/time";
 
 /**
- * Mutation: with P = driftRate × curiosity, pick a gene (weighted by strength), then a neighbour
+ * Mutation: with weekly P = driftRate × curiosity (converted per tick), pick a gene (weighted by strength), then a neighbour
  * of it on the taste graph (weighted by edge affinity), and add it at half the adoption weight.
  * Drift only ever follows real affinity edges.
  */
 export function applyDrift(s: SimState, rng: Rng): void {
   const { cw, config, genomes } = s;
+  const tpw = config.ticksPerWeek;
   for (let i = 0; i < s.alive.length; i++) {
     if (!s.alive[i]) continue;
-    if (rng.next() >= config.driftRate * s.curiosity[i]) continue;
+    if (rng.next() >= perTick(config.driftRate * s.curiosity[i], tpw)) continue;
     const base = i * GENOME_CAP;
 
     let total = 0;

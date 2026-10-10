@@ -1,11 +1,13 @@
 import { venueAffinity } from "@/sim/genome";
 import type { Rng } from "@/sim/rng";
 import type { SimState } from "@/sim/state";
+import { perTickShare, weekdayFactor } from "@/sim/time";
 import { activeEvents } from "@/sim/venue-table";
 import { distKm } from "@/sim/world-index";
 
 /**
- * Each alive agent may go out and picks a venue by softmax over taste affinity, distance and friends.
+ * Each alive agent may go out (expected outingRate × energy outings per week, spread over the week's ticks
+ * by the weekday weights) and picks a venue by softmax over taste affinity, distance and friends.
  * Candidates are: open nearby venues, venues friends attended last tick, and active events within reach
  * (events carry no distance penalty: people travel for them).
  * Writes the new s.attendance (friend lookups use the previous tick's attendance).
@@ -20,6 +22,8 @@ export function chooseOutings(s: SimState, rng: Rng): void {
   const cand = new Int32Array(config.maxNearby + F + config.maxEvents);
   const scores = new Float64Array(cand.length);
   const events = activeEvents(s);
+  const tpw = config.ticksPerWeek;
+  const day = weekdayFactor(config, s.tick);
   let m = 0;
   const push = (v: number) => {
     for (let j = 0; j < m; j++) if (cand[j] === v) return;
@@ -28,7 +32,7 @@ export function chooseOutings(s: SimState, rng: Rng): void {
 
   for (let i = 0; i < n; i++) {
     if (!s.alive[i]) continue;
-    if (rng.next() >= config.outingRate * s.energy[i]) continue;
+    if (rng.next() >= perTickShare(config.outingRate * s.energy[i], tpw) * day) continue;
     const home = s.homeCell[i];
 
     m = 0;

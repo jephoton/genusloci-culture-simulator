@@ -1,11 +1,21 @@
 import { z } from "zod";
 
+/**
+ * Time units: one tick is one week by default (`ticksPerWeek: 1`) or one day (`ticksPerWeek: 7`).
+ * - `outingRate`, `driftRate`, `decayRate` and `healthAlpha` are weekly rates; the steps convert them per tick.
+ * - `graceTicks`, `closeAfterTicks`, `sceneEvery` and an event's `duration` are in weeks (equal to ticks when
+ *   `ticksPerWeek` is 1); the sim converts them with `weeksToTicks`.
+ */
 export type SimConfig = {
   nAgents: number;
+  /** Ticks per simulated week: 1 = weekly ticks (default); 7 = daily ticks. Week-denominated settings scale by this. */
+  ticksPerWeek: number;
+  /** Relative outing likelihood Mon..Sun when ticksPerWeek is 7 (normalised to mean 1). */
+  weekdayWeights: number[];
   friendsPerAgent: number;
   /** Genes sampled from the archetype at birth. */
   initialGenes: number;
-  /** P(go out this tick) = outingRate × agent energy. */
+  /** Weekly: expected outings per week = outingRate × agent energy (spread over the week's ticks). */
   outingRate: number;
   /** Softmax sharpness for venue choice. */
   beta: number;
@@ -18,15 +28,17 @@ export type SimConfig = {
   adoptBase: number;
   socialWeight: number;
   initialAdoptWeight: number;
-  /** P(drift) = driftRate × curiosity. */
+  /** Weekly P(drift) = driftRate × curiosity. */
   driftRate: number;
+  /** Weekly fraction of every gene's weight that fades. */
   decayRate: number;
   minWeight: number;
-  /** EMA factor for venue health. */
+  /** Weekly EMA factor for venue health. */
   healthAlpha: number;
   closeThreshold: number;
+  /** Weeks below closeThreshold before a venue closes. */
   closeAfterTicks: number;
-  /** No closures before this tick. */
+  /** Weeks at the start with no closures. */
   graceTicks: number;
   maxNearby: number;
   /** Spare venue slots for openVenue, scheduleEvent and auto-opening. */
@@ -34,7 +46,7 @@ export type SimConfig = {
   /** Spare agent slots for migration. */
   agentReserve: number;
   maxEvents: number;
-  /** Run scene clustering (and auto-opening) every N ticks. */
+  /** Run scene clustering (and auto-opening) every N weeks. */
   sceneEvery: number;
   maxScenes: number;
   minSceneSize: number;
@@ -54,6 +66,8 @@ export type SimConfig = {
 
 export const DEFAULT_CONFIG: SimConfig = {
   nAgents: 5000,
+  ticksPerWeek: 1,
+  weekdayWeights: [0.6, 0.6, 0.7, 0.9, 1.5, 1.9, 0.8],
   friendsPerAgent: 10,
   initialGenes: 16,
   outingRate: 0.6,
@@ -94,6 +108,8 @@ const nonNeg = z.number().min(0);
 /** Runtime validation for every SimConfig field; the type check below keeps it in sync with SimConfig. */
 export const SimConfigSchema = z.object({
   nAgents: int(1, 20000),
+  ticksPerWeek: int(1, 7),
+  weekdayWeights: z.array(nonNeg).length(7),
   friendsPerAgent: int(0, 50),
   initialGenes: int(1, 32),
   outingRate: unit,

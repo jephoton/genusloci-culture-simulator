@@ -2,6 +2,7 @@ import type { Action, ActionResult } from "@/sim/actions/schema";
 import { GENOME_CAP } from "@/sim/genome";
 import type { Rng } from "@/sim/rng";
 import { agentsByCell, chooseFriends, seedGenome, type SimState } from "@/sim/state";
+import { weeksToTicks } from "@/sim/time";
 import { activeEvents, addVenue, buildNearbyVenues, hasVenueRoom } from "@/sim/venue-table";
 import { DEFAULT_VENUE_CAPACITY } from "@/sim/world-index";
 
@@ -73,7 +74,7 @@ export function applyAction(s: SimState, a: Action, rng: Rng): ActionResult {
       return { ok: true, venue };
     }
     case "scheduleEvent": {
-      const venue = addVenue(s, a.entity, a.cell, a.capacity, s.tick + a.duration, a.reachKm);
+      const venue = addVenue(s, a.entity, a.cell, a.capacity, s.tick + weeksToTicks(a.duration, s.config.ticksPerWeek), a.reachKm);
       return { ok: true, venue };
     }
     case "migrate":
