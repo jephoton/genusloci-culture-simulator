@@ -74,12 +74,15 @@ export function findNiches(s: SimState, limit: number): Niche[] {
   });
 }
 
-/** Opens a venue in the most underserved niche if its score reaches autoOpenScore. Returns the slot or -1. */
+/**
+ * Opens a venue in the most underserved niche if its score reaches autoOpenScore, at the place's own
+ * capacity (DEFAULT_VENUE_CAPACITY if it has none). Returns the slot or -1.
+ */
 export function autoOpenVenue(s: SimState): number {
   if (!s.config.autoOpen || !hasVenueRoom(s)) return -1;
   const [top] = findNiches(s, 1);
   if (!top || top.entity < 0 || top.score < s.config.autoOpenScore) return -1;
-  const v = addVenue(s, top.entity, top.cell, DEFAULT_VENUE_CAPACITY);
+  const v = addVenue(s, top.entity, top.cell, s.cw.world.entities[top.entity].capacity ?? DEFAULT_VENUE_CAPACITY);
   s.nearbyVenues = buildNearbyVenues(s);
   return v;
 }

@@ -5,6 +5,7 @@ import { createRng } from "@/sim/rng";
 import { clusterAgents } from "@/sim/scenes/cluster";
 import { updateLineages } from "@/sim/scenes/lineage";
 import { initState } from "@/sim/state";
+import { DEFAULT_VENUE_CAPACITY } from "@/sim/world-index";
 import { makeTinyWorld } from "@/world/fixtures/tiny-world";
 
 const world = makeTinyWorld();
@@ -54,6 +55,19 @@ describe("autoOpenVenue", () => {
     expect(v).toBe(12);
     expect(s.venueOpen[v]).toBe(1);
     expect(s.nVenues).toBe(13);
+  });
+
+  it("opens at the place's own capacity, falling back to the default", () => {
+    const s = withScenes();
+    s.venueOpen.fill(0);
+    const v = autoOpenVenue(s);
+    expect(s.venueCapacity[v]).toBe(world.entities[s.venueEntity[v]].capacity);
+
+    const bare = { ...world, entities: world.entities.map((e) => ({ ...e, capacity: undefined })) };
+    const t = initState(bare, { ...DEFAULT_CONFIG, nAgents: 600, agentReserve: 0, minSceneSize: 20 }, 3);
+    updateLineages(t.scenes, clusterAgents(t, [], createRng(1)), 0, t.config);
+    t.venueOpen.fill(0);
+    expect(t.venueCapacity[autoOpenVenue(t)]).toBe(DEFAULT_VENUE_CAPACITY);
   });
 
   it("does nothing when disabled, when demand is met, or when the table is full", () => {
