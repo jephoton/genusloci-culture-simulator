@@ -5,6 +5,7 @@ import { homeScene, sceneAnchor } from "@/render/anchors";
 import type { FlyTo } from "@/render/CameraDirector";
 import { CityCanvas } from "@/render/CityCanvas";
 import type { FrameChange } from "@/render/effects/diff";
+import type { Origin } from "@/render/effects/director";
 import type { Focus } from "@/render/focus";
 import type { GhostSpec } from "@/render/Ghost";
 import { type CityLayout, nearestCell, type XZ } from "@/render/layout";
@@ -116,6 +117,8 @@ function Game({
   const flyRef = useRef<FlyTo | null>(null);
   /** Placements the player made that the frame feed hasn't shown yet, so they aren't announced twice. */
   const placed = useRef(new Set<string>());
+  /** Venues the player closed that the frame feed hasn't shown closing yet (same keys as `placed`). */
+  const closedByPlayer = useRef(new Set<string>());
 
   const clearFocus = useCallback(() => {
     setPinned(null);
@@ -162,6 +165,14 @@ function Game({
     [flyTo, frames, layout, pinnedLive],
   );
 
+  // Peeks only: onFrameChanges (which runs afterwards) is what clears the sets.
+  const classifyChange = useCallback((c: FrameChange, frame: Frame): Origin => {
+    if (c.kind !== "venueOpened" && c.kind !== "eventStarted" && c.kind !== "venueClosed") return "auto";
+    if (c.slot >= frame.nVenues) return "auto";
+    const key = placementKey(frame.venueEntity[c.slot], frame.venueCell[c.slot]);
+    return (c.kind === "venueClosed" ? closedByPlayer : placed).current.has(key) ? "player" : "auto";
+  }, []);
+
   const onFrameChanges = useCallback(
     (changes: FrameChange[], frame: Frame) => {
       const views = venueViewsOf(frame, layout, world);
@@ -170,6 +181,7 @@ function Game({
           const view = views[c.slot];
           if (!view) continue;
           if (c.kind === "venueClosed") {
+            closedByPlayer.current.delete(placementKey(view.entity, frame.venueCell[c.slot]));
             announce(`${view.name} closed`, view.position);
             continue;
           }
@@ -222,6 +234,21 @@ function Game({
     [act, clearFocus, layout, notify, tool, world],
   );
 
+  const shownFrame = sim.frame;
+  const onCloseVenue = useCallback(
+    (venue: number) => {
+      // The frame the venue panel is showing, which is what the player clicked "close" on.
+      const frame = shownFrame;
+      // Ending an event early shows as eventEnded (no closure toast), so only permanent venues are tracked.
+      const key = frame && venue < frame.nVenues && frame.venueExpires[venue] < 0 ? placementKey(frame.venueEntity[venue], frame.venueCell[venue]) : null;
+      if (key) closedByPlayer.current.add(key);
+      void act({ type: "closeVenue", venue }).then((ok) => {
+        if (!ok && key) closedByPlayer.current.delete(key);
+      });
+    },
+    [act, shownFrame],
+  );
+
   let ghost: GhostSpec | null = null;
   if (tool.kind === "open" && tool.venueKind !== null) ghost = { kind: "venue", venueKind: tool.venueKind };
   else if (tool.kind === "event" && tool.entity !== null) ghost = { kind: "event" };
@@ -243,6 +270,7 @@ function Game({
         focus={focus}
         flyTo={flyRef}
         onFrameChanges={onFrameChanges}
+        classifyChange={classifyChange}
       />
       <Hud
         city={world.city.name}
@@ -258,7 +286,7 @@ function Game({
           world={world}
           frame={sim.frame}
           slot={selected}
-          onCloseVenue={(venue) => void act({ type: "closeVenue", venue })}
+          onCloseVenue={onCloseVenue}
           onDismiss={clearFocus}
         />
         <SceneLegend

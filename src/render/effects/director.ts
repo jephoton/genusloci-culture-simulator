@@ -3,6 +3,13 @@ import type { XZ } from "@/render/layout";
 import type { Rgb } from "@/render/palette";
 
 export const MAX_WAVES = 4;
+/** At most this many automatic waves start per frame, so a burst of auto-openings doesn't stack distortion. */
+export const MAX_AUTO_WAVES = 2;
+/** Strength of an automatic opening's wave, relative to a player's (1). */
+export const AUTO_WAVE = 0.3;
+
+/** Who caused a change: the player (a placement or closure they made) or the simulation itself. */
+export type Origin = "player" | "auto";
 
 /** Screen-space shockwave anchored at a world point. strength > 0 bulges out, < 0 implodes. */
 export type Wave = { x: number; z: number; start: number; duration: number; strength: number };
@@ -29,20 +36,28 @@ export class EffectsDirector {
   private shakeDuration = 0;
   private shakeAmp = 0;
 
-  ingest(changes: FrameChange[], now: number, anchors: Anchors): void {
+  /**
+   * Player openings and events get the full wave and shake; automatic openings a small wave and ripple
+   * and no shake; closures always implode but only shake when the player did it.
+   */
+  ingest(changes: FrameChange[], now: number, anchors: Anchors, originOf: (change: FrameChange) => Origin = () => "player"): void {
+    let autoWaves = 0;
     for (const c of changes) {
       if (c.kind === "venueOpened" || c.kind === "venueClosed" || c.kind === "eventStarted" || c.kind === "eventEnded") {
         const p = anchors.venue(c.slot);
         if (!p) continue;
         const opening = c.kind === "venueOpened" || c.kind === "eventStarted";
-        if (c.kind !== "eventEnded") {
-          this.addWave({ x: p[0], z: p[1], start: now, duration: opening ? 1200 : 900, strength: opening ? 1 : -0.7 });
-          this.kick(now, opening ? 0.006 : 0.004, opening ? 380 : 280);
+        const player = originOf(c) === "player";
+        if (c.kind !== "eventEnded" && (player || autoWaves < MAX_AUTO_WAVES)) {
+          if (!player) autoWaves++;
+          const strength = opening ? (player ? 1 : AUTO_WAVE) : -0.7;
+          this.addWave({ x: p[0], z: p[1], start: now, duration: opening ? (player ? 1200 : 1000) : 900, strength });
+          if (player) this.kick(now, opening ? 0.006 : 0.004, opening ? 380 : 280);
         }
         this.ripples.push({
           x: p[0], z: p[1], start: now,
-          duration: opening ? 1400 : 900,
-          radius: c.kind === "eventStarted" ? 60 : opening ? 30 : 18,
+          duration: opening ? (player ? 1400 : 1100) : 900,
+          radius: c.kind === "eventStarted" ? (player ? 60 : 30) : opening ? (player ? 30 : 16) : 18,
           rgb: opening ? anchors.venueRgb(c.slot) : GREY,
         });
       } else {

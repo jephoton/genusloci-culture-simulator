@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EffectsDirector, MAX_WAVES } from "@/render/effects/director";
+import { EffectsDirector, MAX_AUTO_WAVES, MAX_WAVES } from "@/render/effects/director";
 
 const at = (x: number, z: number) => () => [x, z] as [number, number];
 const anchors = {
@@ -46,5 +46,43 @@ describe("EffectsDirector", () => {
     d.ingest([{ kind: "venueOpened", slot: 1 }], 0, anchors);
     expect(d.progress(d.waves[0], 0)).toBe(0);
     expect(d.progress(d.waves[0], 1e9)).toBe(1);
+  });
+
+  it("softens automatic openings: a small wave, a smaller ripple and no shake", () => {
+    const player = new EffectsDirector();
+    player.ingest([{ kind: "venueOpened", slot: 1 }], 0, anchors, () => "player");
+    const auto = new EffectsDirector();
+    auto.ingest([{ kind: "venueOpened", slot: 1 }], 0, anchors, () => "auto");
+    expect(auto.waves).toHaveLength(1);
+    expect(auto.waves[0].strength).toBeGreaterThan(0);
+    expect(auto.waves[0].strength).toBeLessThanOrEqual(player.waves[0].strength * 0.4);
+    expect(auto.ripples[0].radius).toBeLessThan(player.ripples[0].radius);
+    expect(auto.ripples[0].rgb).toEqual([0, 1, 0]);
+    expect(auto.shake(50)).toEqual([0, 0]);
+    expect(player.shake(50)).not.toEqual([0, 0]);
+  });
+
+  it("caps automatic waves at MAX_AUTO_WAVES per ingest, but still ripples for each", () => {
+    const d = new EffectsDirector();
+    const burst = [1, 2, 3, 4, 5].map((slot) => ({ kind: "venueOpened" as const, slot }));
+    d.ingest(burst, 0, anchors, () => "auto");
+    expect(d.waves).toHaveLength(MAX_AUTO_WAVES);
+    expect(d.ripples).toHaveLength(5);
+    // The cap is per frame: the next frame's openings get waves again, and player waves are never capped.
+    d.ingest([{ kind: "venueOpened", slot: 6 }], 10, anchors, () => "auto");
+    expect(d.waves).toHaveLength(MAX_AUTO_WAVES + 1);
+    const p = new EffectsDirector();
+    p.ingest(burst.slice(0, 3), 0, anchors, () => "player");
+    expect(p.waves).toHaveLength(3);
+  });
+
+  it("implodes on automatic closures without shaking; player closures still shake", () => {
+    const auto = new EffectsDirector();
+    auto.ingest([{ kind: "venueClosed", slot: 1 }], 0, anchors, () => "auto");
+    expect(auto.waves[0].strength).toBeLessThan(0);
+    expect(auto.shake(50)).toEqual([0, 0]);
+    const player = new EffectsDirector();
+    player.ingest([{ kind: "venueClosed", slot: 1 }], 0, anchors, () => "player");
+    expect(player.shake(50)).not.toEqual([0, 0]);
   });
 });

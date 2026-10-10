@@ -8,6 +8,7 @@ import { Buildings } from "@/render/Buildings";
 import { CameraDirector, type FlyTo } from "@/render/CameraDirector";
 import { Crowd } from "@/render/Crowd";
 import type { FrameChange } from "@/render/effects/diff";
+import type { Origin } from "@/render/effects/director";
 import { Effects } from "@/render/effects/Effects";
 import { ShockwaveEffect } from "@/render/effects/ShockwaveEffect";
 import type { Focus } from "@/render/focus";
@@ -40,6 +41,8 @@ export type CityCanvasProps = {
   flyTo: RefObject<FlyTo | null>;
   /** Visible changes between consecutive frames (the ones the effects play), for toasts. */
   onFrameChanges: (changes: FrameChange[], frame: Frame) => void;
+  /** Whether a change was the player's doing (full shockwave) or the simulation's (softer). */
+  classifyChange?: (change: FrameChange, frame: Frame) => Origin;
 };
 
 export function CityCanvas(props: CityCanvasProps) {
@@ -66,7 +69,7 @@ export function CityCanvas(props: CityCanvasProps) {
         <Landmarks world={props.world} layout={layout} frame={props.frame} selected={props.selectedVenue} focus={props.focus} onSelect={props.onVenueClick} />
         <Crowd world={props.world} layout={layout} frames={props.frames} slots={props.agentSlots} tickMs={props.tickMs} focus={props.focus} />
         {props.ghost && <Ghost layout={layout} frames={props.frames} pointerRef={pointerRef} spec={props.ghost} />}
-        <Effects world={props.world} layout={layout} frames={props.frames} shockwave={shockwave} onChanges={props.onFrameChanges} />
+        <Effects world={props.world} layout={layout} frames={props.frames} shockwave={shockwave} onChanges={props.onFrameChanges} classify={props.classifyChange} />
         <MapControls
           makeDefault
           target={[x, 0, z]}
