@@ -56,8 +56,7 @@ describe("parseInsightEntities", () => {
 
 describe("other parsers", () => {
   it("reads search/entities results (types[] instead of subtype)", () => {
-    const { subtype: _s, ...rest } = rawPlace;
-    const [e] = parseEntityList({ results: [{ ...rest, types: ["urn:entity:place"] }] });
+    const [e] = parseEntityList({ results: [{ ...rawPlace, subtype: undefined, types: ["urn:entity:place"] }] });
     expect(e.type).toBe("urn:entity:place");
     expect(e.place?.address).toBe("1 Test St");
   });
