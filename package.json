@@ -12,7 +12,8 @@
     "bench:sim": "tsx scripts/bench-sim.ts",
     "calibrate": "tsx scripts/calibrate.ts",
     "build:geo": "tsx scripts/build-geo.ts",
-    "qloo:smoke": "tsx scripts/qloo-smoke.ts"
+    "qloo:smoke": "tsx scripts/qloo-smoke.ts",
+    "build:world": "tsx scripts/build-world.ts"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",
