@@ -52,6 +52,12 @@ export function findNiches(s: SimState, limit: number): Niche[] {
     .slice(0, limit);
 
   const row = new Float32Array(nE);
+  // Places already in the venue table (open, or opened and closed) are a last resort, so a place that
+  // failed in a niche isn't reopened there again and again.
+  const used = new Set<number>();
+  for (let v = 0; v < s.nVenues; v++) used.add(s.venueEntity[v]);
+  const fresh = Array.from(s.cw.places).filter((p) => !used.has(p));
+  const pool = fresh.length > 0 ? fresh : s.cw.places;
   return ranked.map(({ a, id, score }) => {
     let cell = 0;
     let most = -1;
@@ -63,7 +69,7 @@ export function findNiches(s: SimState, limit: number): Niche[] {
     }
     let entity = -1;
     let best = -Infinity;
-    for (const p of s.cw.places) {
+    for (const p of pool) {
       writeVenueProfile(s.cw, p, row, 0);
       const match = profileCosine(row, 0, nE, sc.centroids[a]);
       if (match > best) {

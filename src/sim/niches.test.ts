@@ -38,6 +38,20 @@ describe("findNiches", () => {
     }
   });
 
+  it("prefers places that have never been in the city over ones that opened and closed", () => {
+    // A world with a spare, never-placed copy of every venue: the copy should be proposed instead.
+    const originals = world.entities.flatMap((e, i) => (e.type === "place" && e.cell !== undefined ? [i] : []));
+    const spares = originals.map((i) => ({ ...world.entities[i], id: `${world.entities[i].id}:spare`, cell: undefined }));
+    const w = { ...world, entities: [...world.entities, ...spares] };
+    const s = initState(w, { ...DEFAULT_CONFIG, nAgents: 600, agentReserve: 0, minSceneSize: 20 }, 3);
+    updateLineages(s.scenes, clusterAgents(s, [], createRng(1)), 0, s.config);
+    s.venueOpen.fill(0);
+    for (const n of findNiches(s, 3)) {
+      expect(n.entity).toBeGreaterThanOrEqual(world.entities.length);
+      expect(world.entities[originals[n.entity - world.entities.length]].type).toBe("place");
+    }
+  });
+
   it("scores well-served scenes lower", () => {
     const s = withScenes();
     const before = findNiches(s, 3).map((n) => n.score);
