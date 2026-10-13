@@ -1,6 +1,6 @@
 import type { GeoFile } from "@/geo/geo-file";
-import { clipPolyline, pointInPolygon } from "@/geo/geometry";
 import { createRng, type Rng } from "@/sim/rng";
+import { gridCentres, streetDensity } from "@/world/grid";
 import { fromLocalMetres } from "@/world/projection";
 import { VENUE_KINDS, type World } from "@/world/schema";
 
@@ -51,26 +51,8 @@ export function makeSyntheticCity(
   const { geo, city } = file;
   const b = geo.bounds;
 
-  const centres: [number, number][] = [];
-  for (let y = b.minY + cellSizeM / 2; y < b.maxY; y += cellSizeM) {
-    for (let x = b.minX + cellSizeM / 2; x < b.maxX; x += cellSizeM) {
-      if (!geo.water.some((ring) => pointInPolygon(x, y, ring))) centres.push([x, y]);
-    }
-  }
-
-  const streetLength = centres.map(([cx, cy]) => {
-    const rect = { minX: cx - cellSizeM / 2, maxX: cx + cellSizeM / 2, minY: cy - cellSizeM / 2, maxY: cy + cellSizeM / 2 };
-    let len = 0;
-    for (const road of geo.roads) {
-      for (const piece of clipPolyline(road.points, rect)) {
-        for (let i = 0; i + 1 < piece.length; i++) {
-          len += Math.hypot(piece[i + 1][0] - piece[i][0], piece[i + 1][1] - piece[i][1]) * (road.kind === "major" ? 1.5 : 1);
-        }
-      }
-    }
-    return len;
-  });
-  const maxLen = Math.max(1, ...streetLength);
+  const centres = gridCentres(geo, cellSizeM);
+  const density = streetDensity(geo, centres, cellSizeM);
 
   const homes = clusterHomes(b, clusters, rng);
   const falloff = FALLOFF_FRAC * (b.maxX - b.minX);
@@ -82,7 +64,7 @@ export function makeSyntheticCity(
       geohash: `cell${i}`,
       lat: p.lat,
       lon: p.lon,
-      density: 0.05 + streetLength[i] / maxLen,
+      density: density[i],
       archetypes: mix.map((weight, archetype) => ({ archetype, weight })),
     };
   });
