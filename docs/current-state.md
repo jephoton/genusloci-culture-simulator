@@ -84,9 +84,33 @@
 - `pnpm qloo:smoke [city]` passes live for London and Singapore. About 9,940 monthly calls remain.
 - `.env.example` lists the environment variables.
 
+## M4 (World builder): done (2026-10-14)
+- **London and Singapore run on real Qloo data:**
+  - London: 140 venues plus 60 reserve, 180 tags, 200 artists, 8 scenes;
+  - Singapore: 130 venues plus 30 reserve.
+- `pnpm build:world <city>` writes `.cache/worlds/<city>.world.json` (git-ignored). `/api/world/[slug]` serves it, and the game loads it first, falling back to the synthetic city.
+- The attribution now credits "Taste data: Qloo".
+- **Fidelity is held out:** one heatmap per scene seeds residents, and a different one is scored. London scores 0.17 → 0.20 and Singapore 0.04 → 0.12 over 60 weeks.
+- Equilibrated capacities give gradual venue turnover. A niche-loop bug in the sim is fixed.
+- Verified in the browser:
+  - real venue names and kinds;
+  - scenes listing real tags and artists;
+  - the event picker offers real artists by scene;
+  - the city switcher works;
+  - no console errors.
+- 342 tests passing. About 9,720 Qloo calls remain this month.
+- **Rough edges:**
+  - World files are about 1.4–1.6 MB, mostly 17–20k edges.
+  - Scene names are placeholders until 5b-2; tags such as "Functional" or "Casual" are vague.
+  - Galleries and theatres dominate London's venue mix.
+  - The HUD's events count lags by up to 4 days, because it comes from the digest (every 4th frame).
+  - Fidelity is modest. Present it honestly.
+  - Hosting the World files on Vercel is not solved (M7).
+
 ## Next
-1. **M4 (World builder)**: real Qloo venues, tastes and heatmaps for London and Singapore, built on `src/qloo`.
-2. M6 (agents) and M7 (ship).
+1. **M6 (agents)**: co-pilot, personas, scene naming. Real names and tags now exist to ground it.
+2. Fit in: **M5e (Book for my venue)**, M5b-2 (field guide: tag-based scene names).
+3. M7 (ship): World hosting on Vercel, on-demand city builds with a budget guard.
 3. Fit in when there's a gap: **M5e (Book for my venue)** and M5b-2 (field guide).
 
 ## Carry into M5b (from M4a)

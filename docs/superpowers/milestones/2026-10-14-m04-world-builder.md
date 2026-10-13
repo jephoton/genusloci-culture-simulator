@@ -43,6 +43,13 @@
 | stadium | `stadium` |
 | other | `performing_arts_theater` |
 
+## What changed during the build
+
+- **Held-out seeding.** Venue-kernel cell mixes scored only about 0.07 fidelity, because Qloo heatmaps mostly track centrality. Each scene now gets a **seed** heatmap (its most distinctive place tags, falling back to its artists) that sets where its residents live, ranked and sharpened (rank³). A different **check** heatmap (artists first) is held out for fidelity. London 0.17 → 0.20 over 60 weeks; Singapore 0.04 → 0.12.
+- **Equilibrated capacities.** Kind-based capacities closed about 20% of venues in one wave when the grace period ended. `equilibrateCapacities` runs the baseline for 6 weeks with closures off and blends measured visits into capacity (reserve places are scaled by the median). London now loses about 20 and gains about 15 venues over 60 weeks, gradually.
+- **Niche loop fix (sim).** The niche logic reopened the same failed reserve place again and again; it now prefers places that have never been in the city.
+- **Minimum heatmap size.** Heatmaps under 40 cells are skipped.
+
 ## Code
 
 - `src/world/grid.ts`: the water-skipping grid and street-length density, extracted from the synthetic city.

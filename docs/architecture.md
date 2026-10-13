@@ -16,7 +16,12 @@
   - `client.ts` — `search`, `entities`, `places`, `recommend`, `tagAffinities`, `heatmap` (clipped to the radius), `demographics`, `audienceTypes`, `audiences`, `searchTags`; `onSuspectEmpty` fires for empty results that carried a filter or signal
   - `env.ts` — `qlooFromEnv()` (`QLOO_API_KEY`, optional `QLOO_BASE_URL` and `QLOO_BUDGET_FLOOR`, default 200)
 - **`geo/`** — OpenStreetMap pipeline: `geometry.ts` (simplify, clip, ring assembly), `overpass.ts` (query + parser → World `geo`), `cities.ts` (registry), `geo-file.ts` (file schema). Prebuilt city geometry lives in `public/geo/<city>.json` under ODbL (decision 0006); the app shows OSM attribution.
-- **`world/`** — builds a per-city World file (entities, affinity edges, heatmaps, archetypes). Cached server-side only.
+- **`world/`** — World schema (`schema.ts`, with optional `meta` for source and attribution), projection, the shared street-density grid (`grid.ts`), synthetic fixtures, and the Qloo world builder:
+  - `builder/kinds.ts` — one union-of-tags place query per venue kind; `kindOf` from a venue's own genre/category tags; relative capacity by kind
+  - `builder/gather.ts` — the only Qloo-calling part: venues per kind, artists for anchor venues (skipping venues Qloo can't use as signals), seed and check heatmaps per scene
+  - `builder/assemble.ts` — pure: venues (fair across kinds, at most 4 per 300 m cell, extras kept as reserve places), taste tags, music tags, artists, symmetric edges, spherical k-means archetypes named by distinctive tags, venue-kernel cell mixes; `applySeedHeatmaps` re-seeds cells from Qloo heatmaps; `attachHeatmaps` adds the held-out fidelity heatmaps
+  - `builder/equilibrate.ts` — runs the baseline with closures off and blends measured weekly visits into venue capacities
+  - World files are written to `.cache/worlds/<city>.world.json` (git-ignored) and served by `app/api/world/[slug]`; never commit them (Qloo terms)
 - **`sim/`** — pure, deterministic TypeScript engine (no network, no DOM), hosted in a Web Worker:
   - `state.ts` + `venue-table.ts` — agent slots with an `alive` mask; per-state venue table; expired event slots are reused (decision 0004)
   - `steps/` — outing → attendance → exposure/adoption → drift → decay → venue lifecycle (events, rent)
@@ -32,7 +37,8 @@
 - **`render/`** — React Three Fiber night diorama (decision 0005, [UI spec](superpowers/specs/2026-10-09-genusloci-ui-design.md)):
   - pure, tested prep: `layout.ts` (cells, landmark pads, procedural buildings that avoid roads, water, parks and pads), `palette.ts` (scene hues by lineage), `venues.ts` (per-slot landmark views), `geometry.ts` (street ribbons, polygons)
   - scene: `CityCanvas` (camera, MapControls, bloom and vignette), `Ground`, `Streets`, `Buildings` (instanced, window-light shader), `Landmarks` (per venue kind, neon sign = dominant scene, health = brightness), `Crowd` (instanced agents eased between ticks)
-- **`ui/`** — `useSimulation` (worker lifecycle, pushed frames in a ref plus state, actions, rewind), `GameShell` (composition and tools), `Hud`, `Toolbar`, `TimelineBar`, `VenuePanel`; `ClientGame` loads it client-only (`next/dynamic` with `ssr: false`)
+- **`app/api/world/[slug]`** — serves a built World (404 if unknown or not built). Hosting the files on Vercel is an M7 task.
+- **`ui/`** — `useCityWorld` (Qloo world first, then synthetic over OSM, then Synthville), `useSimulation` (worker lifecycle, pushed frames in a ref plus state, actions, rewind), `GameShell` (composition and tools), `Hud`, `Toolbar`, `TimelineBar`, `VenuePanel`; `ClientGame` loads it client-only (`next/dynamic` with `ssr: false`)
 - **`agents/`** — LLM co-pilot (tool use, provider-agnostic via Vercel AI SDK; DeepSeek primary), persona interviews, scene naming.
 
 ## Qloo access
@@ -57,6 +63,7 @@
 - `pnpm test` — run all unit tests (Vitest; config in `vitest.config.mts`)
 - `pnpm test:watch` — watch mode
 - `pnpm bench:sim` — simulation tick-rate benchmark (target ≥ 10 ticks/sec at 5,000 agents)
-- `pnpm calibrate` — baseline fidelity and ecology report on the synthetic fixture
+- `pnpm calibrate` — baseline fidelity and ecology report on the synthetic fixture (`--london` for synthetic London, `--world=<city>` for a built Qloo world)
+- `pnpm build:world <city>` — build a city's Qloo World into `.cache/worlds` (about 55–80 Qloo calls the first time; reruns are free from the file cache)
 - `pnpm qloo:smoke [city]` — a few live Qloo calls through the file cache (reruns are free); prints counts and the remaining monthly quota, never response data
 - `pnpm build:geo <city>` — fetch a city's roads, water and parks from Overpass into `public/geo/<city>.json` (one request per run; don't loop)

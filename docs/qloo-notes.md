@@ -64,6 +64,14 @@ What we learned by calling the hackathon server. Access details are in [architec
   - The client caches these 400s and `isInvalidSignal(e)` detects them. The world builder should skip such venues or fall back to their own tags.
 - **Singapore** has plenty of coverage within 1.5 km of the centre (results at offset 450).
 
+## Learned while building M4
+
+- **`filter.tags` with several tags is a union (OR)**, so one call covers a venue kind.
+- **Tags that exist can still return nothing:** `urn:tag:genre:place:restaurant:pub` and `…:stadium` returned no places in central London; `…:pub` and `…:restaurant:cocktail_bar` did. The builder logs empty kinds.
+- **Place-tag heatmaps** (ambience, category) return about 900 cells over the city; artist heatmaps 200–700. Category tags like night club were often too thin (under 40 cells).
+- **All heatmaps correlate with centrality** (about 0.55–0.65 with street density). Fidelity is per capita, so seeding from venue locations alone scored only about 0.07.
+- **A first city build** cost 55 calls for London and 80 for Singapore, plus about 25 for tuning experiments.
+
 ## Implications for M4 (World builder)
 
 - **Venues:**

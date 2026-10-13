@@ -2,7 +2,7 @@
 
 <!-- generated: maintained by agents; keep in sync as plans land -->
 
-> **Status (2026-10-10):** everything in the app runs on **synthetic stand-in data**. Real Qloo data arrives with M3–4 (blocked on the API key). The AI co-pilot arrives with M6. Names like "Cluster 0 Venue 1" and "Scene 12" are placeholders.
+> **Status (2026-10-14):** London and Singapore run on **real Qloo data** (M4). Venues, artists, tastes and heatmaps all come from Qloo; the World files are built with `pnpm build:world <city>` and served by the app, never committed. The synthetic city is only a fallback. The AI co-pilot arrives with M6. Scene names are still placeholders ("Scene 3"), with real tags and artists listed under them, until 5b-2.
 
 ## Glossary
 
@@ -11,7 +11,7 @@
 | Term | Meaning | Source |
 |---|---|---|
 | **Entity** | Anything Qloo knows: an artist, a place (bar, club, restaurant), a brand, a film, a book… | Qloo catalogue (over 250M entities) |
-| **Taste** | What one person loves, each with a strength. Called the agent's *genome* in code. | Seeded from Qloo audience data |
+| **Taste** | What one person loves, each with a strength. Called the agent's *genome* in code. | Seeded from their neighbourhood's scenes: real Qloo place tags and artists |
 | **Affinity** | How strongly loving one entity predicts loving another ("people who love X also love Y"), from 0 to 1 | Qloo taste graph |
 | **Tag** | A named category on an entity: genre (pop, techno), cuisine, style, vibe | Qloo entity metadata |
 | **Venue** | A real place on the map that people go out to. It has a type, a capacity and health. Its body colour is its own scene (best taste match); its neon sign is tonight's dominant crowd. | Qloo place entity |
@@ -19,9 +19,9 @@
 | **Tick** | One simulated day in the demo (`ticksPerWeek: 7`). Each day residents decide whether to go out, weighted towards Friday and Saturday. Venue health uses a rolling week of visits. | Simulation |
 | **Resident (agent)** | One simulated person: a home, a taste, friends. Goes out most weeks. | Simulation |
 | **Scene** | A group of residents with similar taste, discovered by the simulation rather than defined. Scenes are born, grow, split, merge and die; the family tree tracks this. | Emerges from the simulation |
-| **Archetype** | A starting taste profile for a group of people in an area, used to seed each neighbourhood | Qloo audience communities |
+| **Archetype** | A starting taste profile, found by clustering the city's real venues by their Qloo tags and the artists their crowds like. Each neighbourhood's mix comes from a Qloo heatmap of that taste. | Qloo places, tags, artist recommendations, heatmaps |
 | **Niche** | A scene with many people but few suitable venues. Large niches auto-open a venue. | Simulation |
-| **Fidelity** | How closely the simulated city's tastes match where those tastes really live (0–1) | Qloo heatmaps |
+| **Fidelity** | How closely the simulated city's tastes match where those tastes really live (rank correlation, −1 to 1), measured on **held-out** Qloo heatmaps that the seeding never saw | Qloo heatmaps |
 | **Heatmap** | Qloo's answer to "where in this city does the taste for X live?": an affinity score per map square (geohash) | Qloo Insights (`urn:heatmap`) |
 
 ### Placeholders that disappear with real data
@@ -38,11 +38,11 @@ Every week, residents go out to a venue that suits their taste. There they're ex
 
 | Qloo data | Used for | Status |
 |---|---|---|
-| Affinity (taste graph) | The physics: venue choice, adoption, drift | Synthetic now; real in M3–4 |
-| Audiences | Seeding each neighbourhood's residents | Synthetic now |
-| Heatmaps | Placing tastes on the map, and the Fidelity check | Code ready; synthetic heatmaps now |
-| Tags | Naming and describing scenes and venues | Planned (5b-2 / M4) |
-| Places (location, kind) | Venues on the map | Synthetic now; real in M4 |
+| Places (location, kind, tags) | Real venues on the map, their landmark kind, and their taste | **Live** (M4) |
+| Artist recommendations for a venue's crowd | Artists in residents' tastes and as event headliners; venue–artist and artist–artist affinities | **Live** (M4) |
+| Tags (place vibes, music genres) | Taste genes, the venue–tag and tag–tag affinities that drive adoption and drift | **Live** (M4); scene names in 5b-2 |
+| Heatmaps | Seeding where each scene's residents live (one per scene), and the Fidelity check (a different, held-out one per scene) | **Live** (M4) |
+| Audiences | Not used yet | — |
 
 ## Pitch
 
@@ -66,7 +66,7 @@ Every week, residents go out to a venue that suits their taste. There they're ex
 0. **Setup:** load the demo city (London, or NYC for US judges), paused at week 0, with the default camera.
 1. **Hook (20 s):** "This is London tonight. Every dot is a resident with real taste from Qloo; every lit landmark is a real venue." Press **Play** at ½ wk/s. Crowds stream out along real streets, gather at venues and walk home. *(today)*
 2. **Scenes emerge (30 s):** "Nobody told it what scenes exist. They emerge." Hover a row in the **Scenes** panel to highlight a scene's people and venues, then click to fly there. *(today, with placeholder names)*
-3. **The proof (15 s):** point at **Fidelity** in the HUD: the simulated city matches where these tastes really live, according to Qloo heatmaps. *(needs real data)*
+3. **The proof (15 s):** point at **Fidelity** in the HUD. Residents were seeded from one set of Qloo heatmaps; fidelity checks them against *different* Qloo heatmaps, and it rises as the city runs (London about 0.17 → 0.20 over a year, Singapore 0.04 → 0.12). Be honest that it's modest: it's a real, falsifiable check, which is the point. *(today)*
 4. **The shock (40 s):** select the venue at the heart of the biggest scene, then **Close venue**. You see the implosion and the regulars scattering. Play a few weeks: toasts report the scene splitting or fading, and a venue auto-opening in the gap. *(today)*
 5. **The what-if (40 s):** rewind with the timeline slider, which is exact. Instead, **Open a venue** nearby: pick a kind, watch the ghost preview, place it. The scene survives. "Two futures, one decision apart." *(today; side-by-side compare comes in M7)*
 6. **The promoter (40 s):** "You're a promoter. Where should this headliner play?" Open **Scout a location** and pick the headliner.
