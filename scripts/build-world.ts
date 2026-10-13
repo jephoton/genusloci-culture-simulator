@@ -4,6 +4,8 @@ import { GeoFileSchema } from "@/geo/geo-file";
 import { fileCache } from "@/qloo/cache";
 import { qlooFromEnv } from "@/qloo/env";
 import { applySeedHeatmaps, assembleWorld, attachHeatmaps } from "@/world/builder/assemble";
+import { DEMO_CONFIG, DEMO_SEED } from "@/ui/demo-config";
+import { equilibrateCapacities } from "@/world/builder/equilibrate";
 import { gatherCity, gatherHeatmaps } from "@/world/builder/gather";
 import { parseWorld } from "@/world/schema";
 
@@ -39,7 +41,9 @@ async function main() {
   console.log("Fetching heatmaps…");
   const { seeds, checks } = await gatherHeatmaps(client, base, heatmapPlan, city, log);
   // Residents are seeded from the seed heatmaps; fidelity is measured on the held-out check heatmaps.
-  const world = parseWorld(attachHeatmaps(applySeedHeatmaps(base, seeds), checks));
+  const seeded = attachHeatmaps(applySeedHeatmaps(base, seeds), checks);
+  // Capacities matched to the demo city's baseline crowds (see equilibrateCapacities).
+  const world = parseWorld(equilibrateCapacities(seeded, DEMO_CONFIG, DEMO_SEED));
 
   mkdirSync(WORLD_DIR, { recursive: true });
   const out = `${WORLD_DIR}/${slug}.world.json`;
