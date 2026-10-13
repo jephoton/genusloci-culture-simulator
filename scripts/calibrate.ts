@@ -9,21 +9,31 @@ import { distKm } from "@/sim/world-index";
 import { DEMO_CONFIG, DEMO_SEED } from "@/ui/demo-config";
 import { makeSyntheticCity } from "@/world/fixtures/synthetic-city";
 import { makeTinyWorld } from "@/world/fixtures/tiny-world";
+import { parseWorld } from "@/world/schema";
 
 // Baseline run report for tuning: fidelity vs heatmaps plus ecology vitals, every 10 simulated weeks
 // (10 × ticksPerWeek ticks, so 70 ticks when the config runs daily).
 // - Default: the tiny synthetic fixture.
 // - `--london`: the playable demo (public/geo/london.json, makeSyntheticCity, DEMO_CONFIG, DEMO_SEED),
 //   with venue openings and closures per 10 weeks, a line per natural closure, and the time per tick.
+// - `--world=<city>`: a Qloo world built by `pnpm build:world <city>` (.cache/worlds), reported like `--london`.
 // - `--weeks=N` (default 100) sets the run length in weeks; `--seed=N` overrides the London seed.
-const london = process.argv.includes("--london");
+const worldSlug = process.argv.find((a) => a.startsWith("--world="))?.slice("--world=".length);
+/** London (synthetic over OSM) or a built Qloo world: the demo config and the detailed report. */
+const london = process.argv.includes("--london") || worldSlug !== undefined;
 const arg = (name: string) => process.argv.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3);
 const WEEKS = Number(arg("weeks") ?? 100);
 const SEED = Number(arg("seed") ?? DEMO_SEED);
 /** A closure counts as "rival" if a venue that opened after it sits within this distance. */
 const RIVAL_KM = 1;
 
-const s = london
+const s = worldSlug
+  ? initState(
+      parseWorld(JSON.parse(readFileSync(join(process.cwd(), `.cache/worlds/${worldSlug}.world.json`), "utf8"))),
+      { ...DEFAULT_CONFIG, ...DEMO_CONFIG },
+      SEED,
+    )
+  : london
   ? initState(
       makeSyntheticCity(GeoFileSchema.parse(JSON.parse(readFileSync(join(process.cwd(), "public/geo/london.json"), "utf8")))),
       { ...DEFAULT_CONFIG, ...DEMO_CONFIG },
