@@ -73,9 +73,20 @@
      - landmarks mounted while paused appear without rising.
 5. **5b-2:** name scenes from their dominant Qloo tags (plus a mock-Latin binomial) so scenes are self-explanatory.
 
+## M3 (Qloo spike + client): done (2026-10-14)
+- Spike findings are in [qloo-notes.md](qloo-notes.md):
+  - limits of 5 requests per second and **10,000 per month**;
+  - a 429 doesn't count against the quota;
+  - places include coordinates and about 100 tags each;
+  - heatmaps use 7-character geohash cells;
+  - some venues aren't accepted as signals for artists or tags.
+- `src/qloo/` is a typed client with validation, throttling, retries, a quota floor, a file cache (including cached 400s) and response trimming. It has 31 unit tests using synthetic payloads.
+- `pnpm qloo:smoke [city]` passes live for London and Singapore. About 9,940 monthly calls remain.
+- **To do by hand:** add `.env.example`; the agent isn't permitted to write `.env*` files. The suggested content is in the M3 milestone doc.
+
 ## Next
-1. **M3 (Qloo spike + client)**: in progress. The key is in `.env.local`.
-2. M4 (World builder), then M6 (agents) and M7 (ship).
+1. **M4 (World builder)**: real Qloo venues, tastes and heatmaps for London and Singapore, built on `src/qloo`.
+2. M6 (agents) and M7 (ship).
 3. Fit in when there's a gap: **M5e (Book for my venue)** and M5b-2 (field guide).
 
 ## Carry into M5b (from M4a)

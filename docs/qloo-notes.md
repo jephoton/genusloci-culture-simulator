@@ -8,7 +8,7 @@ What we learned by calling the hackathon server. Access details are in [architec
 
 - **5 requests per second**: `X-Second-RateLimit-Limit/Remaining/Reset`, where `Reset` is in seconds.
 - **10,000 requests per month**: `X-Month-RateLimit-Limit/Remaining/Reset`, with a window of about 30 days from first use.
-  - The spike used about 35 of them.
+  - The spike plus the client's live smoke runs used about 60 of them.
   - This is the binding constraint, so every call must be cached, and on-demand city builds need a budget guard.
 - Going over the per-second limit returns `429 {"error_msg":"Rate limit exceeded"}` with no `Retry-After`.
   - A 429 does **not** count against the monthly quota.
@@ -57,6 +57,11 @@ What we learned by calling the hackathon server. Access details are in [architec
   Treat an empty result that has signals as suspect, and resolve tags with `/v2/tags` first.
 - **`filter.location.query`** (for example "Shoreditch, London") expands well beyond the neighbourhood. Use a `POINT` plus a radius.
 - **No field filtering:** responses are verbose.
+- **Not every entity works as a signal for every target type.**
+  - In one test, 4 of the top 8 London night clubs returned `400 "All of the provided signal.interests.entities were invalid"` for artist recommendations.
+  - Some of those same venues returned no tag affinities, or a heatmap of only a handful of cells.
+  - Place-to-place signals worked for all of them.
+  - The client caches these 400s and `isInvalidSignal(e)` detects them. The world builder should skip such venues or fall back to their own tags.
 - **Singapore** has plenty of coverage within 1.5 km of the centre (results at offset 450).
 
 ## Implications for M4 (World builder)

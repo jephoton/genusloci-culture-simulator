@@ -42,10 +42,11 @@
   - `audiences({ types, take })`
   - `searchTags(query | { tagTypes }, { take })`
 
-  Each result also carries `suspectEmpty: true` when it is empty although a signal or filter was given.
+  An `onSuspectEmpty` hook (by default a warning) fires when a result is empty although a signal or filter was given.
+- **Added after the live run:** the transport caches deterministic 400s, and `isInvalidSignal(e)` spots Qloo's "signal entities were invalid" answer, which comes back for venues without cross-domain data.
 - **`env.ts`: `qlooFromEnv()`.** Reads `QLOO_API_KEY` (and optionally `QLOO_BASE_URL`) and throws a clear error if the key is missing. It never logs the key.
 - **`scripts/qloo-smoke.ts` (`pnpm qloo:smoke`):** a handful of live calls through the file cache (search, places, heatmap, tag affinities). It prints counts and the remaining quota only, never response data.
-- **`.env.example`:** lists the variable names.
+- **`.env.example`:** lists the variable names. The agent's permissions block writing it, so the user adds it by hand.
 
 ## Tasks (TDD, atomic commits)
 
@@ -55,3 +56,19 @@
 4. Client methods, including `suspectEmpty` and heatmap clipping. `feat(qloo): add typed client methods`
 5. Env loader, smoke script, `.env.example`, and a live run. `feat(qloo): add env loader and live smoke script`
 6. Docs: architecture, current state, roadmap.
+
+## Suggested `.env.example` (add by hand)
+
+```bash
+# Copy to .env.local (git-ignored) and fill in. Never commit real keys.
+
+# Qloo hackathon API key (sent as X-Api-Key to https://hackathon.api.qloo.com)
+QLOO_API_KEY=
+# Optional: override the Qloo server
+# QLOO_BASE_URL=https://hackathon.api.qloo.com
+# Optional: stop network calls when fewer monthly requests remain (default 200; the quota is 10,000/month)
+# QLOO_BUDGET_FLOOR=200
+
+# LLM providers for the co-pilot (M6)
+# DEEPSEEK_API_KEY=
+```
