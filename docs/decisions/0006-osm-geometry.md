@@ -12,4 +12,4 @@
 - **Rationale:** real, recognisable streets now, without a Qloo key; deterministic demos; no runtime dependency.
 - **Consequences:**
   - Each prebuilt city adds a static JSON file (aim for ≤ about 3 MB).
-  - Plan 4's on-demand city builds will reuse `parseOverpass` server-side and cache the result rather than commit it.
+  - M4's on-demand city builds will reuse `parseOverpass` server-side and cache the result rather than commit it.

@@ -6,7 +6,7 @@ export const ENTITY_TYPES = [
   "podcast", "video_game", "destination", "person", "tag",
 ] as const;
 
-/** Landmark styles for venues (Plan 4 maps Qloo tags to these). */
+/** Landmark styles for venues (M4 maps Qloo tags to these). */
 export const VENUE_KINDS = [
   "club", "bar", "cafe", "restaurant", "gallery", "music_venue", "shop", "stadium", "other",
 ] as const;

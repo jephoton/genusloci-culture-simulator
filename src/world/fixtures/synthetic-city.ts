@@ -34,7 +34,7 @@ export function neighbourhoodMix(x: number, y: number, homes: [number, number][]
 }
 
 /**
- * A synthetic population over real geography, used until Qloo data exists (Plan 4). Synthetic only:
+ * A synthetic population over real geography, used until Qloo data exists (M4). Synthetic only:
  * it carries no Qloo responses.
  * - Cells: a square grid over the bounds, skipping cells whose centre is in water.
  * - Density: street length per cell (a proxy for urban density).

@@ -1,4 +1,4 @@
-# Plan 1: Scaffold + Simulation Core — Implementation Plan
+# M1: Scaffold + Simulation Core — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -63,7 +63,7 @@ cp -r .scaffold/. .
 rm -rf .scaffold
 pnpm install
 ```
-If the scaffold contains a `README.md`, replace its contents with a single line: `# Genus Loci`. A real README comes in Plan 7.
+If the scaffold contains a `README.md`, replace its contents with a single line: `# Genus Loci`. A real README comes in M7.
 
 - [ ] **Step 3: Verify the build**
 
@@ -2135,7 +2135,7 @@ git commit -m "perf(sim): add 5,000-agent tick-rate benchmark"
 
 ### Task 15: Update the handoff docs
 
-**Files:** modify `docs/architecture.md`, `docs/current-state.md`, `docs/superpowers/plans/2026-10-09-roadmap.md`.
+**Files:** modify `docs/architecture.md`, `docs/current-state.md`, `docs/superpowers/milestones/2026-10-09-roadmap.md`.
 
 - [ ] **Step 1: Replace the "Commands" section of `docs/architecture.md`**
 
@@ -2152,13 +2152,13 @@ git commit -m "perf(sim): add 5,000-agent tick-rate benchmark"
 
 - [ ] **Step 2: Update `docs/current-state.md`**
 
-Set **Phase** to "Plan 1 complete (scaffold + sim core)". Move Plan 1 into "Done", with the measured bench result (ticks/sec and init ms). Set "Next" to: write and execute Plan 2 (sim ecology), and start Plan 3 (Qloo spike) as soon as the key arrives.
+Set **Phase** to "M1 complete (scaffold + sim core)". Move M1 into "Done", with the measured bench result (ticks/sec and init ms). Set "Next" to: write and execute M2 (sim ecology), and start M3 (Qloo spike) as soon as the key arrives.
 
-- [ ] **Step 3: Set Plan 1's status in the roadmap table to "Done"**
+- [ ] **Step 3: Set M1's status in the roadmap table to "Done"**
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add docs/architecture.md docs/current-state.md docs/superpowers/plans/2026-10-09-roadmap.md
-git commit -m "docs: record verified commands and Plan 1 completion"
+git add docs/architecture.md docs/current-state.md docs/superpowers/milestones/2026-10-09-roadmap.md
+git commit -m "docs: record verified commands and M1 completion"
 ```

@@ -1,4 +1,4 @@
-# Plan 5a: Playable City — Implementation Plan
+# M5a: Playable City — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -252,7 +252,7 @@ export function toLocalMetres(p: LatLon, origin: LatLon): LocalPoint {
 
 After the `ENTITY_TYPES` declaration, add:
 ```ts
-/** Landmark styles for venues (Plan 4 maps Qloo tags to these). */
+/** Landmark styles for venues (M4 maps Qloo tags to these). */
 export const VENUE_KINDS = [
   "club", "bar", "cafe", "restaurant", "gallery", "music_venue", "shop", "stadium", "other",
 ] as const;
@@ -2209,7 +2209,7 @@ git commit -m "feat(render): add venue landmarks, agent crowds and the city canv
 import { makeTinyWorld } from "@/world/fixtures/tiny-world";
 import type { World } from "@/world/schema";
 
-/** Synthetic demo city, used until real Qloo worlds exist (Plan 4). */
+/** Synthetic demo city, used until real Qloo worlds exist (M4). */
 export function demoWorld(): World {
   return makeTinyWorld({ seed: 7, clusters: 6, entitiesPerCluster: 20, gridSize: 10 });
 }
@@ -2790,4 +2790,4 @@ git commit -m "feat(ui): add playable city with simulation hook, toolbar, timeli
   - Use Throw an event: a light pillar appears and crowds converge on it.
   - Drag the rewind slider back: the city state rewinds.
   - Fix what's broken, each fix with its own commit.
-- [ ] **Step 2:** Update `docs/architecture.md` with the `render/` and `ui/` components and the `pnpm dev` / browser preview notes. Update `docs/current-state.md` (Plan 5a done, observations, next: 5b) and the roadmap status. Commit: `docs: record Plan 5a completion`.
+- [ ] **Step 2:** Update `docs/architecture.md` with the `render/` and `ui/` components and the `pnpm dev` / browser preview notes. Update `docs/current-state.md` (M5a done, observations, next: 5b) and the roadmap status. Commit: `docs: record M5a completion`.

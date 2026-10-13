@@ -1,8 +1,8 @@
-# Plan 5b-1b: Legibility — Street Routing, Smaller City, Focus, Placement UX — Implementation Plan
+# M5b-1b: Legibility — Street Routing, Smaller City, Focus, Placement UX — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make the living city followable, based on user feedback after Plan 5b-1:
+**Goal:** Make the living city followable, based on user feedback after M5b-1:
 1. Agents walk along real streets, not straight lines.
 2. Venues are always visible: no black bodies.
 3. The city is smaller and denser: London at about ¼ of the area (1.5 km radius around Trafalgar Square) with about 2,500 residents.
@@ -638,4 +638,4 @@ Commit: `feat(render): choose a venue entity that suits its neighbourhood`.
   - Toasts fly the camera.
   - No console errors.
   - Ask the user to judge the feel; the pane may be hidden for the controller.
-- [ ] **Docs:** update `docs/architecture.md`, `docs/current-state.md` and the roadmap. Commit: `docs: record Plan 5b-1b completion`.
+- [ ] **Docs:** update `docs/architecture.md`, `docs/current-state.md` and the roadmap. Commit: `docs: record M5b-1b completion`.

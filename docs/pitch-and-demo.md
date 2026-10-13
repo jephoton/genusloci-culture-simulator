@@ -2,7 +2,7 @@
 
 <!-- generated: maintained by agents; keep in sync as plans land -->
 
-> **Status (2026-10-10):** everything in the app runs on **synthetic stand-in data**. Real Qloo data arrives with Plans 3–4 (blocked on the API key). The AI co-pilot arrives with Plan 6. Names like "Cluster 0 Venue 1" and "Scene 12" are placeholders.
+> **Status (2026-10-10):** everything in the app runs on **synthetic stand-in data**. Real Qloo data arrives with M3–4 (blocked on the API key). The AI co-pilot arrives with M6. Names like "Cluster 0 Venue 1" and "Scene 12" are placeholders.
 
 ## Glossary
 
@@ -38,11 +38,11 @@ Every week, residents go out to a venue that suits their taste. There they're ex
 
 | Qloo data | Used for | Status |
 |---|---|---|
-| Affinity (taste graph) | The physics: venue choice, adoption, drift | Synthetic now; real in Plans 3–4 |
+| Affinity (taste graph) | The physics: venue choice, adoption, drift | Synthetic now; real in M3–4 |
 | Audiences | Seeding each neighbourhood's residents | Synthetic now |
 | Heatmaps | Placing tastes on the map, and the Fidelity check | Code ready; synthetic heatmaps now |
-| Tags | Naming and describing scenes and venues | Planned (5b-2 / Plan 4) |
-| Places (location, kind) | Venues on the map | Synthetic now; real in Plan 4 |
+| Tags | Naming and describing scenes and venues | Planned (5b-2 / M4) |
+| Places (location, kind) | Venues on the map | Synthetic now; real in M4 |
 
 ## Pitch
 
@@ -56,24 +56,24 @@ Every week, residents go out to a venue that suits their taste. There they're ex
 
 ### Open alignment questions (to resolve next)
 
-- ~~Where to host what~~: **resolved** by **Scout a location** (Plan 5c). *Book for my venue* (what to put on at a venue) is next.
+- ~~Where to host what~~: **resolved** by **Scout a location** (M5c). *Book for my venue* (what to put on at a venue) is next.
 - ~~Closures invisible~~: struggling venues now pulse red and get a toast before they close; the demo city turns over (about 7 opens and 5 closes per 100 weeks). Closures don't yet explain *why* (e.g. "a rival nearby took its crowd").
 
 ## Demo runbook (about 3 minutes, as intended for demo day)
 
-*(today)* marks what works now. Everything else needs Plans 3–4 (real data), 5b-2 (scene names) or 6 (co-pilot).
+*(today)* marks what works now. Everything else needs M3–4 (real data), 5b-2 (scene names) or 6 (co-pilot).
 
 0. **Setup:** load the demo city (London, or NYC for US judges), paused at week 0, with the default camera.
 1. **Hook (20 s):** "This is London tonight. Every dot is a resident with real taste from Qloo; every lit landmark is a real venue." Press **Play** at ½ wk/s. Crowds stream out along real streets, gather at venues and walk home. *(today)*
 2. **Scenes emerge (30 s):** "Nobody told it what scenes exist. They emerge." Hover a row in the **Scenes** panel to highlight a scene's people and venues, then click to fly there. *(today, with placeholder names)*
 3. **The proof (15 s):** point at **Fidelity** in the HUD: the simulated city matches where these tastes really live, according to Qloo heatmaps. *(needs real data)*
 4. **The shock (40 s):** select the venue at the heart of the biggest scene, then **Close venue**. You see the implosion and the regulars scattering. Play a few weeks: toasts report the scene splitting or fading, and a venue auto-opening in the gap. *(today)*
-5. **The what-if (40 s):** rewind with the timeline slider, which is exact. Instead, **Open a venue** nearby: pick a kind, watch the ghost preview, place it. The scene survives. "Two futures, one decision apart." *(today; side-by-side compare comes in Plan 7)*
+5. **The what-if (40 s):** rewind with the timeline slider, which is exact. Instead, **Open a venue** nearby: pick a kind, watch the ghost preview, place it. The scene survives. "Two futures, one decision apart." *(today; side-by-side compare comes in M7)*
 6. **The promoter (40 s):** "You're a promoter. Where should this headliner play?" Open **Scout a location** and pick the headliner.
    - The city pauses, an amber demand glow shows where their fans live, and pins A–C appear.
    - The tool simulates 4 weeks at each spot and ranks them on turnout, new fans, scenes reached and harm to neighbours.
    - Drop your own pin D to compare, then **Book it**: shockwave, beacon, and the crowd converges. *(today)*
-7. **The co-pilot (30 s):** *"What happens to the techno scene if Fabric closes?"* The agent sets up the scenario through Qloo and the simulation, runs it, and answers with numbers and named places. *(Plan 6)*
+7. **The co-pilot (30 s):** *"What happens to the techno scene if Fabric closes?"* The agent sets up the scenario through Qloo and the simulation, runs it, and answers with numbers and named places. *(M6)*
 8. **Close (10 s):** "Agents with taste. Genus Loci: every city's culture is a living species."
 
 **Fallbacks:**

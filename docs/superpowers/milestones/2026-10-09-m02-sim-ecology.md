@@ -1,8 +1,8 @@
-# Plan 2: Simulation Ecology — Implementation Plan
+# M2: Simulation Ecology — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Turn the Plan 1 tick loop into a living, controllable ecology. This plan adds:
+**Goal:** Turn the M1 tick loop into a living, controllable ecology. This plan adds:
 - **World-changing actions:** close or open a venue, schedule an event, migrate a population, apply rent pressure.
 - **Scene tracking:** scenes are detected and tracked as lineages (birth, split, merge, extinction).
 - **Auto-opening:** venues open by themselves into empty niches.
@@ -19,9 +19,9 @@
   - Niches score each scene's size against the capacity of venues matching its taste. The most underserved scene can trigger an auto-opened venue at a real place entity.
 - **Determinism:** everything stays deterministic and inside the `SimState` object graph, with no network and no DOM.
 
-**Tech Stack:** TypeScript, Vitest, zod (as in Plan 1).
+**Tech Stack:** TypeScript, Vitest, zod (as in M1).
 
-**Spec:** [../specs/2026-10-09-genusloci-design.md](../specs/2026-10-09-genusloci-design.md), sections 5, 7 and 8. The roadmap is [2026-10-09-roadmap.md](2026-10-09-roadmap.md). Inputs from the Plan 1 final review are in `docs/current-state.md` under "Carry into Plan 2".
+**Spec:** [../specs/2026-10-09-genusloci-design.md](../specs/2026-10-09-genusloci-design.md), sections 5, 7 and 8. The roadmap is [2026-10-09-roadmap.md](2026-10-09-roadmap.md). Inputs from the M1 final review are in `docs/current-state.md` under "Carry into M2".
 
 **Rules:**
 - Atomic commits in Conventional Commits format; end each message with a blank line and `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
@@ -2522,7 +2522,7 @@ import { step } from "@/sim/step";
 import { makeTinyWorld } from "@/world/fixtures/tiny-world";
 
 // Baseline run report for tuning: fidelity vs heatmaps plus ecology vitals, every 10 ticks.
-// Uses the synthetic fixture until Plan 4 provides real World files.
+// Uses the synthetic fixture until M4 provides real World files.
 const TICKS = 100;
 const world = makeTinyWorld({ seed: 7, clusters: 6, entitiesPerCluster: 20, gridSize: 10 });
 const s = initState(world, { ...DEFAULT_CONFIG, nAgents: 2000 }, 7);
@@ -3237,7 +3237,7 @@ git commit -m "feat(sim): add web worker host, protocol and promise client"
 
 ### Task 12: Verify and update the handoff docs
 
-**Files:** modify `docs/architecture.md`, `docs/current-state.md`, `docs/superpowers/plans/2026-10-09-roadmap.md`.
+**Files:** modify `docs/architecture.md`, `docs/current-state.md`, `docs/superpowers/milestones/2026-10-09-roadmap.md`.
 
 - [ ] **Step 1: Full verification**
 
@@ -3263,20 +3263,20 @@ Add `- \`pnpm calibrate\` — baseline fidelity and ecology report` to "Commands
 
 - [ ] **Step 3: Update `docs/current-state.md`**
 
-- Set **Phase** to "Plan 2 complete (sim ecology)".
-- Add Plan 2 to "Done", with the bench line and the calibrate summary.
-- Replace "Carry into Plan 2" with "Carry forward". Keep only the items still open:
+- Set **Phase** to "M2 complete (sim ecology)".
+- Add M2 to "Done", with the bench line and the calibrate summary.
+- Replace "Carry into M2" with "Carry forward". Keep only the items still open:
   - determinism within one JS engine only;
   - tuning on real worlds;
   - ecology vitals from `pnpm calibrate`;
   - plus anything new you noticed.
-- Set "Next" to: Plan 3 (Qloo spike) once the key arrives, and Plan 5 (UI) on the fixture meanwhile.
+- Set "Next" to: M3 (Qloo spike) once the key arrives, and M5 (UI) on the fixture meanwhile.
 
-- [ ] **Step 4: Mark Plan 2 as Done in the roadmap table**, linking `2026-10-09-plan-02-sim-ecology.md`.
+- [ ] **Step 4: Mark M2 as Done in the roadmap table**, linking `2026-10-09-m02-sim-ecology.md`.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add docs/architecture.md docs/current-state.md docs/superpowers/plans/2026-10-09-roadmap.md
-git commit -m "docs: record Plan 2 completion and updated architecture"
+git add docs/architecture.md docs/current-state.md docs/superpowers/milestones/2026-10-09-roadmap.md
+git commit -m "docs: record M2 completion and updated architecture"
 ```

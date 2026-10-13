@@ -23,7 +23,7 @@ The city is a playable, game-like night diorama. Scenes glow as coloured crowds,
 - **Stack:** Three.js via React Three Fiber (`@react-three/fiber`, `@react-three/drei`), with post-processing from `postprocessing` / `@react-three/postprocessing`. The canvas is client-only (`next/dynamic` with `ssr: false` inside a client component).
 - **Real streets:**
   - The World carries an optional `geo` section: roads (major/minor polylines), water and parks (polygons), and bounds, all in local metres relative to the city origin.
-  - In Plan 4 it comes from OpenStreetMap (ODbL attribution required). Until then the synthetic fixture generates a street grid, a river and parks.
+  - In M4 it comes from OpenStreetMap (ODbL attribution required). Until then the synthetic fixture generates a street grid, a river and parks.
 - **Scale:** 1 scene unit = 10 m.
 - **Buildings:** procedural, instanced boxes scattered across the city.
   - Density and height follow the population density of the nearest cell.
@@ -38,7 +38,7 @@ The city is a playable, game-like night diorama. Scenes glow as coloured crowds,
   - Its colour is its scene's hue.
 - **Scene colours:** a root scene's hue is set by the golden angle on its lineage id; a child scene's hue is offset from its parent's (±24°, ±32°, …), so related scenes look related.
 
-## Effects director (Plan 5b)
+## Effects director (M5b)
 
 The effects director compares consecutive frames and fires effects:
 
@@ -56,13 +56,13 @@ The effects director compares consecutive frames and fires effects:
 
 - **Camera:** map-style pan, rotate and zoom (drei `MapControls`), limited polar angle, damping.
 - **God toolbar:**
-  - Plan 5a: select, open venue (choose a place, then click the map), schedule event (choose an artist, then click the map).
-  - Plan 5b: close venue (from the inspector), migrate, rent pressure.
+  - M5a: select, open venue (choose a place, then click the map), schedule event (choose an artist, then click the map).
+  - M5b: close venue (from the inspector), migrate, rent pressure.
 - **Timeline:** play/pause, speed (1/2/4/8 weeks per second), and scrub-to-rewind from the earliest retained tick to now.
 - **HUD:** city, week, agents, venues open/closed/events, scenes, fidelity.
 - **Inspector:**
-  - Plan 5a: a venue panel (name, kind, open, health, visitors, close button).
-  - Plan 5b: specimen cards for scenes, venues and agents.
+  - M5a: a venue panel (name, kind, open, health, visitors, close button).
+  - M5b: specimen cards for scenes, venues and agents.
 
 ## Simulation streaming
 
@@ -82,5 +82,5 @@ The effects director compares consecutive frames and fires effects:
 
 ## Split
 
-- **Plan 5a — playable city:** streaming, snapshot thinning, `geo` and venue `kind`, layout, diorama, crowds, camera, basic toolbar, timeline, HUD and venue panel.
-- **Plan 5b — juice and field guide:** effects director and every effect above, specimen cards, phylogeny, Latin names, the remaining tools, typography and polish.
+- **M5a — playable city:** streaming, snapshot thinning, `geo` and venue `kind`, layout, diorama, crowds, camera, basic toolbar, timeline, HUD and venue panel.
+- **M5b — juice and field guide:** effects director and every effect above, specimen cards, phylogeny, Latin names, the remaining tools, typography and polish.

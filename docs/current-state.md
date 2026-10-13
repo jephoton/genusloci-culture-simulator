@@ -2,11 +2,11 @@
 
 <!-- generated: maintained by agents -->
 
-**Phase:** Plan 4a complete (real London streets from OpenStreetMap). Next: Plan 5b (juice + field guide); Plan 3 (Qloo spike) as soon as the key arrives.
+**Phase:** M4a complete (real London streets from OpenStreetMap). Next: M5b (juice + field guide); M3 (Qloo spike) as soon as the key arrives.
 
 ## Done
 - Concept, name (**Genus Loci**), design spec, roadmap. Repo: https://github.com/jephoton/genusloci-culture-simulator (public, MIT).
-- **Plan 1:**
+- **M1:**
   - Next.js 16 scaffold; Vitest/zod/tsx tooling.
   - World schema and a synthetic fixture.
   - Seeded RNG; compiled world index (CSR edges, venue profiles).
@@ -16,7 +16,7 @@
   - 58 tests passing; tsc and lint clean.
   - **Benchmark:** 5,000 agents / 1,000 entities / 80 venues / 400 cells: init ≈ 100 ms, **≈ 144 ticks/sec** (target 10).
 
-- **Plan 2:**
+- **M2:**
   - Actions: close/open venue, event, migrate, rent pressure.
   - Scenes with lineages.
   - Niche auto-opening.
@@ -27,7 +27,7 @@
   - 130 tests passing; tsc and lint clean.
   - **Benchmark:** ≈ 64–84 ticks/sec at 5,000 agents (varies with machine load; clustering runs every 4th tick).
   - `pnpm calibrate` (synthetic): fidelity 0.990 → 0.984 over 100 ticks; venues 24 → 27 (auto-open); 6 stable scenes.
-- **Plan 5a (playable city):**
+- **M5a (playable city):**
   - Worker play/pause streaming transferable frames, with `stopped` notices.
   - Age-thinned snapshots.
   - World `geo` + venue `kind`, synthetic streets, river and parks.
@@ -36,7 +36,7 @@
   - Toolbar (open venue, throw event), venue panel (close), timeline (play, speed, rewind), HUD.
   - Verified in the browser: everything works, no console errors.
   - 167 tests passing; tsc, lint and build clean.
-- **Plan 4a (real streets):**
+- **M4a (real streets):**
   - OSM Overpass pipeline (`pnpm build:geo`), `public/geo/london.json` (14,217 roads, 51 water, 1,453 parks, ≈ 1 MB, ODbL).
   - Synthetic population over real geography: density from street length, neighbourhood-clustered scenes.
   - The game loads London, with a fallback to Synthville and OSM attribution.
@@ -49,7 +49,7 @@
 ## Queued (user feedback 2026-10-10; do these next)
 1. ~~Speed~~: done. ⅛, ¼, ½ and 1 wk/s; 1 is the maximum.
 2. ~~Start-up signal~~: done. Scene hotspot auras (cells where a scene is over-represented), gentle waves for automatic openings (full shockwave only for the player), red pulse plus toast for struggling venues.
-3. ~~Promoter flow~~: done. **Scout a location** (Plan 5c):
+3. ~~Promoter flow~~: done. **Scout a location** (M5c):
    - demand glow, candidates A–C plus your own D, forked 4-week what-ifs with a no-event baseline, compare panel, Book it;
    - scouted nights reach 1.5 km (`SCOUT_DEFAULTS`), because at 25 km every spot drew the same crowd;
    - about 0.1–0.15 s per comparison on London.
@@ -58,7 +58,7 @@
      - **Noisy neighbour-loss metric.** Each fork diverges randomly from the baseline. Use common random numbers or average over a few seeds.
      - **Closures don't explain *why*.**
      - **Scenes stop moving after about week 4.**
-4. ~~Daily ticks and true pause~~: done (Plan 5d).
+4. ~~Daily ticks and true pause~~: done (M5d).
    - **Daily simulation:** `ticksPerWeek`, default 1, so weekly mode is identical, as the unchanged tests prove; the demo uses 7.
      - Weekly rates convert per tick. Outings use a share (`rate / ticksPerWeek`) so weekly visit totals stay equal.
      - Weekday weights favour Friday and Saturday. Venue health uses a rolling 7-day visit sum.
@@ -75,16 +75,16 @@
 
 ## Next
 1. Request the Qloo hackathon API key if not already done (issued manually; takes days).
-2. Plan 5b (juice + field guide): effects director (shockwave/fisheye, rise/sink, beacons, colour waves), specimen cards, phylogeny, Latin names, remaining tools.
-3. Plan 3 (Qloo spike + client) as soon as the key arrives.
+2. M5b (juice + field guide): effects director (shockwave/fisheye, rise/sink, beacons, colour waves), specimen cards, phylogeny, Latin names, remaining tools.
+3. M3 (Qloo spike + client) as soon as the key arrives.
 
-## Carry into Plan 5b (from Plan 4a)
+## Carry into M5b (from M4a)
 - **Layout on the main thread:** ≈ 0.8 s on London. Move it to a worker or precompute it per city.
 - **Building shapes:** dense London buildings are small footprints with the unchanged height range, so they can look spiky. Tune the height distribution by footprint.
-- **Placeholder names:** venues are still "Cluster N Venue M" until Qloo data (Plan 4) or Latin naming (5b).
+- **Placeholder names:** venues are still "Cluster N Venue M" until Qloo data (M4) or Latin naming (5b).
 - **Synthville density:** now ≈ 8.7k buildings (edge buildings shrink to fit). Make the candidate count depend on the city's area if it looks too dense.
 
-## Carry into Plan 5b (from the Plan 5a final review)
+## Carry into M5b (from the M5a final review)
 - **Frame sequencing:** add `seq` and `epoch` to `Frame`. Bump `epoch` on init and rewind, and mark `refresh` frames as jumps, so the effects director only diffs consecutive frames of the same epoch.
 - **Per-frame change list:** venue opened/closed/expired, event started, scene born/split/merged/died, action results. Today scene events arrive only via the digest (every 4th tick, capped at 10).
 - **New commands:**
@@ -102,7 +102,7 @@
   - Keyboard path for selecting and placing (venue list or cell picker).
 - **Layout performance:** `buildLayout` takes ≈ 0.3 s on Synthville and ≈ 0.8 s on London, on the main thread. Consider a worker or precomputing per world.
 
-## Carry forward (from the Plan 2 final review)
+## Carry forward (from the M2 final review)
 - **Timeline snapshots.** Eviction keeps tick 0 and drops the next oldest, so old rewinds get slow (≈ 1–4 s). Use thinned retention, e.g. every 10 recent, 40 older, 160 oldest.
 - **Memory.** About 2.5 MB per snapshot, ≈ 78 MB per timeline at bench scale. `venueProfile` depends only on the entity: precompute per place in `cw` and drop it from the state. Cap live forks at about 3.
 - **Ecology is too static on the fixture.**
@@ -112,14 +112,14 @@
   - Add bridge entities to the fixture.
 - **Auto-open quirks.** It can duplicate an already-open entity, and counts supply city-wide rather than near the niche.
 - **Venue slots.** Closed permanent venue slots are never reused, so `venueReserve` can run out under heavy churn.
-- **Protocol for the co-pilot (Plan 6).**
+- **Protocol for the co-pilot (M6).**
   - Results:
     - `act` says "queued" but the action can still fail when applied, so return tokens.
     - `Timeline.queue` stores caller objects by reference, so clone them.
   - Commands to add:
     - `venues` (per-venue state), `niches` (enables `openVenue` from a niche) and `inspect` (agent genome for personas).
     - `compare` (digest diff) and a dry-run `validate`.
-- **World builder (Plan 4).** Places need `cell` + `capacity`. Expose a Qloo-id → index map. Keep `nEntities` ≤ ~2,000 (`venueProfile` and centroids are dense).
+- **World builder (M4).** Places need `cell` + `capacity`. Expose a Qloo-id → index map. Keep `nEntities` ≤ ~2,000 (`venueProfile` and centroids are dense).
 - **Known, accepted.**
   - Adoption reads friends' genomes mid-tick.
   - Existing agents don't befriend migrants.
