@@ -74,9 +74,9 @@
 5. **5b-2:** name scenes from their dominant Qloo tags (plus a mock-Latin binomial) so scenes are self-explanatory.
 
 ## Next
-1. Request the Qloo hackathon API key if not already done (issued manually; takes days).
-2. M5b (juice + field guide): effects director (shockwave/fisheye, rise/sink, beacons, colour waves), specimen cards, phylogeny, Latin names, remaining tools.
-3. M3 (Qloo spike + client) as soon as the key arrives.
+1. **M3 (Qloo spike + client)**: in progress. The key is in `.env.local`.
+2. M4 (World builder), then M6 (agents) and M7 (ship).
+3. Fit in when there's a gap: **M5e (Book for my venue)** and M5b-2 (field guide).
 
 ## Carry into M5b (from M4a)
 - **Layout on the main thread:** ≈ 0.8 s on London. Move it to a worker or precompute it per city.
