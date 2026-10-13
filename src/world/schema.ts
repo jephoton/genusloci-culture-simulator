@@ -75,6 +75,10 @@ export const WorldSchema = z
     archetypes: z.array(ArchetypeSchema).min(1),
     heatmaps: z.array(HeatmapSchema),
     geo: GeoSchema.optional(),
+    /** Where the taste data came from, for attribution. Absent in synthetic fixtures. */
+    meta: z
+      .object({ source: z.enum(["qloo", "synthetic"]), builtAt: z.string().optional(), attribution: z.string().optional() })
+      .optional(),
   })
   .superRefine((w, ctx) => {
     const nE = w.entities.length;
