@@ -535,7 +535,7 @@ function Game({
         onRewind={(t) => void sim.rewind(t)}
       />
       <Toasts toasts={toasts} onSelect={(t) => t.anchor && flyTo(t.anchor)} />
-      {attribution && <Attribution />}
+      {attribution && <Attribution qloo={world.meta?.source === "qloo"} />}
       {sim.status === "loading" && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center text-zinc-400">Growing the city…</div>
       )}
