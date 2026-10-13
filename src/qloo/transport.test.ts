@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildUrl, cacheKey, createTransport, QlooBudgetError, QlooError, type TransportOptions } from "@/qloo/transport";
+import { buildUrl, cacheKey, createTransport, isInvalidSignal, QlooBudgetError, QlooError, type TransportOptions } from "@/qloo/transport";
 import { memoryCache } from "@/qloo/cache";
 
 type Reply = { status: number; body?: unknown; headers?: Record<string, string> } | Error;
@@ -128,5 +128,17 @@ describe("createTransport", () => {
     };
     await expect(t.get("/p", {}, parse)).rejects.toThrow("bad shape");
     expect(await t.get("/p", {}, parse)).toBe(1);
+  });
+
+  it("remembers 400s in the cache so a known-bad request costs nothing the second time", async () => {
+    const msg = "All of the provided signal.interests.entities were invalid. At least one valid signal or filter is required.";
+    const f = fakeFetch([{ status: 400, body: { errors: [{ message: msg }] } }]);
+    const t = createTransport({ ...f.opts, cache: memoryCache() });
+    const first = await t.get("/p", { a: 1 }, id).catch((e: unknown) => e);
+    const second = await t.get("/p", { a: 1 }, id).catch((e: unknown) => e);
+    expect(isInvalidSignal(first)).toBe(true);
+    expect(isInvalidSignal(second)).toBe(true);
+    expect((second as QlooError).status).toBe(400);
+    expect(f.calls).toHaveLength(1);
   });
 });

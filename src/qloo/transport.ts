@@ -68,6 +68,12 @@ export function cacheKey(path: string, params: Params): string {
   return createHash("sha256").update(JSON.stringify([path, entries(params)])).digest("hex").slice(0, 40);
 }
 
+const CACHED_ERROR = "__qlooError";
+
+/** True for Qloo's 400 when none of the signal entities have data for the requested type. */
+export const isInvalidSignal = (e: unknown): boolean =>
+  e instanceof QlooError && e.status === 400 && /signal\.interests\.entities were invalid/.test(e.message);
+
 function errorMessage(body: unknown, status: number): string {
   const b = body as { errors?: { message?: string }[]; error_msg?: string; message?: string } | null;
   const msg = b?.errors?.map((e) => e.message).join("; ") || b?.error_msg || b?.message;
@@ -143,10 +149,23 @@ export function createTransport(opts: TransportOptions): Transport {
         const hit = await opts.cache.get(key);
         if (hit !== undefined) {
           stats.cacheHits++;
+          const err = (hit as { [CACHED_ERROR]?: { message: string; status: number } } | null)?.[CACHED_ERROR];
+          if (err) throw new QlooError(err.message, err.status);
           return hit as ReturnType<typeof parse>;
         }
       }
-      const value = parse(await fetchJson(buildUrl(baseUrl, path, params)));
+      let json: unknown;
+      try {
+        json = await fetchJson(buildUrl(baseUrl, path, params));
+      } catch (e) {
+        // A 400 for validated params is deterministic (e.g. an entity Qloo can't use as a signal),
+        // so remember it rather than paying for it again.
+        if (opts.cache && e instanceof QlooError && e.status === 400) {
+          await opts.cache.set(key, { [CACHED_ERROR]: { message: e.message, status: 400 } });
+        }
+        throw e;
+      }
+      const value = parse(json);
       if (opts.cache) await opts.cache.set(key, value);
       return value;
     },
