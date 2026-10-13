@@ -29,8 +29,8 @@ function fakeClient() {
       if (id === uuid(0)) throw invalid();
       return [{ id: uuid(9000), name: "a", tags: [] }];
     },
-    async heatmap(query: { signalEntities?: readonly string[] }) {
-      const id = query.signalEntities![0];
+    async heatmap(query: { signalEntities?: readonly string[]; signalTags?: readonly string[] }) {
+      const id = (query.signalEntities ?? query.signalTags)![0];
       heatCalls.push(id);
       if (id === "bad") throw invalid();
       if (id === "empty") return [];
@@ -62,14 +62,15 @@ describe("gatherCity", () => {
 });
 
 describe("gatherHeatmaps", () => {
-  it("falls back through candidates and never reuses an entity", async () => {
+  it("falls back through candidates and never reuses an entity across roles or scenes", async () => {
     const f = fakeClient();
-    const world = { entities: ["bad", "empty", "good", "other"].map((id) => ({ id, name: id })) } as unknown as World;
+    const world = { entities: ["bad", "empty", "good", "other", "third"].map((id) => ({ id, name: id })) } as unknown as World;
     const out = await gatherHeatmaps(f.q, world, [
-      { archetype: 0, candidates: [0, 1, 2] },
-      { archetype: 1, candidates: [2, 3] },
-    ], CITY);
-    expect(out.map((r) => r.entity)).toEqual([2, 3]);
-    expect(f.heatCalls).toEqual(["bad", "empty", "good", "other"]);
+      { archetype: 0, seed: [0, 1, 2], check: [2, 3] },
+      { archetype: 1, seed: [3, 4], check: [2] },
+    ], CITY, undefined, 1);
+    expect(out.seeds.map((r) => [r.archetype, r.entity])).toEqual([[0, 2], [1, 4]]);
+    expect(out.checks.map((r) => [r.archetype, r.entity])).toEqual([[0, 3]]);
+    expect(f.heatCalls).toEqual(["bad", "empty", "good", "other", "third"]);
   });
 });

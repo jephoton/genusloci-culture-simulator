@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { QEntity } from "@/qloo/schemas";
-import { assembleWorld, attachHeatmaps, type CityBundle, sphericalKMeans } from "@/world/builder/assemble";
+import { applySeedHeatmaps, assembleWorld, attachHeatmaps, type CityBundle, sphericalKMeans, tagLabel } from "@/world/builder/assemble";
 import { fromLocalMetres } from "@/world/projection";
 import { parseWorld, type Geo } from "@/world/schema";
 
@@ -89,10 +89,10 @@ describe("assembleWorld", () => {
 
   it("keeps taste tags shared by several venues and drops non-taste or universal ones", () => {
     const tagNames = world.entities.filter((e) => e.type === "tag").map((e) => e.name);
-    expect(tagNames).toEqual(expect.arrayContaining(["dark", "intimate", "ravers", "couples"]));
-    expect(tagNames).not.toContain("credit cards"); // payments: not a taste type
-    expect(tagNames).not.toContain("lively"); // on every venue (> 70%)
-    expect(tagNames).toEqual(expect.arrayContaining(["techno", "jazz"])); // music tags from artists
+    expect(tagNames).toEqual(expect.arrayContaining(["Dark", "Intimate", "Ravers", "Couples"]));
+    expect(tagNames).not.toContain("Credit cards"); // payments: not a taste type
+    expect(tagNames).not.toContain("Lively"); // on every venue (> 70%)
+    expect(tagNames).toEqual(expect.arrayContaining(["Techno", "Jazz"])); // music tags from artists
   });
 
   it("builds symmetric edges in (0, 1] with no self-loops", () => {
@@ -108,8 +108,8 @@ describe("assembleWorld", () => {
   it("finds the two scenes, names them by distinctive tags and gives them their artists", () => {
     expect(world.archetypes).toHaveLength(2);
     const genesOf = (a: (typeof world.archetypes)[number]) => a.genes.map((g) => world.entities[g.entity].name);
-    const techno = world.archetypes.find((a) => genesOf(a).includes("dark"))!;
-    const jazz = world.archetypes.find((a) => genesOf(a).includes("intimate"))!;
+    const techno = world.archetypes.find((a) => genesOf(a).includes("Dark"))!;
+    const jazz = world.archetypes.find((a) => genesOf(a).includes("Intimate"))!;
     expect(techno).toBeDefined();
     expect(jazz).toBeDefined();
     expect(genesOf(techno).some((n) => n.startsWith("techno artist"))).toBe(true);
@@ -119,7 +119,7 @@ describe("assembleWorld", () => {
   });
 
   it("seeds each cell's mix from nearby venues: techno in the west, jazz in the east", () => {
-    const technoA = world.archetypes.findIndex((a) => a.genes.some((g) => world.entities[g.entity].name === "dark"));
+    const technoA = world.archetypes.findIndex((a) => a.genes.some((g) => world.entities[g.entity].name === "Dark"));
     for (const c of world.cells) expect(c.archetypes.reduce((s, a) => s + a.weight, 0)).toBeCloseTo(1, 6);
     const west = world.cells.reduce((p, c) => (c.lon < p.lon ? c : p));
     const east = world.cells.reduce((p, c) => (c.lon > p.lon ? c : p));
@@ -132,12 +132,32 @@ describe("assembleWorld", () => {
     expect(total).toBeLessThan(1010);
   });
 
-  it("plans a heatmap per archetype, artist candidates first", () => {
+  it("plans seed heatmaps on distinctive place tags and checks on artists, then tags, then a venue", () => {
     expect(heatmapPlan).toHaveLength(2);
     for (const p of heatmapPlan) {
-      expect(world.entities[p.candidates[0]].type).toBe("artist");
-      expect(world.entities[p.candidates.at(-1)!].type).toBe("place");
+      const seedTypes = p.seed.map((e) => world.entities[e].type);
+      expect(seedTypes[0]).toBe("tag");
+      expect(seedTypes.indexOf("artist")).toBeGreaterThan(seedTypes.lastIndexOf("tag"));
+      for (const e of p.seed) expect(world.entities[e].id).not.toMatch(/genre:music/);
+      expect(world.entities[p.check[0]].type).toBe("artist");
+      expect(world.entities[p.check.at(-1)!].type).toBe("place");
     }
+  });
+});
+
+describe("applySeedHeatmaps", () => {
+  it("moves a scene's residents to where its seed heatmap is strongest, keeping mixes summing to 1", () => {
+    const { world } = assembleWorld(bundle, { archetypes: 2 });
+    // Archetype 0's seed is hottest in the north-east, archetype 1's in the south-west.
+    const heat = (sign: number) =>
+      world.cells.map((c, i) => ({ lat: c.lat, lon: c.lon, geohash: `h${i}`, affinity: sign * (c.lat + c.lon), affinityRank: 0, popularity: 0 }));
+    const out = applySeedHeatmaps(world, [{ archetype: 0, cells: heat(1) }, { archetype: 1, cells: heat(-1) }]);
+    for (const c of out.cells) expect(c.archetypes.reduce((s, a) => s + a.weight, 0)).toBeCloseTo(1, 6);
+    const ne = out.cells.reduce((p, c) => (c.lat + c.lon > p.lat + p.lon ? c : p));
+    const sw = out.cells.reduce((p, c) => (c.lat + c.lon < p.lat + p.lon ? c : p));
+    expect(ne.archetypes[0].weight).toBeGreaterThan(0.8);
+    expect(sw.archetypes[0].weight).toBeLessThan(0.2);
+    expect(applySeedHeatmaps(world, [])).toBe(world);
   });
 });
 
@@ -165,5 +185,13 @@ describe("sphericalKMeans", () => {
     expect(a.slice(3).every((x) => x === a[3])).toBe(true);
     expect(a[0]).not.toBe(a[3]);
     expect(sphericalKMeans(vectors, 2, 3)).toEqual(a);
+  });
+});
+
+describe("tagLabel", () => {
+  it("tidies age ranges and capitalises names", () => {
+    expect(tagLabel({ id: "urn:tag:age_range:qloo:25_29", name: "25 29" })).toBe("Ages 25–29");
+    expect(tagLabel({ id: "urn:tag:age_range:qloo:55", name: "55+" })).toBe("Ages 55+");
+    expect(tagLabel({ id: "urn:tag:ambience:qloo:lively", name: " lively" })).toBe("Lively");
   });
 });

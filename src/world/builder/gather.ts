@@ -70,9 +70,11 @@ export async function gatherCity(q: QlooClient, city: City, geo: Geo, options: P
   return { city, geo, venues, artistsByVenue };
 }
 
+export type HeatmapResult = { archetype: number; entity: number; cells: QHeatCell[] };
+
 /**
- * One heatmap per archetype: tries the plan's candidates in order (skipping entities already used and
- * ones Qloo has no data for) until one returns cells.
+ * Per archetype, a seed heatmap and a held-out check heatmap: each is the first candidate (in plan
+ * order) with at least `minCells` cells, never reusing an entity across roles or archetypes.
  */
 export async function gatherHeatmaps(
   q: QlooClient,
@@ -80,24 +82,35 @@ export async function gatherHeatmaps(
   plan: HeatmapPlan,
   city: City,
   onProgress: (message: string) => void = () => {},
-): Promise<{ entity: number; cells: QHeatCell[] }[]> {
+  /** Heatmaps thinner than this (cells in the city) don't say much; try the next candidate. */
+  minCells = 40,
+): Promise<{ seeds: HeatmapResult[]; checks: HeatmapResult[] }> {
   const at = { lat: city.lat, lon: city.lon };
   const used = new Set<number>();
-  const results: { entity: number; cells: QHeatCell[] }[] = [];
-  for (const { archetype, candidates } of plan) {
+  const first = async (archetype: number, candidates: number[], role: string): Promise<HeatmapResult | null> => {
     for (const entity of candidates) {
       if (used.has(entity)) continue;
       try {
-        const cells = await q.heatmap({ at, radiusM: queryRadius(city), signalEntities: [world.entities[entity].id] });
-        if (cells.length === 0) continue;
+        const e = world.entities[entity];
+        const signal = e.type === "tag" ? { signalTags: [e.id] } : { signalEntities: [e.id] };
+        const cells = await q.heatmap({ at, radiusM: queryRadius(city), ...signal });
+        if (cells.length < minCells) continue;
         used.add(entity);
-        results.push({ entity, cells });
-        onProgress(`heatmap for archetype ${archetype}: ${world.entities[entity].name} (${cells.length} cells)`);
-        break;
-      } catch (e) {
-        if (!isInvalidSignal(e)) throw e;
+        onProgress(`${role} heatmap for scene ${archetype}: ${e.name} (${cells.length} cells)`);
+        return { archetype, entity, cells };
+      } catch (err) {
+        if (!isInvalidSignal(err)) throw err;
       }
     }
+    return null;
+  };
+  const seeds: HeatmapResult[] = [];
+  const checks: HeatmapResult[] = [];
+  for (const p of plan) {
+    const seed = await first(p.archetype, p.seed, "seed");
+    if (seed) seeds.push(seed);
+    const check = await first(p.archetype, p.check, "check");
+    if (check) checks.push(check);
   }
-  return results;
+  return { seeds, checks };
 }

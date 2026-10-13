@@ -71,11 +71,30 @@ const PLACE_TAG_TYPES = new Set([
 ]);
 const MUSIC_TAG_TYPES = new Set(["urn:tag:genre:music", "urn:tag:subgenre:qloo", "urn:tag:style:qloo"]);
 
+/** "What it is" tag types; a scene's name leads with one of these, then a vibe tag. */
+const WHAT_TAG_TYPES = new Set(["urn:tag:category:place", "urn:tag:cuisine:qloo", "urn:tag:culinary_style:qloo"]);
+
+/** Display name for a tag: Qloo's name, tidied (age ranges arrive as "25 29"). */
+export function tagLabel(t: { id: string; name: string; type?: string }): string {
+  if (tagType(t) === "urn:tag:age_range:qloo") {
+    const m = /^(\d+)\s+(\d+)$/.exec(t.name.trim());
+    return m ? `Ages ${m[1]}–${m[2]}` : `Ages ${t.name.trim()}`;
+  }
+  const n = t.name.trim();
+  return n.charAt(0).toUpperCase() + n.slice(1);
+}
+
 /** A tag's type: its declared type, else its URN minus the last segment. */
 const tagType = (t: { id: string; type?: string }) => t.type ?? t.id.slice(0, t.id.lastIndexOf(":"));
 
-/** Which archetype entity should carry each heatmap, best candidate first (entity indices). */
-export type HeatmapPlan = { archetype: number; candidates: number[] }[];
+/**
+ * Per archetype, entity indices (best first) whose Qloo heatmaps to fetch:
+ * - `seed`: the scene's most distinctive place tags; the first that has data seeds where the scene's
+ *   residents live (`applySeedHeatmaps`).
+ * - `check`: its artists, then its other tags, then its top venue; the first held out from seeding
+ *   becomes the fidelity heatmap (`attachHeatmaps`), so the score isn't measured on seeding data.
+ */
+export type HeatmapPlan = { archetype: number; seed: number[]; check: number[] }[];
 
 export interface Assembled {
   world: World;
@@ -210,8 +229,8 @@ export function assembleWorld(bundle: CityBundle, options: Partial<AssembleOptio
   const df = new Map<string, { name: string; n: number }>();
   for (const v of venues) {
     for (const t of new Set(v.entity.tags.filter((t) => PLACE_TAG_TYPES.has(tagType(t))).map((t) => t.id))) {
-      const name = v.entity.tags.find((x) => x.id === t)?.name ?? t;
-      df.set(t, { name, n: (df.get(t)?.n ?? 0) + 1 });
+      const found = v.entity.tags.find((x) => x.id === t);
+      df.set(t, { name: found ? tagLabel(found) : t, n: (df.get(t)?.n ?? 0) + 1 });
     }
   }
   const nV = venues.length;
@@ -237,7 +256,7 @@ export function assembleWorld(bundle: CityBundle, options: Partial<AssembleOptio
   for (const a of artists) {
     for (const t of a.entity.tags) {
       if (!MUSIC_TAG_TYPES.has(tagType(t))) continue;
-      mdf.set(t.id, { name: t.name, n: (mdf.get(t.id)?.n ?? 0) + 1 });
+      mdf.set(t.id, { name: tagLabel(t), n: (mdf.get(t.id)?.n ?? 0) + 1 });
     }
   }
   const musicTags = [...mdf]
@@ -389,20 +408,29 @@ export function assembleWorld(bundle: CityBundle, options: Partial<AssembleOptio
       ...artistGenes.map(([entity, w]) => ({ entity, weight: 0.4 + 0.6 * (w / top(artistGenes)) })),
     ];
     if (genes.length === 0) continue;
-    const distinctive = tagGenes
-      .map(([k, w]) => ({ k, lift: w / ((globalMean.get(k) ?? 0) + 0.05) }))
-      .sort((p, q) => q.lift - p.lift || p.k - q.k)
-      .slice(0, 2)
-      .map(({ k }) => entities[k].name);
+    // Name: the most distinctive "what" tag, then the most distinctive other tag (by lift over the city).
+    const lifts = tagGenes
+      .map(([k, w]) => ({ k, lift: w / ((globalMean.get(k) ?? 0) + 0.05), what: WHAT_TAG_TYPES.has(tagType({ id: entities[k].id })) }))
+      .sort((p, q) => q.lift - p.lift || p.k - q.k);
+    const what = lifts.find((x) => x.what);
+    const vibe = lifts.find((x) => !x.what && entities[x.k].name.toLowerCase() !== (what ? entities[what.k].name.toLowerCase() : ""));
+    const distinctive = [what, vibe].filter((x) => x !== undefined).map((x) => entities[x.k].name);
     const a = archetypes.length;
     archetypes.push({ id: `arch:${city.slug}:${a}`, name: distinctive.join(" · ") || `Scene ${a + 1}`, genes });
     clusterOfArchetype.push(c);
     const topVenue = members
       .filter((i) => i < placed.length)
       .sort((p, q) => venues[q].popularity - venues[p].popularity || p - q)[0];
+    const placeTagLifts = lifts.filter((x) => placeTagIds.has(entities[x.k].id)).slice(0, 3).map((x) => x.k);
     heatmapPlan.push({
       archetype: a,
-      candidates: [...artistGenes.map(([e]) => e), ...(topVenue !== undefined ? [idx(venues[topVenue].entity.id) as number] : [])],
+      // Artists back up the tags, so every scene gets a Qloo seed; checks then use what's left.
+      seed: [...placeTagLifts, ...artistGenes.slice(0, 3).map(([e]) => e)],
+      check: [
+        ...artistGenes.slice(0, 3).map(([e]) => e),
+        ...placeTagLifts,
+        ...(topVenue !== undefined ? [idx(venues[topVenue].entity.id) as number] : []),
+      ],
     });
   }
   if (archetypes.length === 0) throw new Error("assembleWorld: no archetypes (venues had no taste data)");
@@ -444,6 +472,47 @@ export function assembleWorld(bundle: CityBundle, options: Partial<AssembleOptio
     },
     heatmapPlan,
   };
+}
+
+/** Seed heatmap rank exponent: higher concentrates a scene's residents where Qloo's signal is strongest. */
+export const SEED_SHARPNESS = 3;
+
+/**
+ * Re-seeds each cell's archetype mix from Qloo heatmaps: an archetype's weight in a cell is its seed
+ * heatmap's rank there (0–1) to the power `sharpness`, normalised over archetypes and blended with
+ * `mixing` of the uniform mix. An archetype without a seed uses the rank of its current (venue-kernel)
+ * share instead, so every archetype is on the same scale.
+ */
+export function applySeedHeatmaps(
+  world: World,
+  seeds: { archetype: number; cells: QHeatCell[] }[],
+  options: { cellSizeM?: number; sharpness?: number; mixing?: number } = {},
+): World {
+  const { cellSizeM = ASSEMBLE_DEFAULTS.cellSizeM, sharpness = SEED_SHARPNESS, mixing = ASSEMBLE_DEFAULTS.mixing } = options;
+  const nC = world.cells.length;
+  const A = world.archetypes.length;
+  const sharpRanks = (values: number[]) => {
+    const order = values.map((v, c) => [v, c] as const).sort((p, q) => p[0] - q[0] || p[1] - q[1]);
+    const rank = new Array<number>(nC);
+    order.forEach(([, c], i) => (rank[c] = ((i + 1) / nC) ** sharpness));
+    return rank;
+  };
+  const signal: (number[] | null)[] = Array.from({ length: A }, () => null);
+  for (const { archetype, cells } of seeds) {
+    const values = attachHeatmaps(world, [{ entity: 0, cells }], cellSizeM).heatmaps[0]?.values;
+    if (values) signal[archetype] = sharpRanks(values);
+  }
+  if (signal.every((s) => s === null)) return world;
+  for (let a = 0; a < A; a++) signal[a] ??= sharpRanks(world.cells.map((c) => c.archetypes[a].weight));
+  const cells = world.cells.map((cell, c) => {
+    const raw = Array.from({ length: A }, (_, a) => signal[a]![c]);
+    const total = raw.reduce((p, q) => p + q, 0);
+    return {
+      ...cell,
+      archetypes: raw.map((w, archetype) => ({ archetype, weight: total > 0 ? (1 - mixing) * (w / total) + mixing / A : 1 / A })),
+    };
+  });
+  return { ...world, cells };
 }
 
 /**
