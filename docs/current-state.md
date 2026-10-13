@@ -82,7 +82,7 @@
   - some venues aren't accepted as signals for artists or tags.
 - `src/qloo/` is a typed client with validation, throttling, retries, a quota floor, a file cache (including cached 400s) and response trimming. It has 31 unit tests using synthetic payloads.
 - `pnpm qloo:smoke [city]` passes live for London and Singapore. About 9,940 monthly calls remain.
-- **To do by hand:** add `.env.example`; the agent isn't permitted to write `.env*` files. The suggested content is in the M3 milestone doc.
+- `.env.example` lists the environment variables.
 
 ## Next
 1. **M4 (World builder)**: real Qloo venues, tastes and heatmaps for London and Singapore, built on `src/qloo`.
