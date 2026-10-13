@@ -29,6 +29,12 @@
 - **`ui/`** — `useSimulation` (worker lifecycle, pushed frames in a ref plus state, actions, rewind), `GameShell` (composition and tools), `Hud`, `Toolbar`, `TimelineBar`, `VenuePanel`; `ClientGame` loads it client-only (`next/dynamic` with `ssr: false`)
 - **`agents/`** — LLM co-pilot (tool use, provider-agnostic via Vercel AI SDK; DeepSeek primary), persona interviews, scene naming.
 
+## Qloo access
+
+- Hackathon API server: `https://hackathon.api.qloo.com` (hackathon keys only work there). Authenticate with the `X-Api-Key` header.
+- Key: `QLOO_API_KEY` in `.env.local` (git-ignored; never commit it or paste it into docs or chat).
+- Docs: https://docs.qloo.com/reference/qloo-llm-hackathon-developer-guide
+
 ## Boundaries
 
 - Qloo response data must **never** be committed to the repo (Qloo terms). Fixtures in the repo are synthetic.
