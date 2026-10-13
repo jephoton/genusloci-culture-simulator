@@ -96,7 +96,8 @@ const hasSignal = (s: Signals) => Boolean(s.signalEntities?.length || s.signalTa
 export function createQlooClient(t: Transport, opts: QlooClientOptions = {}): QlooClient {
   const onEmpty =
     opts.onSuspectEmpty ??
-    ((path: string, params: Params) => console.warn(`[qloo] empty result for ${path} with filters/signals`, Object.keys(params)));
+    ((path: string, params: Params) =>
+      console.warn(`[qloo] empty result for ${path}`, Object.keys(params).filter((k) => params[k] !== undefined)));
 
   /** GET and flag empty results for requests that carried a signal or filter. */
   async function list<T>(path: string, params: Params, parse: (j: unknown) => T[], filtered: boolean): Promise<T[]> {
