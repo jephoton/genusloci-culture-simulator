@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "bench:sim": "tsx scripts/bench-sim.ts",
     "calibrate": "tsx scripts/calibrate.ts",
-    "build:geo": "tsx scripts/build-geo.ts"
+    "build:geo": "tsx scripts/build-geo.ts",
+    "qloo:smoke": "tsx scripts/qloo-smoke.ts"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",
