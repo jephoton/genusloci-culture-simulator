@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { type CityContext, citySummary, describeWhatIf, find, listVenues, resolveArea, sceneInfo, toSimActions, venueInfo } from "@/agents/city";
+import { type CityContext, citySummary, describeWhatIf, find, listVenues, personaOf, resolveArea, sceneInfo, toSimActions, venueInfo } from "@/agents/city";
+import { PersonaSchema } from "@/agents/interview";
+import { residentProfile } from "@/sim/resident";
 import { DEFAULT_CONFIG } from "@/sim/config";
 import { digest } from "@/sim/digest";
 import { buildFrame } from "@/sim/frame";
@@ -83,6 +85,13 @@ describe("city tools", () => {
     expect(r.actions.map((a) => a.type)).toEqual(["closeVenue", "scheduleEvent", "rentPressure", "openVenue", "migrate"]);
     expect(r.actions[2]).toMatchObject({ cells: [0, 1, 2, 3], magnitude: 0.5 });
     expect(toSimActions(ctx, [{ do: "throw_event", artist: frame.venueEntity[0], area: { name: "Old Town" } }])).toHaveProperty("error");
+  });
+
+  it("builds a valid interview persona from a resident", () => {
+    const p = personaOf(ctx, residentProfile(s, 5));
+    expect(() => PersonaSchema.parse(p)).not.toThrow();
+    expect(p.city).toBe(world.city.name);
+    expect(p.tastes.length).toBeGreaterThan(0);
   });
 
   it("names a what-if result for the model", () => {

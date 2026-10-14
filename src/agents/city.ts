@@ -1,8 +1,10 @@
+import type { Persona } from "@/agents/interview";
 import type { Area, CopilotAction } from "@/agents/tools";
 import { chooseVenueEntity } from "@/render/placement";
 import type { Action } from "@/sim/actions/schema";
 import type { SimDigest } from "@/sim/digest";
 import type { Frame } from "@/sim/frame";
+import type { ResidentProfile } from "@/sim/resident";
 import type { WhatIfResult } from "@/sim/whatif";
 import { SCOUT_DEFAULTS } from "@/sim/worker/protocol";
 import { areaName } from "@/ui/words";
@@ -255,6 +257,28 @@ export function toSimActions(ctx: CityContext, actions: CopilotAction[]): { acti
     }
   }
   return { actions: out };
+}
+
+/** First names for simulated residents, picked by agent id (varied, city-neutral). */
+const FIRST_NAMES = [
+  "Sam", "Priya", "Tom", "Aisha", "Wei", "Maya", "Leo", "Nadia", "Kofi", "Hana", "Ravi", "Zoe", "Omar", "Mei", "Jack", "Lina",
+  "Arjun", "Chloe", "Daniel", "Siti", "Marcus", "Ines", "Ben", "Yuki", "Theo", "Amara", "Luca", "Farah", "Ethan", "Rosa",
+];
+
+/** An interview persona for a resident: name, home, scene and tastes as real names. */
+export function personaOf(ctx: CityContext, profile: ResidentProfile): Persona {
+  const tastes = profile.genes.slice(0, 12).flatMap((g) => {
+    const e = ctx.world.entities[g.entity];
+    return e ? [{ name: e.name, kind: e.type === "place" ? `${e.kind ?? "place"}` : e.type }] : [];
+  });
+  return {
+    name: FIRST_NAMES[profile.agent % FIRST_NAMES.length],
+    city: ctx.world.city.name,
+    area: cellArea(ctx, profile.homeCell),
+    scene: profile.scene >= 0 ? sceneLabel(ctx, profile.scene) : undefined,
+    tastes: tastes.length > 0 ? tastes : [{ name: "going out", kind: "habit" }],
+    wentTo: profile.venue >= 0 && profile.venue < ctx.frame.nVenues ? venueName(ctx, profile.venue) : undefined,
+  };
 }
 
 /** A what-if result with names, rounded, for the model. */
