@@ -55,7 +55,7 @@
    - about 0.1–0.15 s per comparison on London.
    - Still to do:
      - **Book for my venue.**
-     - **Noisy neighbour-loss metric.** Each fork diverges randomly from the baseline. Use common random numbers or average over a few seeds.
+     - ~~Noisy neighbour-loss metric~~: done. Scout now averages 3 paired seeded runs.
      - **Closures don't explain *why*.**
      - **Scenes stop moving after about week 4.**
 4. ~~Daily ticks and true pause~~: done (M5d).
@@ -119,7 +119,7 @@
 - **Tests and checks:** 381 tests passing; lint and build clean.
 - **Rough edges:**
   - Answers take about 10–30 s, because each browser tool call is a round trip.
-  - What-ifs are single runs, so small effects can be noise. The co-pilot says so; averaging several seeds would fix it.
+  - ~~Single-run what-ifs~~: done. Each what-if runs 4 paired seeded comparisons and reports mean, range and whether every run agreed ("clear" or "too small to call"). That takes about 0.7 s for 8 weeks on London, or 1.9 s for 26. A stronger fix (per-agent random streams, so a change only perturbs the agents it touches) was not attempted.
   - In-memory rate limits are per server instance.
   - The co-pilot's Qloo tools use the file cache, which needs `QLOO_CACHE_DIR=/tmp/qloo` on Vercel (M7).
 

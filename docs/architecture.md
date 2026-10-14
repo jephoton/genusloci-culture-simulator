@@ -49,7 +49,7 @@
   - `interview.ts` — persona schema and grounded first-person chat
   - `rate-limit.ts` — per-visitor token bucket
 - **`app/api/copilot`, `app/api/name-scenes`, `app/api/interview`** — the LLM routes (503 without a key; 429 when rate-limited). City tools run in the browser via `useChat` `onToolCall`; Qloo tools run on the server.
-- **`sim/whatif.ts`, `sim/resident.ts`** — scenario versus baseline comparison and resident profiles, exposed as worker commands `whatIf` and `resident`.
+- **`sim/whatif.ts`, `sim/resident.ts`** — scenario versus baseline comparison (4 paired seeded runs; mean, range and consistency per effect; Scout uses the same pairing with 3 runs) and resident profiles, exposed as worker commands `whatIf` and `resident`.
 
 ## Qloo access
 

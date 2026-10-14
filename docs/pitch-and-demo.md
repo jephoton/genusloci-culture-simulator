@@ -76,7 +76,7 @@ Every week, residents go out to a venue that suits their taste. There they're ex
    - The city pauses, an amber demand glow shows where their fans live, and pins A–C appear.
    - The tool simulates 4 weeks at each spot and ranks them on turnout, new fans, scenes reached and harm to neighbours.
    - Drop your own pin D to compare, then **Book it**: shockwave, beacon, and the crowd converges. *(today)*
-7. **The co-pilot (30 s):** open **Ask the co-pilot** and pick *"What happens if the busiest club closes?"*. It reads the city, ranks the clubs, runs an 8-week what-if against a no-change baseline, and answers with real venue names, visit shifts and scene sizes, and says when an effect is noise. Then ask it to *"close it in the live city"* to watch it act. *(today)*
+7. **The co-pilot (30 s):** open **Ask the co-pilot** and pick *"What happens if the busiest club closes?"*. It reads the city, ranks the clubs, runs an 8-week what-if against a no-change baseline (repeated 4 times with different random seeds), and answers with real venue names, visit shifts with ranges and scene sizes, separating clear effects from ones too small to call. Then ask it to *"close it in the live city"* to watch it act. *(today)*
 8. **Meet a resident (20 s):** click **Talk** on a scene in the legend and ask *"What's a good night out for you?"*. The resident answers in character from their real simulated tastes. *(today)*
 8. **Close (10 s):** "Agents with taste. Genus Loci: every city's culture is a living species."
 
