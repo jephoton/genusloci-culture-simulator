@@ -1,8 +1,6 @@
-import { affinityToEntity, geneSlot } from "@/sim/genome";
-import { cloneState, type SimState } from "@/sim/state";
-import { step } from "@/sim/step";
-import { weeksToTicks } from "@/sim/time";
-import { runSeed } from "@/sim/whatif";
+import { runEventCandidates } from "@/sim/events";
+import { affinityToEntity } from "@/sim/genome";
+import type { SimState } from "@/sim/state";
 import { distKm } from "@/sim/world-index";
 
 export type ScoutOptions = {
@@ -50,63 +48,6 @@ export function pickCandidates(s: SimState, demand: number[], count: number, min
   return picks;
 }
 
-const fansOf = (s: SimState, entity: number) => {
-  const fans = new Uint8Array(s.alive.length);
-  for (let i = 0; i < s.alive.length; i++) if (s.alive[i] && geneSlot(s.genomes, i, entity) >= 0) fans[i] = 1;
-  return fans;
-};
-
-/** One paired run: the no-event baseline and each candidate, all from the same random seed. */
-function scoutRun(live: SimState, cells: number[], o: ScoutOptions, seed: number, before: Uint8Array): ScoutResult[] {
-  const baseline = cloneState(live);
-  baseline.rngState = seed;
-  const baseVisits = new Float64Array(baseline.venueEntity.length);
-  const ticks = weeksToTicks(o.weeks, live.config.ticksPerWeek);
-  for (let t = 0; t < ticks; t++) {
-    step(baseline);
-    for (let v = 0; v < baseline.nVenues; v++) baseVisits[v] += baseline.venueAttendance[v];
-  }
-
-  return cells.map((cell): ScoutResult => {
-    const s = cloneState(live);
-    s.rngState = seed;
-    const [res] = step(s, [{ type: "scheduleEvent", entity: o.entity, cell, duration: o.duration, reachKm: o.reachKm, capacity: o.capacity }]);
-    const slot = res.ok && res.venue !== undefined ? res.venue : -1;
-    let turnout = 0;
-    const sceneCounts = new Map<number, number>();
-    const visits = new Float64Array(s.venueEntity.length);
-    const tally = () => {
-      for (let v = 0; v < s.nVenues; v++) visits[v] += s.venueAttendance[v];
-      if (slot < 0) return;
-      turnout += s.venueAttendance[slot];
-      for (let i = 0; i < s.attendance.length; i++) {
-        if (s.attendance[i] !== slot) continue;
-        const a = s.scenes.assignment[i];
-        if (a >= 0) {
-          const id = s.scenes.live[a];
-          sceneCounts.set(id, (sceneCounts.get(id) ?? 0) + 1);
-        }
-      }
-    };
-    tally();
-    for (let t = 1; t < ticks; t++) {
-      step(s);
-      tally();
-    }
-    const after = fansOf(s, o.entity);
-    let newFans = 0;
-    for (let i = 0; i < after.length; i++) if (after[i] && !before[i]) newFans++;
-    let neighbourLoss = 0;
-    for (let v = 0; v < Math.min(s.nVenues, baseline.nVenues); v++) {
-      if (v === slot || s.venueExpires[v] >= 0) continue;
-      if (distKm(s.cw, cell, s.venueCell[v]) > o.nearbyKm) continue;
-      neighbourLoss += Math.max(0, baseVisits[v] - visits[v]);
-    }
-    const scenes = [...sceneCounts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]).map(([id]) => id);
-    return { cell, turnout, newFans, scenes, neighbourLoss, score: 0 };
-  });
-}
-
 /** Paired runs per scout: neighbourLoss in particular is noisy from a single run. */
 export const SCOUT_RUNS = 3;
 
@@ -116,19 +57,15 @@ export const SCOUT_RUNS = 3;
  * live state is never modified.
  */
 export function scoutCandidates(live: SimState, cells: number[], o: ScoutOptions, runs = SCOUT_RUNS): ScoutResult[] {
-  const before = fansOf(live, o.entity);
-  const all = Array.from({ length: Math.max(1, runs) }, (_, k) => scoutRun(live, cells, o, runSeed(live, k), before));
-  const n = all.length;
-  const results = cells.map((cell, i): ScoutResult => {
-    const per = all.map((r) => r[i]);
-    const avg = (f: (r: ScoutResult) => number) => per.reduce((acc, r) => acc + f(r), 0) / n;
-    const sceneVotes = new Map<number, number>();
-    per.forEach((r) => r.scenes.forEach((id, rank) => sceneVotes.set(id, (sceneVotes.get(id) ?? 0) + (r.scenes.length - rank))));
-    const scenes = [...sceneVotes].sort((a, b) => b[1] - a[1] || a[0] - b[0]).map(([id]) => id);
-    const turnout = avg((r) => r.turnout);
-    const newFans = avg((r) => r.newFans);
-    const neighbourLoss = avg((r) => r.neighbourLoss);
-    return { cell, turnout, newFans, scenes, neighbourLoss, score: turnout + 3 * newFans - 0.5 * neighbourLoss };
-  });
-  return results.sort((a, b) => b.score - a.score || a.cell - b.cell);
+  const outcomes = runEventCandidates(
+    live,
+    cells.map((cell) => ({ entity: o.entity, cell })),
+    { weeks: o.weeks, duration: o.duration, reachKm: o.reachKm, capacity: o.capacity, nearbyKm: o.nearbyKm, runs },
+  );
+  return cells
+    .map((cell, i): ScoutResult => {
+      const { turnout, newFans, scenes, neighbourLoss } = outcomes[i];
+      return { cell, turnout, newFans, scenes, neighbourLoss, score: turnout + 3 * newFans - 0.5 * neighbourLoss };
+    })
+    .sort((a, b) => b.score - a.score || a.cell - b.cell);
 }
