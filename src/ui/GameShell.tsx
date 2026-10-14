@@ -27,6 +27,7 @@ import { CopilotPanel } from "@/ui/CopilotPanel";
 import { personaOf, sceneInfo } from "@/agents/city";
 import type { Persona } from "@/agents/interview";
 import { InterviewPanel } from "@/ui/InterviewPanel";
+import { Intro, useIntro } from "@/ui/Intro";
 import { useCopilot } from "@/ui/useCopilot";
 import { useSceneNames } from "@/ui/useSceneNames";
 import { useSimulation } from "@/ui/useSimulation";
@@ -214,6 +215,7 @@ function Game({
     [resident, notify],
   );
 
+  const intro = useIntro();
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [copilotDeps] = useState<ToolDeps>(() => ({
     context: (d) => {
@@ -637,6 +639,16 @@ function Game({
       />
       <Toasts toasts={toasts} onSelect={(t) => t.anchor && flyTo(t.anchor)} />
       {attribution && <Attribution qloo={world.meta?.source === "qloo"} />}
+      <button
+        type="button"
+        onClick={intro.show}
+        aria-label="What is this?"
+        title="What is this?"
+        className="panel pointer-events-auto absolute bottom-7 right-2 grid size-7 place-items-center text-sm text-zinc-300 hover:text-zinc-50"
+      >
+        ?
+      </button>
+      <Intro city={world.city.name} open={intro.open} onClose={intro.close} />
       {sim.status === "loading" && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center text-zinc-400">Growing the city…</div>
       )}
