@@ -4,4 +4,4 @@
 - **Decision:** All LLM calls (co-pilot, personas, scene naming) go through the Vercel AI SDK using OpenAI-compatible providers. DeepSeek API is the primary provider. On rate limits or errors, fall back through the free tiers of Groq → Cerebras → OpenRouter → Gemini.
 - **Alternatives considered:** Anthropic Claude API (the user does not want to pay for it, and a Claude subscription can't power a public app); free tiers only (too fragile during judging); open-weight only (excludes Gemini as a last resort).
 - **Rationale:** near-zero cost with a reliable paid primary; open-weight models; no lock-in. Open models are weaker at tool calling, which is mitigated by a small, strictly typed, validated tool set.
-- **Follow-up:** verify current models, prices and rate limits in the Phase 1 spike.
+- **Follow-up (done in M6, 2026-10-14):** AI SDK v7; default models are `deepseek-v4-flash` (thinking off), Groq `openai/gpt-oss-120b` / `llama-3.1-8b-instant`, Cerebras `gpt-oss-120b`, OpenRouter `deepseek/deepseek-v4-flash`, and Gemini `gemini-3.5-flash` / `-flash-lite`, all overridable by env. Tool calling works on DeepSeek V4 Flash in live tests.

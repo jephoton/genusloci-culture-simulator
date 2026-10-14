@@ -107,10 +107,30 @@
   - Fidelity is modest. Present it honestly.
   - Hosting the World files on Vercel is not solved (M7).
 
+## M6 (agents): done (2026-10-14)
+- **Co-pilot** (left panel, "Ask the co-pilot"):
+  - DeepSeek V4 Flash through the AI SDK v7, with a fallback chain;
+  - city tools run in the browser against the worker: summary, find, venue ranking, venue, scene, **what-if against a baseline**, apply;
+  - Qloo search and taste tools run on the server, capped per question;
+  - verified live: "what if the busiest club closes" gave a grounded, honest answer with real venue names and visit shifts; "close Heaven" changed the live city and flew the camera there.
+- **Scene names:** each new scene gets a plain name plus a binomial, e.g. "Historic theatre crowd" (*Theatrum westmonasteriensis*). They are used in the legend, toasts, headliner groups and scout results.
+- **Interviews:** "Talk" on a legend row interviews a typical member of that scene; "Meet someone else" picks the next most typical. Verified live.
+- **Neighbourhood names** from Qloo for venues and cells.
+- **Tests and checks:** 381 tests passing; lint and build clean.
+- **Rough edges:**
+  - Answers take about 10–30 s, because each browser tool call is a round trip.
+  - What-ifs are single runs, so small effects can be noise. The co-pilot says so; averaging several seeds would fix it.
+  - In-memory rate limits are per server instance.
+  - The co-pilot's Qloo tools use the file cache, which needs `QLOO_CACHE_DIR=/tmp/qloo` on Vercel (M7).
+
 ## Next
-1. **M6 (agents)**: co-pilot, personas, scene naming. Real names and tags now exist to ground it.
-2. Fit in: **M5e (Book for my venue)**, M5b-2 (field guide: tag-based scene names).
-3. M7 (ship): World hosting on Vercel, on-demand city builds with a budget guard.
+1. Fit in: **M5e (Book for my venue)**, M5b-2 (field guide: specimen cards, phylogeny; names are done).
+2. **M7 (ship):**
+   - World hosting on Vercel;
+   - LLM keys in Vercel env;
+   - on-demand city builds with a budget guard;
+   - onboarding;
+   - README and Devpost write-up.
 3. Fit in when there's a gap: **M5e (Book for my venue)** and M5b-2 (field guide).
 
 ## Carry into M5b (from M4a)

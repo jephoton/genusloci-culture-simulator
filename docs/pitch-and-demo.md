@@ -2,7 +2,7 @@
 
 <!-- generated: maintained by agents; keep in sync as plans land -->
 
-> **Status (2026-10-14):** London and Singapore run on **real Qloo data** (M4). Venues, artists, tastes and heatmaps all come from Qloo; the World files are built with `pnpm build:world <city>` and served by the app, never committed. The synthetic city is only a fallback. The AI co-pilot arrives with M6. Scene names are still placeholders ("Scene 3"), with real tags and artists listed under them, until 5b-2.
+> **Status (2026-10-14):** London and Singapore run on **real Qloo data** (M4). Venues, artists, tastes and heatmaps all come from Qloo; the World files are built with `pnpm build:world <city>` and served by the app, never committed. The synthetic city is only a fallback. **M6 agents are live:** the co-pilot answers questions and runs what-if scenarios, scenes get field-guide names from their Qloo tastes, and you can interview a resident of any scene.
 
 ## Glossary
 
@@ -28,7 +28,9 @@
 
 - **Cluster:** six invented "taste clusters" (fake genres) used by the synthetic stand-in, hence names like "Cluster 0 Venue 1".
 - **Synthville:** the synthetic fallback city.
-- **"Scene N":** replaced in 5b-2 by names built from the scene's dominant Qloo tags (e.g. "indie rock · natural wine · vintage", plus a mock-Latin binomial).
+- **Scene names:** an LLM names each scene once, from its real Qloo tastes and home neighbourhood: a plain name plus a mock-Latin binomial, e.g. "Grime friend groups" (*Grimus lambethiensis*). "Scene N" shows until the name arrives.
+- **What-if:** the co-pilot's experiment. It forks the city twice, one copy with the change and one without, runs both for N weeks, and compares them. The live city is untouched.
+- **Resident interview:** chat with a typical member of a scene. They speak only from their own simulated tastes.
 
 ### How it works
 
@@ -40,7 +42,8 @@ Every week, residents go out to a venue that suits their taste. There they're ex
 |---|---|---|
 | Places (location, kind, tags) | Real venues on the map, their landmark kind, and their taste | **Live** (M4) |
 | Artist recommendations for a venue's crowd | Artists in residents' tastes and as event headliners; venue–artist and artist–artist affinities | **Live** (M4) |
-| Tags (place vibes, music genres) | Taste genes, the venue–tag and tag–tag affinities that drive adoption and drift | **Live** (M4); scene names in 5b-2 |
+| Tags (place vibes, music genres) | Taste genes, the venue–tag and tag–tag affinities that drive adoption and drift; scene names | **Live** (M4, M6) |
+| Search and taste analysis (live, in the co-pilot) | Explaining what a taste means, or looking up something outside the city | **Live** (M6), capped per question |
 | Heatmaps | Seeding where each scene's residents live (one per scene), and the Fidelity check (a different, held-out one per scene) | **Live** (M4) |
 | Audiences | Not used yet | — |
 
@@ -61,7 +64,7 @@ Every week, residents go out to a venue that suits their taste. There they're ex
 
 ## Demo runbook (about 3 minutes, as intended for demo day)
 
-*(today)* marks what works now. Everything else needs M3–4 (real data), 5b-2 (scene names) or 6 (co-pilot).
+*(today)* marks what works now.
 
 0. **Setup:** load the demo city (London, or NYC for US judges), paused at week 0, with the default camera.
 1. **Hook (20 s):** "This is London tonight. Every dot is a resident with real taste from Qloo; every lit landmark is a real venue." Press **Play** at ½ wk/s. Crowds stream out along real streets, gather at venues and walk home. *(today)*
@@ -73,7 +76,8 @@ Every week, residents go out to a venue that suits their taste. There they're ex
    - The city pauses, an amber demand glow shows where their fans live, and pins A–C appear.
    - The tool simulates 4 weeks at each spot and ranks them on turnout, new fans, scenes reached and harm to neighbours.
    - Drop your own pin D to compare, then **Book it**: shockwave, beacon, and the crowd converges. *(today)*
-7. **The co-pilot (30 s):** *"What happens to the techno scene if Fabric closes?"* The agent sets up the scenario through Qloo and the simulation, runs it, and answers with numbers and named places. *(M6)*
+7. **The co-pilot (30 s):** open **Ask the co-pilot** and pick *"What happens if the busiest club closes?"*. It reads the city, ranks the clubs, runs an 8-week what-if against a no-change baseline, and answers with real venue names, visit shifts and scene sizes, and says when an effect is noise. Then ask it to *"close it in the live city"* to watch it act. *(today)*
+8. **Meet a resident (20 s):** click **Talk** on a scene in the legend and ask *"What's a good night out for you?"*. The resident answers in character from their real simulated tastes. *(today)*
 8. **Close (10 s):** "Agents with taste. Genus Loci: every city's culture is a living species."
 
 **Fallbacks:**

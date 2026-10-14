@@ -39,7 +39,17 @@
   - scene: `CityCanvas` (camera, MapControls, bloom and vignette), `Ground`, `Streets`, `Buildings` (instanced, window-light shader), `Landmarks` (per venue kind, neon sign = dominant scene, health = brightness), `Crowd` (instanced agents eased between ticks)
 - **`app/api/world/[slug]`** — serves a built World (404 if unknown or not built). Hosting the files on Vercel is an M7 task.
 - **`ui/`** — `useCityWorld` (Qloo world first, then synthetic over OSM, then Synthville), `useSimulation` (worker lifecycle, pushed frames in a ref plus state, actions, rewind), `GameShell` (composition and tools), `Hud`, `Toolbar`, `TimelineBar`, `VenuePanel`; `ClientGame` loads it client-only (`next/dynamic` with `ssr: false`)
-- **`agents/`** — LLM co-pilot (tool use, provider-agnostic via Vercel AI SDK; DeepSeek primary), persona interviews, scene naming.
+- **`agents/`** — LLM features on the Vercel AI SDK v7 (decision 0003):
+  - `providers.ts` — provider chain (DeepSeek → Groq → Cerebras → OpenRouter → Gemini; only those with keys), `fallbackModel` (next provider if a call fails before streaming), `modelFor(tier)`; DeepSeek thinking is off
+  - `tools.ts` — co-pilot tool and action schemas shared by server and browser (`city_summary`, `find`, `venues`, `venue`, `scene`, `what_if`, `apply`)
+  - `city.ts` — the co-pilot's view of the city, computed in the browser from World + frame + digest: summaries, fuzzy find, venue ranking, area resolution, action mapping, named what-if results, interview personas
+  - `run-tool.ts` — runs city tools in the browser against the worker; never throws
+  - `copilot.ts` — instructions, server-side Qloo tools (`qloo_search`, `qloo_taste`, capped per question, budget floor ≥ 1000), `copilotStream`
+  - `naming.ts` — scene names + mock-Latin binomials (structured output, small tier)
+  - `interview.ts` — persona schema and grounded first-person chat
+  - `rate-limit.ts` — per-visitor token bucket
+- **`app/api/copilot`, `app/api/name-scenes`, `app/api/interview`** — the LLM routes (503 without a key; 429 when rate-limited). City tools run in the browser via `useChat` `onToolCall`; Qloo tools run on the server.
+- **`sim/whatif.ts`, `sim/resident.ts`** — scenario versus baseline comparison and resident profiles, exposed as worker commands `whatIf` and `resident`.
 
 ## Qloo access
 
@@ -51,7 +61,8 @@
 ## Boundaries
 
 - Qloo response data must **never** be committed to the repo (Qloo terms). Fixtures in the repo are synthetic.
-- Secrets live in environment variables only (`QLOO_API_KEY`, `DEEPSEEK_API_KEY`, fallback provider keys).
+- Secrets live in environment variables only: `QLOO_API_KEY`, `DEEPSEEK_API_KEY`, and optional fallbacks `GROQ_API_KEY`, `CEREBRAS_API_KEY`, `OPENROUTER_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY` (models overridable with `<PROVIDER>_MODEL` / `<PROVIDER>_SMALL_MODEL`).
+- The co-pilot only changes the live city through `apply`, which it is told to use only when the user asks.
 - Sim ticks make zero API calls; the server is stateless apart from caches.
 
 ## Commands (verified 2026-10-09)
