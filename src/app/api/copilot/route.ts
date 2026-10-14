@@ -33,5 +33,13 @@ export async function POST(req: Request) {
     qloo: qlooClient(),
     abortSignal: req.signal,
   });
-  return createUIMessageStreamResponse({ stream: toUIMessageStream({ stream: result.stream }) });
+  return createUIMessageStreamResponse({
+    stream: toUIMessageStream({
+      stream: result.stream,
+      onError: (e) => {
+        console.error("[copilot]", e);
+        return "The co-pilot hit a problem talking to the language model. Try again in a moment.";
+      },
+    }),
+  });
 }
