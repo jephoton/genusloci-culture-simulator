@@ -27,6 +27,8 @@ import { CopilotPanel } from "@/ui/CopilotPanel";
 import { personaOf, sceneInfo } from "@/agents/city";
 import type { Persona } from "@/agents/interview";
 import { InterviewPanel } from "@/ui/InterviewPanel";
+import { SceneCard } from "@/ui/SceneCard";
+import { sceneHuesOf, sceneRgb } from "@/render/palette";
 import { type BookingAct, BookingPanel } from "@/ui/BookingPanel";
 import { Intro, useIntro } from "@/ui/Intro";
 import { fetchOutsideAct } from "@/ui/outside-act-client";
@@ -438,6 +440,11 @@ function Game({
   // A pinned scene that has merged or died stops being a focus.
   const live = sim.digest?.scenes;
   const pinnedLive = pinned?.kind === "scene" && live && !live.some((s) => s.id === pinned.id) ? null : pinned;
+  const pinnedScene = useMemo(() => {
+    if (pinnedLive?.kind !== "scene" || !sim.frame || !sim.digest) return null;
+    const info = sceneInfo({ world, frame: sim.frame, digest: sim.digest, layout, sceneNames: new Map([...sceneNames].map(([id, n]) => [id, n.name])) }, pinnedLive.id);
+    return "error" in info ? null : info;
+  }, [pinnedLive, sim.frame, sim.digest, world, layout, sceneNames]);
   const focus = useMemo<Focus>(() => (hovered !== null ? { kind: "scene", id: hovered } : pinnedLive), [hovered, pinnedLive]);
 
   const onVenueClick = useCallback(
@@ -737,6 +744,22 @@ function Game({
           />
         ) : (
           <>
+            {pinnedScene && selected === null && sim.frame && (
+              <SceneCard
+                key={pinnedScene.scene}
+                info={pinnedScene}
+                title={sceneTitle}
+                history={sim.sceneHistory.get(pinnedScene.scene) ?? []}
+                splitInto={(sim.digest?.scenes ?? []).filter((sc) => sc.parent === pinnedScene.scene).map((sc) => sc.id)}
+                colour={rgbCss(sceneRgb(sceneHuesOf(sim.frame.lineageParents), pinnedScene.scene))}
+                ticksPerWeek={sim.frame.ticksPerWeek}
+                onPin={onPinScene}
+                onTalk={(scene) => {
+                  setMobileTab(null);
+                  talkTo(scene);
+                }}
+              />
+            )}
             <VenuePanel
               world={world}
               frame={sim.frame}
@@ -797,6 +820,8 @@ function Game({
     </div>
   );
 }
+
+const rgbCss = ([r, g, b]: [number, number, number]) => `rgb(${Math.round(r * 255)} ${Math.round(g * 255)} ${Math.round(b * 255)})`;
 
 const CITY_OPTIONS = Object.values(CITIES).map((c) => ({ slug: c.slug, name: c.name }));
 
