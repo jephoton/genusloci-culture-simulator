@@ -31,6 +31,10 @@ export type Simulation = {
   demand(entity: number): Promise<CommandResults["demand"]>;
   /** Simulates a night for `entity` at each cell in forked futures (live city untouched). Rejects on failure. */
   scout(entity: number, cells: number[]): Promise<CommandResults["scout"]>;
+  /** "What happens if…" on forked futures (live city untouched). Rejects on failure. */
+  whatIf(actions: Action[], weeks: number): Promise<CommandResults["whatIf"]>;
+  /** The live city's digest right now (frames carry one only every few ticks). Rejects on failure. */
+  latestDigest(): Promise<SimDigest>;
   dismissError(): void;
 };
 
@@ -186,7 +190,22 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
     return client ? client.scout(MAIN_TIMELINE, entity, cells) : Promise.reject(new Error("the simulation isn't running"));
   }, []);
 
+  const whatIf = useCallback((actions: Action[], weeks: number) => {
+    const client = clientRef.current;
+    return client ? client.whatIf(MAIN_TIMELINE, actions, weeks) : Promise.reject(new Error("the simulation isn't running"));
+  }, []);
+
+  const latestDigest = useCallback(async () => {
+    const client = clientRef.current;
+    if (!client) throw new Error("the simulation isn't running");
+    const { digest: d } = await client.digest(MAIN_TIMELINE);
+    setDigest(d);
+    return d;
+  }, []);
+
   const dismissError = useCallback(() => setError(null), []);
 
-  return { status, error, playing, speed, frame, digest, frames, play, pause, setSpeed, act, rewind, demand, scout, dismissError };
+  return {
+    status, error, playing, speed, frame, digest, frames, play, pause, setSpeed, act, rewind, demand, scout, whatIf, latestDigest, dismissError,
+  };
 }
