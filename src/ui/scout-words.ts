@@ -49,7 +49,11 @@ export function scoutVerdict(ranked: ScoutLine[]): string {
     if (gap < 0) {
       return `A close call: ${best.letter} and ${next.letter} draw about the same crowd, and ${best.letter} is easier on nearby venues.`;
     }
-    const lead = `A close call: ${best.letter} edges ${next.letter} by ${pct} on turnout and ${scenes}`;
+    // Under 1% rounds to "0%": say they tie rather than "edges … by 0%".
+    const lead =
+      Math.round(gap * 100) === 0
+        ? `A close call: ${best.letter} and ${next.letter} draw the same crowd, and ${best.letter} ${scenes}`
+        : `A close call: ${best.letter} edges ${next.letter} by ${pct} on turnout and ${scenes}`;
     if (cost) return `${lead}; either would make a good night.`;
     return next.neighbourLoss < best.neighbourLoss
       ? `${lead}, but ${takesPhrase(best)}; ${next.letter} may be the safer pick.`

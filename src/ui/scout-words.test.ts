@@ -46,6 +46,12 @@ describe("scoutVerdict", () => {
     );
   });
 
+  it("says the top two tie rather than one edging the other by 0%", () => {
+    expect(scoutVerdict([line("A", 135.3, 6, 144), line("C", 134.9, 6, 223)])).toBe(
+      "A close call: A and C draw the same crowd, and A reaches 6 scenes, but it takes 144 visits from nearby venues, and C would take as much or more.",
+    );
+  });
+
   it("warns when the winner takes a lot of trade from nearby venues", () => {
     expect(scoutVerdict([line("A", 200, 2, 150), line("D", 120, 2, 10)])).toBe(
       "A is the strongest night: 67% more turnout than D and reaches 2 scenes, but it takes 150 visits from nearby venues.",
