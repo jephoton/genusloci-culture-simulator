@@ -1,4 +1,4 @@
-import type { CityLayout } from "@/render/layout";
+import { type CityLayout, nearestCell } from "@/render/layout";
 import type { VenueKind, World } from "@/world/schema";
 
 /** The venue kinds a player can open, in picker order, with their plain names. */
@@ -21,20 +21,6 @@ export function kindWord(kind: VenueKind): string {
 /** Fraction of the city's half-size within which a point counts as "the city centre". */
 const CENTRE = 0.3;
 const DIRECTIONS = ["east", "south-east", "south", "south-west", "west", "north-west", "north", "north-east"];
-
-/** Index of the cell whose centre is nearest a scene point. */
-export function nearestCell(layout: Pick<CityLayout, "cellX" | "cellZ">, x: number, z: number): number {
-  let best = 0;
-  let bestD = Infinity;
-  for (let c = 0; c < layout.cellX.length; c++) {
-    const d = (layout.cellX[c] - x) ** 2 + (layout.cellZ[c] - z) ** 2;
-    if (d < bestD) {
-      bestD = d;
-      best = c;
-    }
-  }
-  return best;
-}
 
 /**
  * An area name for a scene point: the nearest cell's neighbourhood (from Qloo, in real worlds), else

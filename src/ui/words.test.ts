@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { areaName, dayLabel, kindWord, nearestCell, weekAndDay } from "@/ui/words";
+import { nearestCell } from "@/render/layout";
+import { areaName, dayLabel, kindWord, weekAndDay } from "@/ui/words";
 
 const layout = { center: { x: 0, z: 0 }, bounds: { minX: -100, maxX: 100, minZ: -100, maxZ: 100 } };
 
