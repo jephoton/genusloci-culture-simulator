@@ -1,4 +1,4 @@
-import { type CityContext, citySummary, describeWhatIf, find, sceneInfo, toSimActions, venueInfo } from "@/agents/city";
+import { type CityContext, citySummary, describeWhatIf, find, listVenues, sceneInfo, toSimActions, venueInfo } from "@/agents/city";
 import { CLIENT_TOOLS, type ClientToolName } from "@/agents/tools";
 import type { Action } from "@/sim/actions/schema";
 import type { SimDigest } from "@/sim/digest";
@@ -33,6 +33,8 @@ export async function runCityTool(name: string, input: unknown, deps: ToolDeps):
         const p = parsed.data as { query: string; kind?: Parameters<typeof find>[2] };
         return find(ctx, p.query, p.kind);
       }
+      case "venues":
+        return listVenues(ctx, parsed.data as Parameters<typeof listVenues>[1]);
       case "venue":
         return venueInfo(ctx, (parsed.data as { venue: number }).venue);
       case "scene":

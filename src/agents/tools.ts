@@ -58,6 +58,16 @@ export const CLIENT_TOOLS = {
       kind: z.enum(["venue", "place", "artist", "tag", "area", "any"]).optional(),
     }),
   },
+  venues: {
+    description:
+      "List venues, optionally of one kind or in one neighbourhood, ranked by how busy they are (estimated weekly visits) or by how much they are struggling (lowest health first; below 0.4 for weeks means closure).",
+    inputSchema: z.object({
+      kind: z.enum(VENUE_KINDS).optional(),
+      area: z.string().optional().describe("Neighbourhood name"),
+      sort: z.enum(["busiest", "struggling"]).optional(),
+      limit: z.number().int().min(1).max(10).optional(),
+    }),
+  },
   venue: {
     description: "One venue: kind, area, open or closed, health, tonight's visitors and which scenes they come from, its taste tags.",
     inputSchema: z.object({ venue: id }),

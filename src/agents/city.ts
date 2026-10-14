@@ -134,6 +134,30 @@ export function find(ctx: CityContext, query: string, kind: "venue" | "place" | 
   return { query, results };
 }
 
+/**
+ * Open permanent venues ranked by estimated weekly visits (health × capacity: health is the venue's
+ * rolling weekly occupancy) or by health, lowest first.
+ */
+export function listVenues(
+  ctx: CityContext,
+  opts: { kind?: string; area?: string; sort?: "busiest" | "struggling"; limit?: number } = {},
+) {
+  const { frame, world } = ctx;
+  const area = opts.area ? norm(opts.area) : null;
+  const rows = [];
+  for (let v = 0; v < frame.nVenues; v++) {
+    if (!frame.venueOpen[v] || isEvent(ctx, v)) continue;
+    const e = world.entities[frame.venueEntity[v]];
+    if (opts.kind && (e.kind ?? "other") !== opts.kind) continue;
+    const where = cellArea(ctx, frame.venueCell[v]);
+    if (area && norm(where) !== area) continue;
+    rows.push({ venue: v, name: e.name, kind: e.kind ?? "other", area: where, health: round(frame.venueHealth[v]), weeklyVisits: Math.round(frame.venueHealth[v] * (e.capacity ?? 0)) });
+  }
+  const sort = opts.sort ?? "busiest";
+  rows.sort((a, b) => (sort === "busiest" ? b.weeklyVisits - a.weeklyVisits : a.health - b.health) || a.venue - b.venue);
+  return { sort, total: rows.length, venues: rows.slice(0, opts.limit ?? 5) };
+}
+
 export function venueInfo(ctx: CityContext, v: number) {
   const { frame, world } = ctx;
   if (!(Number.isInteger(v) && v >= 0 && v < frame.nVenues)) return { error: `No venue ${v}. Use find to get venue ids.` };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type CityContext, citySummary, describeWhatIf, find, resolveArea, sceneInfo, toSimActions, venueInfo } from "@/agents/city";
+import { type CityContext, citySummary, describeWhatIf, find, listVenues, resolveArea, sceneInfo, toSimActions, venueInfo } from "@/agents/city";
 import { DEFAULT_CONFIG } from "@/sim/config";
 import { digest } from "@/sim/digest";
 import { buildFrame } from "@/sim/frame";
@@ -44,6 +44,17 @@ describe("city tools", () => {
     expect(find(ctx, world.entities[artist].name, "artist").results[0]).toMatchObject({ kind: "artist", id: artist });
     expect(find(ctx, "old town", "area").results).toEqual([{ kind: "area", name: "Old Town", cells: 4 }]);
     expect(find(ctx, "zzzz").results).toEqual([]);
+  });
+
+  it("ranks venues by estimated weekly visits or by health, with filters", () => {
+    const busiest = listVenues(ctx, { limit: 3 });
+    expect(busiest.venues).toHaveLength(3);
+    for (let i = 1; i < busiest.venues.length; i++) expect(busiest.venues[i - 1].weeklyVisits).toBeGreaterThanOrEqual(busiest.venues[i].weeklyVisits);
+    const struggling = listVenues(ctx, { sort: "struggling" });
+    for (let i = 1; i < struggling.venues.length; i++) expect(struggling.venues[i - 1].health).toBeLessThanOrEqual(struggling.venues[i].health);
+    const kind = world.entities[frame.venueEntity[0]].kind!;
+    expect(listVenues(ctx, { kind }).venues.every((v) => v.kind === kind)).toBe(true);
+    expect(listVenues(ctx, { area: "Nowhere" }).total).toBe(0);
   });
 
   it("describes a venue and a scene, and explains bad ids", () => {
