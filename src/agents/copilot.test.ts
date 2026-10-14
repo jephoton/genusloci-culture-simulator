@@ -54,7 +54,7 @@ describe("copilotStream", () => {
     const model = scripted([[toolCall("city_summary", {}), finish("tool-calls")], [...text("never"), finish("stop")]]);
     const result = await copilotStream({ model, messages: userMessage("how is the city?"), city: "London", qloo: null });
     const calls = await result.toolCalls;
-    expect(calls.map((c) => c.toolName)).toEqual(["city_summary"]);
+    expect(calls.map((c) => c?.toolName)).toEqual(["city_summary"]);
     expect(model.doStreamCalls).toHaveLength(1);
     expect(await result.text).toBe("");
   });
