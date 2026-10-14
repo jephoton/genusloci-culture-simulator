@@ -1,7 +1,7 @@
 import type { UIMessage } from "ai";
 import { describe, expect, it } from "vitest";
 import { friendlyError, toolLabel } from "@/ui/CopilotPanel";
-import { recentMessages, toolCallsThisTurn } from "@/ui/useCopilot";
+import { overTurnLimit, recentMessages, TURN_LIMITS, toolCallsThisTurn } from "@/ui/useCopilot";
 
 const msg = (i: number, role: "user" | "assistant"): UIMessage => ({ id: String(i), role, parts: [] });
 
@@ -15,15 +15,25 @@ describe("recentMessages", () => {
 });
 
 describe("toolCallsThisTurn", () => {
-  it("counts tool parts since the last user message", () => {
-    const tool = { type: "tool-find", toolCallId: "x", state: "output-available", input: {}, output: {} };
-    const messages = [
+  const part = (type: string) => ({ type, toolCallId: "x", state: "output-available", input: {}, output: {} });
+  const turn = (...types: string[]) =>
+    [
       { id: "1", role: "user", parts: [] },
-      { id: "2", role: "assistant", parts: [tool, tool] },
+      { id: "2", role: "assistant", parts: [part("tool-find"), part("tool-find")] },
       { id: "3", role: "user", parts: [] },
-      { id: "4", role: "assistant", parts: [tool, { type: "text", text: "hi" }] },
+      { id: "4", role: "assistant", parts: [...types.map(part), { type: "text", text: "hi" }] },
     ] as unknown as UIMessage[];
-    expect(toolCallsThisTurn(messages)).toBe(1);
+
+  it("counts lookups and simulations since the last user message", () => {
+    expect(toolCallsThisTurn(turn("tool-find", "tool-what_if", "tool-what_if"))).toEqual({ lookups: 1, simulations: 2 });
+  });
+
+  it("limits lookups and what-ifs separately", () => {
+    const lookups = Array.from({ length: TURN_LIMITS.lookups + 1 }, () => "tool-venue");
+    expect(overTurnLimit(turn(...lookups), "venue")).toBe(true);
+    expect(overTurnLimit(turn(...lookups, "tool-what_if"), "what_if")).toBe(false);
+    const sims = Array.from({ length: TURN_LIMITS.simulations + 1 }, () => "tool-what_if");
+    expect(overTurnLimit(turn(...sims), "what_if")).toBe(true);
   });
 });
 
