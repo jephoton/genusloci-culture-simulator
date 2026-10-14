@@ -24,7 +24,9 @@ import { type Toast, Toasts } from "@/ui/Toasts";
 import { isPlacing, type Tool, Toolbar } from "@/ui/Toolbar";
 import type { ToolDeps } from "@/agents/run-tool";
 import { CopilotPanel } from "@/ui/CopilotPanel";
-import { sceneInfo } from "@/agents/city";
+import { personaOf, sceneInfo } from "@/agents/city";
+import type { Persona } from "@/agents/interview";
+import { InterviewPanel } from "@/ui/InterviewPanel";
 import { useCopilot } from "@/ui/useCopilot";
 import { useSceneNames } from "@/ui/useSceneNames";
 import { useSimulation } from "@/ui/useSimulation";
@@ -192,6 +194,23 @@ function Game({
   useEffect(() => {
     sceneNamesRef.current = sceneNames;
   }, [sceneNames]);
+
+  const [interview, setInterview] = useState<{ scene: number; skip: number; persona: Persona } | null>(null);
+  const resident = sim.resident;
+  const talkTo = useCallback(
+    (scene: number, skip = 0) => {
+      void resident(scene, skip)
+        .then(({ profile }) => {
+          const L = latest.current;
+          const f = L.frames.current.current;
+          if (!profile || !f) return notify("Nobody from that scene is around right now.");
+          const names = new Map([...sceneNamesRef.current].map(([sid, n]) => [sid, n.name]));
+          setInterview({ scene, skip, persona: personaOf({ world: L.world, frame: f, digest: L.liveDigest, layout: L.layout, sceneNames: names }, profile) });
+        })
+        .catch(() => notify("Couldn't find a resident to talk to."));
+    },
+    [resident, notify],
+  );
 
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [copilotDeps] = useState<ToolDeps>(() => ({
@@ -533,7 +552,14 @@ function Game({
         citySlug={citySlug}
         onCityChange={onCityChange}
       />
-      {copilotOpen ? (
+      {interview ? (
+        <InterviewPanel
+          key={`${interview.scene}:${interview.skip}`}
+          persona={interview.persona}
+          onAnother={() => talkTo(interview.scene, interview.skip + 1)}
+          onClose={() => setInterview(null)}
+        />
+      ) : copilotOpen ? (
         <CopilotPanel
           city={world.city.name}
           messages={copilot.messages}
@@ -584,6 +610,7 @@ function Game({
             <SceneLegend
               digest={sim.digest}
               names={sceneNames}
+              onTalk={(scene) => talkTo(scene)}
               frame={sim.frame}
               pinned={pinnedLive?.kind === "scene" ? pinnedLive.id : null}
               focused={focus !== null}

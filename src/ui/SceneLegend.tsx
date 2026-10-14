@@ -13,7 +13,7 @@ const css = ([r, g, b]: [number, number, number]) => `rgb(${Math.round(r * 255)}
  * and flies there. Scenes show their field-guide name once named, else "Scene N".
  */
 export function SceneLegend({
-  digest, frame, names, pinned, focused, onHover, onPin, onClear,
+  digest, frame, names, pinned, focused, onHover, onPin, onClear, onTalk,
 }: {
   digest: SimDigest | null;
   /** Scene names by lineage id, as they arrive. */
@@ -26,6 +26,8 @@ export function SceneLegend({
   onHover: (scene: number | null) => void;
   onPin: (scene: number) => void;
   onClear: () => void;
+  /** Opens an interview with a typical member of the scene. */
+  onTalk?: (scene: number) => void;
 }) {
   const hues = useMemo(() => (frame ? sceneHuesOf(frame.lineageParents) : new Float32Array(0)), [frame]);
   const scenes = (digest?.scenes ?? []).slice(0, MAX_ROWS);
@@ -47,7 +49,7 @@ export function SceneLegend({
           const active = pinned === s.id;
           const named = names?.get(s.id);
           return (
-            <li key={s.id}>
+            <li key={s.id} className="flex items-center gap-1">
               <button
                 type="button"
                 aria-pressed={active}
@@ -56,7 +58,7 @@ export function SceneLegend({
                 onFocus={() => onHover(s.id)}
                 onBlur={() => onHover(null)}
                 onClick={() => onPin(s.id)}
-                className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition ${
+                className={`flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left transition ${
                   active ? "bg-white/15 ring-1 ring-white/30" : "hover:bg-white/10"
                 }`}
               >
@@ -68,6 +70,17 @@ export function SceneLegend({
                 </span>
                 <span className="shrink-0 text-xs tabular-nums text-zinc-300">{s.size} people</span>
               </button>
+              {onTalk && (
+                <button
+                  type="button"
+                  onClick={() => onTalk(s.id)}
+                  title="Talk to a resident from this scene"
+                  aria-label={`Talk to a resident from ${named?.name ?? `scene ${s.id}`}`}
+                  className="shrink-0 rounded-md px-1.5 py-1 text-xs text-violet-200 hover:bg-white/10"
+                >
+                  Talk
+                </button>
+              )}
             </li>
           );
         })}
