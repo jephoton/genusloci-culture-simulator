@@ -22,6 +22,9 @@ import { pinLetter } from "@/ui/scout-words";
 import { TimelineBar } from "@/ui/TimelineBar";
 import { type Toast, Toasts } from "@/ui/Toasts";
 import { isPlacing, type Tool, Toolbar } from "@/ui/Toolbar";
+import type { ToolDeps } from "@/agents/run-tool";
+import { CopilotPanel } from "@/ui/CopilotPanel";
+import { useCopilot } from "@/ui/useCopilot";
 import { useSimulation } from "@/ui/useSimulation";
 import { VenuePanel } from "@/ui/VenuePanel";
 import type { World } from "@/world/schema";
@@ -166,6 +169,27 @@ function Game({
   const flyTo = useCallback(([x, z]: XZ) => {
     flyRef.current = { x, z, at: performance.now() };
   }, []);
+
+  const [copilotOpen, setCopilotOpen] = useState(false);
+  const copilotDeps = useMemo<ToolDeps>(
+    () => ({
+      context: (d) => {
+        const f = sim.frames.current.current;
+        return f ? { world, frame: f, digest: d, layout } : null;
+      },
+      latestDigest: sim.latestDigest,
+      whatIf: sim.whatIf,
+      act,
+      onApplied: (actions) => {
+        const f = sim.frames.current.current;
+        const a = actions[0];
+        const cell = a.type === "closeVenue" ? f?.venueCell[a.venue] : "cell" in a ? a.cell : a.cells[0];
+        if (cell !== undefined) flyTo([layout.cellX[cell], layout.cellZ[cell]]);
+      },
+    }),
+    [world, layout, act, sim.frames, sim.latestDigest, sim.whatIf, flyTo],
+  );
+  const copilot = useCopilot(world.city.name, copilotDeps);
 
   /** Leaves scout mode with nothing booked; `resume` restarts play if scouting paused it. */
   const exitScout = useCallback(
@@ -485,7 +509,29 @@ function Game({
         citySlug={citySlug}
         onCityChange={onCityChange}
       />
-      <Toolbar world={world} digest={sim.digest} tool={tool} onTool={onTool} />
+      {copilotOpen ? (
+        <CopilotPanel
+          city={world.city.name}
+          messages={copilot.messages}
+          status={copilot.status}
+          error={copilot.error}
+          onSend={(text) => void copilot.sendMessage({ text })}
+          onStop={() => void copilot.stop()}
+          onClose={() => setCopilotOpen(false)}
+        />
+      ) : (
+        <>
+          <Toolbar world={world} digest={sim.digest} tool={tool} onTool={onTool} />
+          <button
+            type="button"
+            onClick={() => setCopilotOpen(true)}
+            className="panel pointer-events-auto absolute bottom-24 left-4 w-64 px-3 py-2 text-left text-sm hover:bg-white/5"
+          >
+            <span className="block">Ask the co-pilot</span>
+            <span className="block text-xs text-zinc-400">“What happens if this club closes?”</span>
+          </button>
+        </>
+      )}
       <div className={`pointer-events-none absolute right-4 top-24 flex max-h-[calc(100dvh-12rem)] flex-col gap-3 ${scout ? "w-80" : "w-72"}`}>
         {scout ? (
           <ScoutPanel
