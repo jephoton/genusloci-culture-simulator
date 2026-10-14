@@ -134,8 +134,8 @@
 ## Next
 1. **The user re-adds `QLOO_API_KEY` to `.env.local`.**
 2. M7 leftovers:
-   - set the GitHub repo homepage to the live URL (needs the user's OK);
-   - a final pass on mobile and small screens;
+   - ~~GitHub homepage~~: set to the live URL.
+   - ~~Phone layout~~: done. Below the `sm` breakpoint the top bar shows city, date and fidelity; a Tools · Scenes · Co-pilot tab row opens one full-width panel at a time; placing something closes the tools panel. Desktop is unchanged.
    - a demo-runbook rehearsal on the live site.
 3. Fit in: **M5e (Book for my venue)**, M5b-2 (specimen cards, phylogeny).
 2. **M7 (ship):**
