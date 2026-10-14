@@ -1,0 +1,8 @@
+# Never upload Qloo data or secrets with a CLI deploy (Qloo terms; keys live in Vercel env vars).
+.cache/
+data/
+.env*
+!.env.example
+*.world.json
+*.world.json.gz
+.claude/
