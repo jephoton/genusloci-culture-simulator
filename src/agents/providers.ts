@@ -2,7 +2,7 @@ import { createDeepSeek } from "@ai-sdk/deepseek";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createGroq } from "@ai-sdk/groq";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
-import { type LanguageModel, wrapLanguageModel } from "ai";
+import { defaultSettingsMiddleware, type LanguageModel, wrapLanguageModel } from "ai";
 
 // Provider-agnostic LLM access (decision 0003): DeepSeek first, then free tiers. Server-side only.
 
@@ -26,7 +26,12 @@ export const PROVIDERS: ProviderSpec[] = [
     keyVar: "DEEPSEEK_API_KEY",
     prefix: "DEEPSEEK",
     models: { copilot: "deepseek-v4-flash", small: "deepseek-v4-flash" },
-    create: (apiKey, id) => createDeepSeek({ apiKey })(id),
+    // Thinking off: faster answers, and reasoning tokens otherwise eat the budget before structured output.
+    create: (apiKey, id) =>
+      wrapLanguageModel({
+        model: createDeepSeek({ apiKey })(id),
+        middleware: defaultSettingsMiddleware({ settings: { providerOptions: { deepseek: { thinking: { type: "disabled" } } } } }),
+      }),
   },
   {
     name: "groq",
