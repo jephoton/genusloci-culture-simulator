@@ -131,8 +131,20 @@
 - **README** with the live link, screenshot, Qloo usage and setup; **Devpost draft** in [devpost.md](devpost.md).
 - **Incident:** `vercel blob create-store` rewrote `.env.local` and removed the local `QLOO_API_KEY` (production is unaffected). The user needs to paste it back.
 
+## M5e (Book for my venue): done (2026-10-14)
+- **Plan a night here** on a venue panel opens a booking panel:
+  - suggested acts (Qloo's artists for that venue's crowd, then artists sharing its tags);
+  - add any artist; one the city doesn't know is looked up **live in Qloo** via `/api/outside-act`, which takes up to 3 calls, is cached, and stays above the 1,000-call floor. It's simulated as an event with that artist's fans' taste ("from Qloo: their fans also like …");
+  - a run of 1, 2 or 4 weeks;
+  - **Compare** runs 3 paired seeded futures per act and reports turnout, the change to **your own usual nights**, new fans, neighbour loss and scenes drawn;
+  - **Book** schedules the event.
+- **Co-pilot:** `throw_event` with `outside_artist: "<name>"` for artists not in the city.
+- **Sim changes:** events can carry a taste profile; Scout and booking share one paired-run engine (`sim/events.ts`).
+- **Verified:** at the ICA, slowthai, Jimothy Lacoste and Skepta were suggested, and Burna Boy was looked up via Qloo (a thin match: Trap, Rap), then compared and ranked. At Heaven after 4 weeks, Ghetts draws about 107 visits against 77 for girl in red, so the act matters.
+- **Not done:** specific dates or nights (the sim can't schedule future actions).
+
 ## Next
-1. **The user re-adds `QLOO_API_KEY` to `.env.local`.**
+1. ~~The user re-adds `QLOO_API_KEY`~~: done.
 2. M7 leftovers:
    - ~~GitHub homepage~~: set to the live URL.
    - ~~Phone layout~~: done. Below the `sm` breakpoint the top bar shows city, date and fidelity; a Tools · Scenes · Co-pilot tab row opens one full-width panel at a time; placing something closes the tools panel. Desktop is unchanged.

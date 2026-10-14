@@ -49,6 +49,8 @@
   - `interview.ts` — persona schema and grounded first-person chat
   - `rate-limit.ts` — per-visitor token bucket
 - **`app/api/copilot`, `app/api/name-scenes`, `app/api/interview`** — the LLM routes (503 without a key; 429 when rate-limited). City tools run in the browser via `useChat` `onToolCall`; Qloo tools run on the server.
+- **`sim/events.ts`, `sim/booking.ts`** — the shared paired-run engine for candidate events (Scout: one act, several spots; booking: one venue, several acts, including the host venue's own change). Events may carry a taste `profile` (outside artists).
+- **`app/api/outside-act` + `agents/outside-act.ts`** — live Qloo: search an artist, recommend similar artists and tag affinities, and match them to the city's entities to build an event profile.
 - **`sim/whatif.ts`, `sim/resident.ts`** — scenario versus baseline comparison (4 paired seeded runs; mean, range and consistency per effect; Scout uses the same pairing with 3 runs) and resident profiles, exposed as worker commands `whatIf` and `resident`.
 
 ## Qloo access
