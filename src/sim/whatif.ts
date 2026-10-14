@@ -189,7 +189,8 @@ export function whatIf(live: SimState, actions: readonly Action[], weeks: number
   const winners = shifts.filter((x) => x.change.mean > 0).sort((a, b) => b.change.mean - a.change.mean || a.entity - b.entity).slice(0, SHIFTS);
   const losers = shifts.filter((x) => x.change.mean < 0).sort((a, b) => a.change.mean - b.change.mean || a.entity - b.entity).slice(0, SHIFTS);
 
-  const headliners = [...new Set(actions.flatMap((a) => (a.type === "scheduleEvent" ? [a.entity] : [])))];
+  // Fans are counted for in-city headliners only; a profile event's entity is just a stand-in.
+  const headliners = [...new Set(actions.flatMap((a) => (a.type === "scheduleEvent" && !a.profile ? [a.entity] : [])))];
   const fans = headliners.map((entity) => ({
     entity,
     before: fanCount(live, entity),

@@ -28,6 +28,7 @@ import { personaOf, sceneInfo } from "@/agents/city";
 import type { Persona } from "@/agents/interview";
 import { InterviewPanel } from "@/ui/InterviewPanel";
 import { Intro, useIntro } from "@/ui/Intro";
+import { fetchOutsideAct } from "@/ui/outside-act-client";
 import { useCopilot } from "@/ui/useCopilot";
 import { useSceneNames } from "@/ui/useSceneNames";
 import { useSimulation } from "@/ui/useSimulation";
@@ -178,9 +179,9 @@ function Game({
 
   // The co-pilot and scene namer call back into the city at arbitrary times; they read the latest
   // values through this ref, so their callbacks can be created once.
-  const latest = useRef({ world, layout, act, latestDigest, whatIf, flyTo, liveDigest, frames });
+  const latest = useRef({ world, layout, act, latestDigest, whatIf, flyTo, liveDigest, frames, citySlug });
   useEffect(() => {
-    latest.current = { world, layout, act, latestDigest, whatIf, flyTo, liveDigest, frames };
+    latest.current = { world, layout, act, latestDigest, whatIf, flyTo, liveDigest, frames, citySlug };
   });
   const [describeScene] = useState(() => (id: number) => {
     const L = latest.current;
@@ -230,6 +231,7 @@ function Game({
     latestDigest: () => latest.current.latestDigest(),
     whatIf: (actions, weeks) => latest.current.whatIf(actions, weeks),
     act: (action) => latest.current.act(action),
+    outsideAct: (name) => fetchOutsideAct(latest.current.citySlug, name),
     onApplied: (actions) => {
       const L = latest.current;
       const f = L.frames.current.current;

@@ -1,4 +1,5 @@
 import type { Persona } from "@/agents/interview";
+import type { OutsideAct } from "@/agents/outside-act";
 import type { Area, CopilotAction } from "@/agents/tools";
 import { chooseVenueEntity } from "@/render/placement";
 import type { Action } from "@/sim/actions/schema";
@@ -222,7 +223,12 @@ function primaryCell(ctx: CityContext, cells: number[]): number {
 }
 
 /** Maps co-pilot actions to simulation actions, or explains what's wrong. */
-export function toSimActions(ctx: CityContext, actions: CopilotAction[]): { actions: Action[] } | ToolError {
+export function toSimActions(
+  ctx: CityContext,
+  actions: CopilotAction[],
+  /** Outside artists already looked up (by the name the model used). */
+  outside: ReadonlyMap<string, OutsideAct> = new Map(),
+): { actions: Action[] } | ToolError {
   const { world, frame, digest } = ctx;
   const out: Action[] = [];
   for (const a of actions) {
@@ -240,9 +246,18 @@ export function toSimActions(ctx: CityContext, actions: CopilotAction[]): { acti
       if (world.entities[entity]?.type !== "place") return { error: `Place ${entity} is not a place. Use find with kind "place".` };
       out.push({ type: "openVenue", entity, cell });
     } else if (a.do === "throw_event") {
-      if (world.entities[a.artist]?.type !== "artist") return { error: `${a.artist} is not an artist id. Use find with kind "artist".` };
       const { reachKm, capacity } = SCOUT_DEFAULTS;
-      out.push({ type: "scheduleEvent", entity: a.artist, cell: primaryCell(ctx, cells), duration: a.weeks ?? 3, reachKm, capacity });
+      const base = { type: "scheduleEvent" as const, cell: primaryCell(ctx, cells), duration: a.weeks ?? 3, reachKm, capacity };
+      if (a.outside_artist !== undefined) {
+        const act = outside.get(a.outside_artist);
+        if (!act) return { error: `Couldn't look up "${a.outside_artist}" in Qloo.` };
+        out.push(act.inCity !== null ? { ...base, entity: act.inCity } : { ...base, entity: act.proxy, profile: act.profile });
+        continue;
+      }
+      if (a.artist === undefined || world.entities[a.artist]?.type !== "artist") {
+        return { error: `Give an artist id from find (kind "artist"), or outside_artist with a name for an artist not in this city.` };
+      }
+      out.push({ ...base, entity: a.artist });
     } else if (a.do === "rent_pressure") {
       out.push({ type: "rentPressure", cells, magnitude: a.magnitude });
     } else {

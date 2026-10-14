@@ -23,7 +23,13 @@ export const CopilotActionSchema = z.discriminatedUnion("do", [
   }),
   z.object({
     do: z.literal("throw_event"),
-    artist: id.describe("Artist id from find or city_summary"),
+    artist: id.optional().describe("Artist id from find or city_summary (an artist already in this city)"),
+    outside_artist: z
+      .string()
+      .min(1)
+      .max(80)
+      .optional()
+      .describe("Name of an artist NOT in this city: Qloo is asked live who their fans are, and the event gets that crowd's taste"),
     area: AreaSchema,
     weeks: z.number().int().min(1).max(8).optional().describe("How many weeks it runs (default 3)"),
   }),

@@ -51,6 +51,27 @@ describe("runCityTool", () => {
     expect(onApplied).toHaveBeenCalledOnce();
   });
 
+  it("looks outside artists up and simulates them with their crowd's taste", async () => {
+    const artist = world.entities.findIndex((e) => e.type === "artist");
+    const outsideAct = vi.fn(async (name: string) => ({
+      artist: { name },
+      inCity: null,
+      similar: [{ entity: artist, name: world.entities[artist].name, affinity: 0.9 }],
+      tags: [],
+      profile: [{ entity: artist, weight: 0.9 }],
+      proxy: artist,
+    }));
+    const whatIfSpy = vi.fn(async (actions: Parameters<ToolDeps["whatIf"]>[0], weeks: number) => ({ result: whatIf(s, actions, weeks, 1) }));
+    const r = (await runCityTool("what_if", { actions: [{ do: "throw_event", outside_artist: "Visiting Star", area: { near_venue: 0 } }], weeks: 1 }, deps({ outsideAct, whatIf: whatIfSpy }))) as {
+      outsideArtists: { artist: string; fansAlsoLike: string[] }[];
+    };
+    expect(outsideAct).toHaveBeenCalledWith("Visiting Star");
+    expect(whatIfSpy.mock.calls[0][0][0]).toMatchObject({ type: "scheduleEvent", entity: artist, profile: [{ entity: artist, weight: 0.9 }] });
+    expect(r.outsideArtists[0]).toMatchObject({ artist: "Visiting Star", fansAlsoLike: [world.entities[artist].name] });
+    expect(await runCityTool("what_if", { actions: [{ do: "throw_event", outside_artist: "Nobody", area: { near_venue: 0 } }] }, deps({ outsideAct: async () => ({ error: "Qloo doesn't know them" }) }))).toEqual({ error: "Qloo doesn't know them" });
+    expect(await runCityTool("what_if", { actions: [{ do: "throw_event", area: { near_venue: 0 } }] }, deps())).toHaveProperty("error");
+  });
+
   it("returns errors instead of throwing", async () => {
     expect(await runCityTool("nope", {}, deps())).toHaveProperty("error");
     expect(await runCityTool("venue", { venue: "x" }, deps())).toHaveProperty("error");
