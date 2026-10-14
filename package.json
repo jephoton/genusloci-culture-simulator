@@ -16,9 +16,15 @@
     "build:world": "tsx scripts/build-world.ts"
   },
   "dependencies": {
+    "@ai-sdk/deepseek": "3.0.56",
+    "@ai-sdk/google": "4.0.85",
+    "@ai-sdk/groq": "4.0.52",
+    "@ai-sdk/openai-compatible": "3.0.59",
+    "@ai-sdk/react": "4.0.125",
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.1",
     "@react-three/postprocessing": "^3.1.3",
+    "ai": "7.0.122",
     "next": "16.4.0",
     "postprocessing": "^6.39.5",
     "react": "19.3.0",
