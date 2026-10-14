@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { sceneHuesOf, sceneRgb } from "@/render/palette";
 import type { SimDigest } from "@/sim/digest";
+import type { SceneName } from "@/agents/naming";
 import type { Frame } from "@/sim/frame";
 
 const MAX_ROWS = 8;
@@ -9,12 +10,14 @@ const css = ([r, g, b]: [number, number, number]) => `rgb(${Math.round(r * 255)}
 
 /**
  * The living scenes, largest first. Hovering a row highlights that scene on the map; clicking pins it
- * and flies there. Scene names are placeholders until scenes get proper names.
+ * and flies there. Scenes show their field-guide name once named, else "Scene N".
  */
 export function SceneLegend({
-  digest, frame, pinned, focused, onHover, onPin, onClear,
+  digest, frame, names, pinned, focused, onHover, onPin, onClear,
 }: {
   digest: SimDigest | null;
+  /** Scene names by lineage id, as they arrive. */
+  names?: ReadonlyMap<number, SceneName>;
   frame: Frame | null;
   /** The pinned scene, if any. */
   pinned: number | null;
@@ -42,12 +45,13 @@ export function SceneLegend({
         {scenes.map((s) => {
           const top = s.topEntities.slice(0, 2).map((e) => e.name).join(", ");
           const active = pinned === s.id;
+          const named = names?.get(s.id);
           return (
             <li key={s.id}>
               <button
                 type="button"
                 aria-pressed={active}
-                aria-label={`Scene ${s.id}, ${s.size} people${top ? `, into ${top}` : ""}`}
+                aria-label={`${named?.name ?? `Scene ${s.id}`}, ${s.size} people${top ? `, into ${top}` : ""}`}
                 onMouseEnter={() => onHover(s.id)}
                 onFocus={() => onHover(s.id)}
                 onBlur={() => onHover(null)}
@@ -58,7 +62,8 @@ export function SceneLegend({
               >
                 <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ background: css(sceneRgb(hues, s.id)) }} />
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm text-zinc-100">Scene {s.id}</span>
+                  <span className="block truncate text-sm text-zinc-100">{named?.name ?? `Scene ${s.id}`}</span>
+                  {named && <span className="block truncate font-serif text-xs italic text-zinc-300">{named.latin}</span>}
                   {top && <span className="block truncate text-xs text-zinc-400">{top}</span>}
                 </span>
                 <span className="shrink-0 text-xs tabular-nums text-zinc-300">{s.size} people</span>

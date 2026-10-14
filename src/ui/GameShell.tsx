@@ -24,7 +24,9 @@ import { type Toast, Toasts } from "@/ui/Toasts";
 import { isPlacing, type Tool, Toolbar } from "@/ui/Toolbar";
 import type { ToolDeps } from "@/agents/run-tool";
 import { CopilotPanel } from "@/ui/CopilotPanel";
+import { sceneInfo } from "@/agents/city";
 import { useCopilot } from "@/ui/useCopilot";
+import { useSceneNames } from "@/ui/useSceneNames";
 import { useSimulation } from "@/ui/useSimulation";
 import { VenuePanel } from "@/ui/VenuePanel";
 import type { World } from "@/world/schema";
@@ -138,7 +140,8 @@ function Game({
   onCityChange: (slug: string) => void;
 }) {
   const sim = useSimulation(world, DEMO_SEED, DEMO_CONFIG);
-  const { act, frames, play, pause, playing, demand: fetchDemand, scout: simulateScout } = sim;
+  const { act, frames, play, pause, playing, demand: fetchDemand, scout: simulateScout, latestDigest, whatIf } = sim;
+  const liveDigest = sim.digest;
   const [tool, setTool] = useState<Tool>({ kind: "select" });
   const [selected, setSelected] = useState<number | null>(null);
   /** Focus set by selecting a venue or clicking a legend row; `hovered` (a legend row) wins while set. */
@@ -170,25 +173,46 @@ function Game({
     flyRef.current = { x, z, at: performance.now() };
   }, []);
 
+  // The co-pilot and scene namer call back into the city at arbitrary times; they read the latest
+  // values through this ref, so their callbacks can be created once.
+  const latest = useRef({ world, layout, act, latestDigest, whatIf, flyTo, liveDigest, frames });
+  useEffect(() => {
+    latest.current = { world, layout, act, latestDigest, whatIf, flyTo, liveDigest, frames };
+  });
+  const [describeScene] = useState(() => (id: number) => {
+    const L = latest.current;
+    const f = L.frames.current.current;
+    if (!f || !L.liveDigest) return null;
+    const info = sceneInfo({ world: L.world, frame: f, digest: L.liveDigest, layout: L.layout }, id);
+    if ("error" in info) return null;
+    return { id, tastes: info.tastes.map((t) => t.name), homes: info.homes, parentId: info.splitFrom };
+  });
+  const sceneNames = useSceneNames(world.city.name, liveDigest, describeScene);
+  const sceneNamesRef = useRef(sceneNames);
+  useEffect(() => {
+    sceneNamesRef.current = sceneNames;
+  }, [sceneNames]);
+
   const [copilotOpen, setCopilotOpen] = useState(false);
-  const copilotDeps = useMemo<ToolDeps>(
-    () => ({
-      context: (d) => {
-        const f = sim.frames.current.current;
-        return f ? { world, frame: f, digest: d, layout } : null;
-      },
-      latestDigest: sim.latestDigest,
-      whatIf: sim.whatIf,
-      act,
-      onApplied: (actions) => {
-        const f = sim.frames.current.current;
-        const a = actions[0];
-        const cell = a.type === "closeVenue" ? f?.venueCell[a.venue] : "cell" in a ? a.cell : a.cells[0];
-        if (cell !== undefined) flyTo([layout.cellX[cell], layout.cellZ[cell]]);
-      },
-    }),
-    [world, layout, act, sim.frames, sim.latestDigest, sim.whatIf, flyTo],
-  );
+  const [copilotDeps] = useState<ToolDeps>(() => ({
+    context: (d) => {
+      const L = latest.current;
+      const f = L.frames.current.current;
+      if (!f) return null;
+      const names = new Map([...sceneNamesRef.current].map(([sid, n]) => [sid, n.name]));
+      return { world: L.world, frame: f, digest: d, layout: L.layout, sceneNames: names };
+    },
+    latestDigest: () => latest.current.latestDigest(),
+    whatIf: (actions, weeks) => latest.current.whatIf(actions, weeks),
+    act: (action) => latest.current.act(action),
+    onApplied: (actions) => {
+      const L = latest.current;
+      const f = L.frames.current.current;
+      const a = actions[0];
+      const cell = a.type === "closeVenue" ? f?.venueCell[a.venue] : "cell" in a ? a.cell : a.cells[0];
+      if (cell !== undefined) L.flyTo([L.layout.cellX[cell], L.layout.cellZ[cell]]);
+    },
+  }));
   const copilot = useCopilot(world.city.name, copilotDeps);
 
   /** Leaves scout mode with nothing booked; `resume` restarts play if scouting paused it. */
@@ -559,6 +583,7 @@ function Game({
             />
             <SceneLegend
               digest={sim.digest}
+              names={sceneNames}
               frame={sim.frame}
               pinned={pinnedLive?.kind === "scene" ? pinnedLive.id : null}
               focused={focus !== null}
