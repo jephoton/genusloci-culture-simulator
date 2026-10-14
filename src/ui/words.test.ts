@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { areaName, dayLabel, kindWord, weekAndDay } from "@/ui/words";
+import { areaName, dayLabel, kindWord, nearestCell, weekAndDay } from "@/ui/words";
 
 const layout = { center: { x: 0, z: 0 }, bounds: { minX: -100, maxX: 100, minZ: -100, maxZ: 100 } };
 
@@ -41,5 +41,21 @@ describe("weekAndDay", () => {
   it("splits a tick into its week and weekday name", () => {
     expect(weekAndDay(25, 7)).toEqual({ week: 3, day: "Fri" });
     expect(weekAndDay(25, 1)).toEqual({ week: 25, day: null });
+  });
+});
+
+describe("areaName with neighbourhoods", () => {
+  it("uses the nearest cell's area when the world has one, else the compass name", () => {
+    const layout = {
+      center: { x: 0, z: 0 },
+      bounds: { minX: -100, maxX: 100, minZ: -100, maxZ: 100 },
+      cellX: Float32Array.from([-50, 50]),
+      cellZ: Float32Array.from([0, 0]),
+    };
+    const world = { cells: [{ area: "Soho" }, {}] } as never;
+    expect(nearestCell(layout, 40, 5)).toBe(1);
+    expect(areaName(layout, -45, 0, world)).toBe("Soho");
+    expect(areaName(layout, 60, 0, world)).toBe("the east");
+    expect(areaName(layout, -45, 0)).toBe("the west");
   });
 });

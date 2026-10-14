@@ -297,7 +297,7 @@ function Game({
       flyTo(anchor);
       const { duration, reachKm, capacity } = SCOUT_DEFAULTS;
       void act({ type: "scheduleEvent", entity, cell, duration, reachKm, capacity }).then((ok) => {
-        if (ok) notify(`Booked ${world.entities[entity].name} in ${areaName(layout, anchor[0], anchor[1])}`, anchor);
+        if (ok) notify(`Booked ${world.entities[entity].name} in ${areaName(layout, anchor[0], anchor[1], world)}`, anchor);
         else placed.current.delete(key);
         if (resume) play();
       });
@@ -393,7 +393,7 @@ function Game({
         setTool({ kind: "select" });
         placed.current.add(key);
         void act({ type: "openVenue", entity, cell }).then((ok) => {
-          if (ok) notify(`Opened a ${kindWord(world.entities[entity].kind ?? "other")} in ${areaName(layout, x, z)}`, anchor);
+          if (ok) notify(`Opened a ${kindWord(world.entities[entity].kind ?? "other")} in ${areaName(layout, x, z, world)}`, anchor);
           else placed.current.delete(key);
         });
       } else if (tool.kind === "event" && tool.entity !== null) {
@@ -437,7 +437,7 @@ function Game({
   const spots = useMemo<ScoutSpot[]>(() => {
     if (!scout) return [];
     const spot = (cell: number, letter: string, own: boolean): ScoutSpot => ({
-      cell, letter, own, area: areaName(layout, layout.cellX[cell], layout.cellZ[cell]),
+      cell, letter, own, area: areaName(layout, layout.cellX[cell], layout.cellZ[cell], world),
     });
     const out = scout.candidates.map((c, i) => spot(c, pinLetter(i), false));
     if (scout.own !== null) out.push(spot(scout.own, OWN_LETTER, true));
