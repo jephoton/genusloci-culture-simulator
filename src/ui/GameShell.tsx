@@ -27,6 +27,7 @@ import { CopilotPanel } from "@/ui/CopilotPanel";
 import { personaOf, sceneInfo } from "@/agents/city";
 import type { Persona } from "@/agents/interview";
 import { InterviewPanel } from "@/ui/InterviewPanel";
+import { type BookingAct, BookingPanel } from "@/ui/BookingPanel";
 import { Intro, useIntro } from "@/ui/Intro";
 import { fetchOutsideAct } from "@/ui/outside-act-client";
 import { useCopilot } from "@/ui/useCopilot";
@@ -380,6 +381,59 @@ function Game({
     [act, exitScout, flyTo, layout, notify, play, scout, world],
   );
 
+  /** Book for my venue: the venue being planned for, and whether the city was playing before. */
+  const [planVenue, setPlanVenue] = useState<number | null>(null);
+  const planWasPlaying = useRef(false);
+  const book = sim.book;
+  const startPlan = useCallback(
+    (slot: number) => {
+      planWasPlaying.current = playing;
+      if (playing) pause();
+      setPlanVenue(slot);
+      setMobileTab(null);
+    },
+    [pause, playing],
+  );
+  const endPlan = useCallback(
+    (resume: boolean) => {
+      setPlanVenue(null);
+      if (resume && planWasPlaying.current) play();
+      planWasPlaying.current = false;
+    },
+    [play],
+  );
+  const comparePlan = useCallback(
+    async (acts: BookingAct[], weeks: number) => {
+      if (planVenue === null) return [];
+      const { results } = await book(planVenue, acts.map(({ entity, profile }) => ({ entity, profile })), weeks);
+      return results;
+    },
+    [book, planVenue],
+  );
+  const currentFrame = sim.frame;
+  const bookPlan = useCallback(
+    (a: BookingAct, weeks: number) => {
+      const f = currentFrame;
+      if (planVenue === null || !f) return;
+      const cell = f.venueCell[planVenue];
+      const venueName = world.entities[f.venueEntity[planVenue]].name;
+      // The frame feed would announce the event under its entity, a stand-in for outside artists.
+      const key = placementKey(a.entity, cell);
+      placed.current.add(key);
+      const anchor: XZ = [layout.cellX[cell], layout.cellZ[cell]];
+      flyTo(anchor);
+      const { reachKm, capacity } = SCOUT_DEFAULTS;
+      const resume = planWasPlaying.current;
+      endPlan(false);
+      void act({ type: "scheduleEvent", entity: a.entity, cell, duration: weeks, reachKm, capacity, ...(a.profile ? { profile: a.profile } : {}) }).then((ok) => {
+        if (ok) notify(`Booked ${a.label} at ${venueName} for ${weeks} ${weeks === 1 ? "week" : "weeks"}`, anchor);
+        else placed.current.delete(key);
+        if (resume) play();
+      });
+    },
+    [act, currentFrame, endPlan, flyTo, layout, notify, planVenue, play, world],
+  );
+
   // A pinned scene that has merged or died stops being a focus.
   const live = sim.digest?.scenes;
   const pinnedLive = pinned?.kind === "scene" && live && !live.some((s) => s.id === pinned.id) ? null : pinned;
@@ -634,7 +688,7 @@ function Game({
       </nav>
       <div
         className={`pointer-events-none absolute left-2 right-2 top-28 ${
-          scout || selected !== null || (mobileTab === "scenes" && !copilotOpen && !interview) ? "flex" : "hidden"
+          scout || selected !== null || planVenue !== null || (mobileTab === "scenes" && !copilotOpen && !interview) ? "flex" : "hidden"
         } max-h-[calc(100dvh-13rem)] flex-col gap-3 sm:left-auto sm:right-4 sm:top-24 sm:flex sm:max-h-[calc(100dvh-12rem)] ${scout ? "sm:w-80" : "sm:w-72"}`}
       >
         {scout ? (
@@ -653,6 +707,17 @@ function Game({
             onRetry={retryScout}
             sceneTitle={sceneTitle}
           />
+        ) : planVenue !== null && sim.frame ? (
+          <BookingPanel
+            key={planVenue}
+            world={world}
+            city={citySlug}
+            venueEntity={sim.frame.venueEntity[planVenue]}
+            sceneTitle={sceneTitle}
+            compare={comparePlan}
+            onBook={bookPlan}
+            onClose={() => endPlan(true)}
+          />
         ) : (
           <>
             <VenuePanel
@@ -661,6 +726,7 @@ function Game({
               slot={selected}
               onCloseVenue={onCloseVenue}
               onDismiss={clearFocus}
+              onPlan={startPlan}
             />
             <SceneLegend
               digest={sim.digest}

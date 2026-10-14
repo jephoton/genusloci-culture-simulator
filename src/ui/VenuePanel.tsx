@@ -2,13 +2,15 @@ import type { Frame } from "@/sim/frame";
 import type { World } from "@/world/schema";
 
 export function VenuePanel({
-  world, frame, slot, onCloseVenue, onDismiss,
+  world, frame, slot, onCloseVenue, onDismiss, onPlan,
 }: {
   world: World;
   frame: Frame | null;
   slot: number | null;
   onCloseVenue: (slot: number) => void;
   onDismiss: () => void;
+  /** Opens "Plan a night here" for an open permanent venue. */
+  onPlan?: (slot: number) => void;
 }) {
   if (slot === null || !frame || slot >= frame.nVenues) return null;
   const entity = world.entities[frame.venueEntity[slot]];
@@ -31,6 +33,15 @@ export function VenuePanel({
         <dt className="text-zinc-400">{frame.ticksPerWeek === 1 ? "Visitors this week" : "Visitors tonight"}</dt>
         <dd className="font-mono tabular-nums">{frame.venueAttendance[slot]}</dd>
       </dl>
+      {open && !isEvent && onPlan && (
+        <button
+          type="button"
+          onClick={() => onPlan(slot)}
+          className="w-full rounded-lg bg-violet-500/80 py-2 text-sm font-medium text-white hover:bg-violet-500"
+        >
+          Plan a night here
+        </button>
+      )}
       {open && !isEvent && (
         <button
           type="button"
