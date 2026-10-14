@@ -2,7 +2,7 @@
 
 <!-- generated: maintained by agents -->
 
-**Phase:** M4a complete (real London streets from OpenStreetMap). Next: M5b (juice + field guide); M3 (Qloo spike) as soon as the key arrives.
+**Phase:** M5b-2 implemented; M7 shipping follow-up remains. Real Qloo worlds, booking, scene cards and family trees are implemented.
 
 ## Done
 - Concept, name (**Genus Loci**), design spec, roadmap. Repo: https://github.com/jephoton/genusloci-culture-simulator (public, MIT).
@@ -54,7 +54,7 @@
    - scouted nights reach 1.5 km (`SCOUT_DEFAULTS`), because at 25 km every spot drew the same crowd;
    - about 0.1–0.15 s per comparison on London.
    - Still to do:
-     - **Book for my venue.**
+     - ~~Book for my venue~~: done (M5e).
      - ~~Noisy neighbour-loss metric~~: done. Scout now averages 3 paired seeded runs.
      - **Closures don't explain *why*.**
      - **Scenes stop moving after about week 4.**
@@ -143,20 +143,22 @@
 - **Verified:** at the ICA, slowthai, Jimothy Lacoste and Skepta were suggested, and Burna Boy was looked up via Qloo (a thin match: Trap, Rap), then compared and ranked. At Heaven after 4 weeks, Ghetts draws about 107 visits against 77 for girl in red, so the act matters.
 - **Not done:** specific dates or nights (the sim can't schedule future actions).
 
+## M5b-2 (scene cards and tools): implemented
+- Toolbar supports bringing in newcomers with a scene's tastes and raising rent around a map point.
+- Pinned scenes show tastes, home neighbourhoods, tonight's venues, size history and parent/child links. The Scenes panel can show a family tree with faded ancestors.
+- Reduced-motion preferences disable shockwaves, camera shakes and animated camera flights; controls have keyboard focus rings.
+- Duplicate taste names are removed from scene cards. The desktop toolbar scrolls within a capped height to leave room for the co-pilot button.
+- Fresh continuation checks: `npm test` (401 tests in 76 files), `npm run lint`, and `npm run build` all passed. These run the same scripts as the documented pnpm commands, which were unavailable in the continuation shell.
+- Claude's handoff reports browser checks for newcomers, rent and toolbar clearance. The continuation verified automated checks; it did not independently repeat those browser checks.
+- Scope: [milestone](superpowers/milestones/2026-10-14-m05b2-scene-cards-and-tools.md).
+
 ## Next
 1. ~~The user re-adds `QLOO_API_KEY`~~: done.
 2. M7 leftovers:
    - ~~GitHub homepage~~: set to the live URL.
    - ~~Phone layout~~: done. Below the `sm` breakpoint the top bar shows city, date and fidelity; a Tools · Scenes · Co-pilot tab row opens one full-width panel at a time; placing something closes the tools panel. Desktop is unchanged.
    - a demo-runbook rehearsal on the live site.
-3. Fit in: **M5e (Book for my venue)**, M5b-2 (specimen cards, phylogeny).
-2. **M7 (ship):**
-   - World hosting on Vercel;
-   - LLM keys in Vercel env;
-   - on-demand city builds with a budget guard;
-   - onboarding;
-   - README and Devpost write-up.
-3. Fit in when there's a gap: **M5e (Book for my venue)** and M5b-2 (field guide).
+3. Remaining product follow-ups: explain venue closures, review scene movement after week 4, and consider on-demand city builds with a budget guard.
 
 ## Carry into M5b (from M4a)
 - **Layout on the main thread:** ≈ 0.8 s on London. Move it to a worker or precompute it per city.
