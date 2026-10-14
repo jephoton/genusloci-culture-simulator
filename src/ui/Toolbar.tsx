@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { SimDigest } from "@/sim/digest";
+import { NEWCOMER_COUNTS, RENT_RISES } from "@/ui/area-tools";
 import { VENUE_KIND_LABELS } from "@/ui/words";
 import type { VenueKind, World } from "@/world/schema";
 
@@ -14,11 +15,18 @@ export type Tool =
   | { kind: "select" }
   | { kind: "open"; venueKind: VenueKind | null }
   | { kind: "event"; entity: number | null }
-  | { kind: "scout"; entity: number | null };
+  | { kind: "scout"; entity: number | null }
+  | { kind: "migrate"; scene: number | null; count: number }
+  | { kind: "rent"; magnitude: number | null };
 
 /** True once the tool has something to place (or, scouting, a spot to try), so a map click acts. */
 export function isPlacing(tool: Tool): boolean {
-  return (tool.kind === "open" && tool.venueKind !== null) || ((tool.kind === "event" || tool.kind === "scout") && tool.entity !== null);
+  return (
+    (tool.kind === "open" && tool.venueKind !== null) ||
+    ((tool.kind === "event" || tool.kind === "scout") && tool.entity !== null) ||
+    (tool.kind === "migrate" && tool.scene !== null) ||
+    (tool.kind === "rent" && tool.magnitude !== null)
+  );
 }
 
 function ToolButton({ active, label, hint, onClick }: { active: boolean; label: string; hint: string; onClick: () => void }) {
@@ -131,7 +139,12 @@ export function Toolbar({
     step = tool.entity === null ? "Pick a headliner." : "Move over the map and click where it should happen. Esc cancels.";
   } else if (tool.kind === "scout") {
     step = tool.entity === null ? "Pick a headliner to find them a spot." : "Click the map to test a spot of your own (D). Esc cancels.";
+  } else if (tool.kind === "migrate") {
+    step = tool.scene === null ? "Pick whose taste the newcomers share." : "Click the map where they should move in. Esc cancels.";
+  } else if (tool.kind === "rent") {
+    step = tool.magnitude === null ? "Pick how much rents rise." : "Click the map where rents should rise. Esc cancels.";
   }
+  const scenes = digest?.scenes ?? [];
 
   return (
     <aside
@@ -173,6 +186,40 @@ export function Toolbar({
         onClick={() => onTool(tool.kind === "scout" ? { kind: "select" } : { kind: "scout", entity: null })}
       />
       {tool.kind === "scout" && <HeadlinerPicker groups={groups} selected={tool.entity} onPick={(entity) => onTool({ kind: "scout", entity })} />}
+      <ToolButton
+        active={tool.kind === "migrate"}
+        label="Bring in newcomers"
+        hint="People with a scene's taste move into an area."
+        onClick={() => onTool(tool.kind === "migrate" ? { kind: "select" } : { kind: "migrate", scene: null, count: NEWCOMER_COUNTS[1] })}
+      />
+      {tool.kind === "migrate" && (
+        <div className="space-y-2">
+          <div role="group" aria-label="How many newcomers" className="flex gap-1">
+            {NEWCOMER_COUNTS.map((n) => (
+              <Choice key={n} label={`${n}`} active={tool.count === n} onClick={() => onTool({ ...tool, count: n })} />
+            ))}
+          </div>
+          <div role="group" aria-label="Whose taste they share" className="max-h-40 space-y-1 overflow-y-auto">
+            {scenes.length === 0 && <p className="text-xs text-zinc-400">Scenes form once the city plays.</p>}
+            {scenes.map((sc) => (
+              <Choice key={sc.id} label={sceneTitle(sc.id)} active={tool.scene === sc.id} onClick={() => onTool({ ...tool, scene: sc.id })} />
+            ))}
+          </div>
+        </div>
+      )}
+      <ToolButton
+        active={tool.kind === "rent"}
+        label="Raise the rent"
+        hint="Make an area pricier; venues there need bigger crowds."
+        onClick={() => onTool(tool.kind === "rent" ? { kind: "select" } : { kind: "rent", magnitude: null })}
+      />
+      {tool.kind === "rent" && (
+        <div role="group" aria-label="How much rents rise" className="flex gap-1">
+          {RENT_RISES.map((m) => (
+            <Choice key={m} label={`+${Math.round(m * 100)}%`} active={tool.magnitude === m} onClick={() => onTool({ kind: "rent", magnitude: m })} />
+          ))}
+        </div>
+      )}
       {step && (
         <p role="status" className="text-xs text-amber-200">
           {step}

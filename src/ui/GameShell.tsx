@@ -30,6 +30,7 @@ import { InterviewPanel } from "@/ui/InterviewPanel";
 import { type BookingAct, BookingPanel } from "@/ui/BookingPanel";
 import { Intro, useIntro } from "@/ui/Intro";
 import { fetchOutsideAct } from "@/ui/outside-act-client";
+import { cellsWithin, sceneGenes } from "@/ui/area-tools";
 import { useCopilot } from "@/ui/useCopilot";
 import { useSceneNames } from "@/ui/useSceneNames";
 import { useSimulation } from "@/ui/useSimulation";
@@ -534,13 +535,28 @@ function Game({
           if (ok) notify(`${world.entities[entity].name} is playing tonight`, anchor);
           else placed.current.delete(key);
         });
+      } else if (tool.kind === "migrate" && tool.scene !== null) {
+        const scene = liveDigest?.scenes.find((sc) => sc.id === tool.scene);
+        const count = tool.count;
+        setTool({ kind: "select" });
+        if (!scene) return notify("That scene has faded; pick another.");
+        const title = sceneTitle(scene.id);
+        void act({ type: "migrate", count, cells: cellsWithin(layout, x, z), genes: sceneGenes(scene) }).then((ok) => {
+          if (ok) notify(`${count} newcomers who share ${title}'s taste moved into ${areaName(layout, x, z, world)}`, anchor);
+        });
+      } else if (tool.kind === "rent" && tool.magnitude !== null) {
+        const magnitude = tool.magnitude;
+        setTool({ kind: "select" });
+        void act({ type: "rentPressure", cells: cellsWithin(layout, x, z), magnitude }).then((ok) => {
+          if (ok) notify(`Rents up ${Math.round(magnitude * 100)}% around ${areaName(layout, x, z, world)}`, anchor);
+        });
       } else if (tool.kind === "scout") {
         tryOwnSpot(cell);
       } else if (tool.kind === "select") {
         clearFocus();
       }
     },
-    [act, clearFocus, layout, notify, tool, tryOwnSpot, world],
+    [act, clearFocus, layout, liveDigest, notify, sceneTitle, tool, tryOwnSpot, world],
   );
 
   const shownFrame = sim.frame;
@@ -562,6 +578,7 @@ function Game({
   if (tool.kind === "open" && tool.venueKind !== null) ghost = { kind: "venue", venueKind: tool.venueKind };
   else if (tool.kind === "event" && tool.entity !== null) ghost = { kind: "event" };
   else if (scout && scout.candidates.length > 0) ghost = { kind: "event" };
+  else if ((tool.kind === "migrate" && tool.scene !== null) || (tool.kind === "rent" && tool.magnitude !== null)) ghost = { kind: "event" };
 
   const spots = useMemo<ScoutSpot[]>(() => {
     if (!scout) return [];
