@@ -1,8 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { sceneHuesOf, sceneRgb } from "@/render/palette";
 import type { SimDigest } from "@/sim/digest";
 import type { SceneName } from "@/agents/naming";
 import type { Frame } from "@/sim/frame";
+import { familyRows } from "@/ui/family-tree";
 
 const MAX_ROWS = 8;
 
@@ -31,6 +32,9 @@ export function SceneLegend({
 }) {
   const hues = useMemo(() => (frame ? sceneHuesOf(frame.lineageParents) : new Float32Array(0)), [frame]);
   const scenes = (digest?.scenes ?? []).slice(0, MAX_ROWS);
+  const [view, setView] = useState<"list" | "tree">("list");
+  const tree = useMemo(() => (view === "tree" && frame ? familyRows(frame.lineageParents, digest?.scenes ?? []) : []), [view, frame, digest]);
+  const label = (id: number) => names?.get(id)?.name ?? `Scene ${id}`;
   return (
     <aside aria-label="Scenes" className="panel pointer-events-auto min-h-0 w-full space-y-2 overflow-y-auto p-3" onMouseLeave={() => onHover(null)}>
       <div className="flex items-baseline justify-between gap-2">
@@ -42,8 +46,50 @@ export function SceneLegend({
         )}
       </div>
       <p className="text-xs text-zinc-400">Groups of people with shared taste. Hover to highlight one; click to follow it.</p>
+      {scenes.length > 0 && (
+        <div role="group" aria-label="Scenes view" className="flex gap-1 text-xs">
+          {(
+            [
+              ["list", "List"],
+              ["tree", "Family tree"],
+            ] as const
+          ).map(([v, text]) => (
+            <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)} className={`rounded-md px-2 py-0.5 ${view === v ? "bg-white/15" : "hover:bg-white/5"}`}>
+              {text}
+            </button>
+          ))}
+        </div>
+      )}
       {scenes.length === 0 && <p className="text-xs text-zinc-400">No scenes yet. Press Play and they will form.</p>}
-      <ul className="space-y-1">
+      {view === "tree" && (
+        <ul className="space-y-0.5" aria-label="Scene family tree">
+          {tree.map((r) => (
+            <li key={r.id} style={{ paddingLeft: `${r.depth * 14}px` }}>
+              {r.live ? (
+                <button
+                  type="button"
+                  onClick={() => onPin(r.id)}
+                  onMouseEnter={() => onHover(r.id)}
+                  onFocus={() => onHover(r.id)}
+                  onBlur={() => onHover(null)}
+                  className={`flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm hover:bg-white/10 ${pinned === r.id ? "bg-white/15" : ""}`}
+                >
+                  {r.depth > 0 && <span aria-hidden className="text-zinc-500">└</span>}
+                  <span aria-hidden className="size-2.5 shrink-0 rounded-full" style={{ background: css(sceneRgb(hues, r.id)) }} />
+                  <span className="min-w-0 flex-1 truncate">{label(r.id)}</span>
+                  <span className="shrink-0 text-xs tabular-nums text-zinc-400">{r.size}</span>
+                </button>
+              ) : (
+                <p className="flex items-center gap-2 px-2 py-1 text-xs italic text-zinc-500">
+                  {r.depth > 0 && <span aria-hidden>└</span>}
+                  {names?.get(r.id)?.name ? `${names.get(r.id)!.name} (faded)` : "An earlier scene (faded)"}
+                </p>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      <ul className={view === "list" ? "space-y-1" : "hidden"}>
         {scenes.map((s) => {
           const top = s.topEntities.slice(0, 2).map((e) => e.name).join(", ");
           const active = pinned === s.id;
