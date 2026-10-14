@@ -71,7 +71,7 @@
      - actions taken while paused only play out on resume;
      - signs can flicker on quiet days;
      - landmarks mounted while paused appear without rising.
-5. **5b-2:** name scenes from their dominant Qloo tags (plus a mock-Latin binomial) so scenes are self-explanatory.
+5. **5b-2:** name scenes from their dominant Qloo tags so scenes are self-explanatory (done in M6; no Latin names, by user preference).
 
 ## M3 (Qloo spike + client): done (2026-10-14)
 - Spike findings are in [qloo-notes.md](qloo-notes.md):
@@ -113,7 +113,7 @@
   - city tools run in the browser against the worker: summary, find, venue ranking, venue, scene, **what-if against a baseline**, apply;
   - Qloo search and taste tools run on the server, capped per question;
   - verified live: "what if the busiest club closes" gave a grounded, honest answer with real venue names and visit shifts; "close Heaven" changed the live city and flew the camera there.
-- **Scene names:** each new scene gets a plain name plus a binomial, e.g. "Historic theatre crowd" (*Theatrum westmonasteriensis*). They are used in the legend, toasts, headliner groups and scout results.
+- **Scene names:** each new scene gets a short plain name, e.g. "Historic theatre crowd". (Mock-Latin binomials were tried and dropped as corny.) They are used in the legend, toasts, headliner groups and scout results.
 - **Interviews:** "Talk" on a legend row interviews a typical member of that scene; "Meet someone else" picks the next most typical. Verified live.
 - **Neighbourhood names** from Qloo for venues and cells.
 - **Tests and checks:** 381 tests passing; lint and build clean.

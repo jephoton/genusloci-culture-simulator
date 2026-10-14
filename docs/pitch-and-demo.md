@@ -28,7 +28,7 @@
 
 - **Cluster:** six invented "taste clusters" (fake genres) used by the synthetic stand-in, hence names like "Cluster 0 Venue 1".
 - **Synthville:** the synthetic fallback city.
-- **Scene names:** an LLM names each scene once, from its real Qloo tastes and home neighbourhood: a plain name plus a mock-Latin binomial, e.g. "Grime friend groups" (*Grimus lambethiensis*). "Scene N" shows until the name arrives.
+- **Scene names:** an LLM names each scene once, from its real Qloo tastes and home neighbourhood: a short plain name, e.g. "Grime friend groups". "Scene N" shows until the name arrives.
 - **What-if:** the co-pilot's experiment. It forks the city twice, one copy with the change and one without, runs both for N weeks, and compares them. The live city is untouched.
 - **Resident interview:** chat with a typical member of a scene. They speak only from their own simulated tastes.
 

@@ -6,7 +6,7 @@ const digest = { scenes: [3, 4, 5].map((id) => ({ id, parent: null, bornTick: 0,
 
 describe("scenesToName", () => {
   it("picks unnamed scenes that aren't busy or cooling down", () => {
-    const names = new Map([[3, { id: 3, name: "A", latin: "A a" }]]);
+    const names = new Map([[3, { id: 3, name: "A" }]]);
     const busy = new Map([[4, 2000]]);
     expect(scenesToName(digest, names, busy, 1000)).toEqual([5]);
     expect(scenesToName(digest, names, busy, 3000)).toEqual([4, 5]);

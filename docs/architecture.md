@@ -45,7 +45,7 @@
   - `city.ts` — the co-pilot's view of the city, computed in the browser from World + frame + digest: summaries, fuzzy find, venue ranking, area resolution, action mapping, named what-if results, interview personas
   - `run-tool.ts` — runs city tools in the browser against the worker; never throws
   - `copilot.ts` — instructions, server-side Qloo tools (`qloo_search`, `qloo_taste`, capped per question, budget floor ≥ 1000), `copilotStream`
-  - `naming.ts` — scene names + mock-Latin binomials (structured output, small tier)
+  - `naming.ts` — plain scene names from Qloo tastes (structured output, small tier)
   - `interview.ts` — persona schema and grounded first-person chat
   - `rate-limit.ts` — per-visitor token bucket
 - **`app/api/copilot`, `app/api/name-scenes`, `app/api/interview`** — the LLM routes (503 without a key; 429 when rate-limited). City tools run in the browser via `useChat` `onToolCall`; Qloo tools run on the server.

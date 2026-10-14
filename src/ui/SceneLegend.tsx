@@ -10,7 +10,7 @@ const css = ([r, g, b]: [number, number, number]) => `rgb(${Math.round(r * 255)}
 
 /**
  * The living scenes, largest first. Hovering a row highlights that scene on the map; clicking pins it
- * and flies there. Scenes show their field-guide name once named, else "Scene N".
+ * and flies there. Scenes show their name once named, else "Scene N".
  */
 export function SceneLegend({
   digest, frame, names, pinned, focused, onHover, onPin, onClear, onTalk,
@@ -65,7 +65,6 @@ export function SceneLegend({
                 <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ background: css(sceneRgb(hues, s.id)) }} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm text-zinc-100">{named?.name ?? `Scene ${s.id}`}</span>
-                  {named && <span className="block truncate font-serif text-xs italic text-zinc-300">{named.latin}</span>}
                   {top && <span className="block truncate text-xs text-zinc-400">{top}</span>}
                 </span>
                 <span className="shrink-0 text-xs tabular-nums text-zinc-300">{s.size} people</span>

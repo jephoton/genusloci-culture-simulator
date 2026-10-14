@@ -29,11 +29,11 @@ describe("scene naming", () => {
   it("keeps only names for scenes that were asked for, tidied", async () => {
     const model = modelReturning({
       scenes: [
-        { id: 3, name: "  Late-night   grime crowd ", latin: "Grimus sohoensis" },
-        { id: 99, name: "Stray", latin: "Strayus" },
-        { id: 7, name: "", latin: "Quietus" },
+        { id: 3, name: "  Late-night   grime crowd " },
+        { id: 99, name: "Stray" },
+        { id: 7, name: "" },
       ],
     });
-    expect(await nameScenes(model, body)).toEqual([{ id: 3, name: "Late-night grime crowd", latin: "Grimus sohoensis" }]);
+    expect(await nameScenes(model, body)).toEqual([{ id: 3, name: "Late-night grime crowd" }]);
   });
 });
