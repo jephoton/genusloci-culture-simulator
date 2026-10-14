@@ -8,6 +8,7 @@ import type { Frame } from "@/sim/frame";
 import type { ResidentProfile } from "@/sim/resident";
 import type { Spread, WhatIfResult } from "@/sim/whatif";
 import { SCOUT_DEFAULTS } from "@/sim/worker/protocol";
+import { sceneGenes } from "@/ui/area-tools";
 import { areaName } from "@/ui/words";
 import type { CityLayout } from "@/render/layout";
 import type { World } from "@/world/schema";
@@ -267,7 +268,7 @@ export function toSimActions(
         type: "migrate",
         count: a.count,
         cells,
-        genes: scene.topEntities.map((e, i) => ({ entity: e.index, weight: Math.max(0.3, 0.9 - i * 0.05) })),
+        genes: sceneGenes(scene),
       });
     }
   }
