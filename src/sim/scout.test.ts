@@ -76,8 +76,10 @@ describe("scoutCandidates", () => {
     const d = demandByCell(s, idx(0, 5));
     const best = d.indexOf(Math.max(...d));
     const worst = d.indexOf(Math.min(...d));
-    const [first] = scoutCandidates(s, [best, worst], { ...opts, reachKm: 1 });
+    // A reach inside the cell, so turnout comes from the residents whose demand was measured.
+    const [first, second] = scoutCandidates(s, [best, worst], { ...opts, reachKm: 0.05 });
     expect(first.cell).toBe(best);
+    expect(first.turnout).toBeGreaterThan(second.turnout);
   });
 });
 
@@ -97,5 +99,16 @@ describe("scoutCandidates with daily ticks", () => {
     const [weeklyResult] = scoutCandidates(freshWith(1), [0], opts);
     expect(dailyResult.turnout / weeklyResult.turnout).toBeGreaterThan(0.6);
     expect(dailyResult.turnout / weeklyResult.turnout).toBeLessThan(1.6);
+  });
+});
+
+describe("scoutCandidates over repeated runs", () => {
+  it("averages paired runs deterministically and scores on the averages", () => {
+    const s = fresh();
+    const opts = { entity: idx(0, 5), weeks: 1, duration: 3, reachKm: 25, capacity: 3000, nearbyKm: 1 };
+    const three = scoutCandidates(s, [0, 5], opts, 3);
+    expect(scoutCandidates(s, [0, 5], opts, 3)).toEqual(three);
+    expect(three.map((r) => r.cell).sort()).toEqual([0, 5]);
+    for (const r of three) expect(r.score).toBeCloseTo(r.turnout + 3 * r.newFans - 0.5 * r.neighbourLoss, 6);
   });
 });

@@ -143,7 +143,7 @@ export function ScoutPanel({
             return (
               <li
                 key={r.cell}
-                aria-label={`Spot ${r.letter}, ${r.area}, ranked ${ordinal(rank + 1)}: ${Math.round(r.turnout)} visits, ${r.newFans} new fans, ${Math.round(r.neighbourLoss)} visits taken from nearby venues, reaches ${sceneLabel}`}
+                aria-label={`Spot ${r.letter}, ${r.area}, ranked ${ordinal(rank + 1)}: ${Math.round(r.turnout)} visits, ${Math.round(r.newFans)} new fans, ${Math.round(r.neighbourLoss)} visits taken from nearby venues, reaches ${sceneLabel}`}
                 onMouseEnter={() => onHover(r.cell)}
                 onFocus={() => onHover(r.cell)}
                 className={`space-y-1.5 rounded-lg p-2 ring-1 transition hover:bg-white/10 focus-within:bg-white/10 ${

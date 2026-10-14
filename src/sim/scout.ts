@@ -2,6 +2,7 @@ import { affinityToEntity, geneSlot } from "@/sim/genome";
 import { cloneState, type SimState } from "@/sim/state";
 import { step } from "@/sim/step";
 import { weeksToTicks } from "@/sim/time";
+import { runSeed } from "@/sim/whatif";
 import { distKm } from "@/sim/world-index";
 
 export type ScoutOptions = {
@@ -55,13 +56,10 @@ const fansOf = (s: SimState, entity: number) => {
   return fans;
 };
 
-/**
- * Simulates the event at each candidate cell in a forked future, alongside a no-event baseline
- * fork, and ranks the candidates. The live state is never modified.
- */
-export function scoutCandidates(live: SimState, cells: number[], o: ScoutOptions): ScoutResult[] {
-  const before = fansOf(live, o.entity);
+/** One paired run: the no-event baseline and each candidate, all from the same random seed. */
+function scoutRun(live: SimState, cells: number[], o: ScoutOptions, seed: number, before: Uint8Array): ScoutResult[] {
   const baseline = cloneState(live);
+  baseline.rngState = seed;
   const baseVisits = new Float64Array(baseline.venueEntity.length);
   const ticks = weeksToTicks(o.weeks, live.config.ticksPerWeek);
   for (let t = 0; t < ticks; t++) {
@@ -69,8 +67,9 @@ export function scoutCandidates(live: SimState, cells: number[], o: ScoutOptions
     for (let v = 0; v < baseline.nVenues; v++) baseVisits[v] += baseline.venueAttendance[v];
   }
 
-  const results = cells.map((cell): ScoutResult => {
+  return cells.map((cell): ScoutResult => {
     const s = cloneState(live);
+    s.rngState = seed;
     const [res] = step(s, [{ type: "scheduleEvent", entity: o.entity, cell, duration: o.duration, reachKm: o.reachKm, capacity: o.capacity }]);
     const slot = res.ok && res.venue !== undefined ? res.venue : -1;
     let turnout = 0;
@@ -104,6 +103,31 @@ export function scoutCandidates(live: SimState, cells: number[], o: ScoutOptions
       neighbourLoss += Math.max(0, baseVisits[v] - visits[v]);
     }
     const scenes = [...sceneCounts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]).map(([id]) => id);
+    return { cell, turnout, newFans, scenes, neighbourLoss, score: 0 };
+  });
+}
+
+/** Paired runs per scout: neighbourLoss in particular is noisy from a single run. */
+export const SCOUT_RUNS = 3;
+
+/**
+ * Simulates the event at each candidate cell in forked futures, alongside a no-event baseline from the
+ * same random seed, `runs` times with different seeds, and ranks the candidates on the averages. The
+ * live state is never modified.
+ */
+export function scoutCandidates(live: SimState, cells: number[], o: ScoutOptions, runs = SCOUT_RUNS): ScoutResult[] {
+  const before = fansOf(live, o.entity);
+  const all = Array.from({ length: Math.max(1, runs) }, (_, k) => scoutRun(live, cells, o, runSeed(live, k), before));
+  const n = all.length;
+  const results = cells.map((cell, i): ScoutResult => {
+    const per = all.map((r) => r[i]);
+    const avg = (f: (r: ScoutResult) => number) => per.reduce((acc, r) => acc + f(r), 0) / n;
+    const sceneVotes = new Map<number, number>();
+    per.forEach((r) => r.scenes.forEach((id, rank) => sceneVotes.set(id, (sceneVotes.get(id) ?? 0) + (r.scenes.length - rank))));
+    const scenes = [...sceneVotes].sort((a, b) => b[1] - a[1] || a[0] - b[0]).map(([id]) => id);
+    const turnout = avg((r) => r.turnout);
+    const newFans = avg((r) => r.newFans);
+    const neighbourLoss = avg((r) => r.neighbourLoss);
     return { cell, turnout, newFans, scenes, neighbourLoss, score: turnout + 3 * newFans - 0.5 * neighbourLoss };
   });
   return results.sort((a, b) => b.score - a.score || a.cell - b.cell);
