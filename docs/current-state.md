@@ -123,8 +123,21 @@
   - In-memory rate limits are per server instance.
   - The co-pilot's Qloo tools use the file cache, which needs `QLOO_CACHE_DIR=/tmp/qloo` on Vercel (M7).
 
+## M7 (ship): in progress (2026-10-14)
+- **Live:** https://genusloci-culture-simulator.vercel.app (Vercel, GitHub auto-deploys from `main`). London, Singapore and **New York** load from a private Blob store; the co-pilot, scene names and interviews work in production.
+- **New York:** Houston St at Broadway, 140 venues, 8 scenes, fidelity about 0.34 (the best of the three).
+- **Repeated runs:** what-ifs run 4 paired seeded comparisons (mean, range, "clear" or "too small to call"); Scout averages 3. Mock-Latin scene names were removed, by user preference.
+- **Onboarding:** a first-visit intro, with a "?" button to reopen it.
+- **README** with the live link, screenshot, Qloo usage and setup; **Devpost draft** in [devpost.md](devpost.md).
+- **Incident:** `vercel blob create-store` rewrote `.env.local` and removed the local `QLOO_API_KEY` (production is unaffected). The user needs to paste it back.
+
 ## Next
-1. Fit in: **M5e (Book for my venue)**, M5b-2 (field guide: specimen cards, phylogeny; names are done).
+1. **The user re-adds `QLOO_API_KEY` to `.env.local`.**
+2. M7 leftovers:
+   - set the GitHub repo homepage to the live URL (needs the user's OK);
+   - a final pass on mobile and small screens;
+   - a demo-runbook rehearsal on the live site.
+3. Fit in: **M5e (Book for my venue)**, M5b-2 (specimen cards, phylogeny).
 2. **M7 (ship):**
    - World hosting on Vercel;
    - LLM keys in Vercel env;

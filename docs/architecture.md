@@ -37,7 +37,7 @@
 - **`render/`** — React Three Fiber night diorama (decision 0005, [UI spec](superpowers/specs/2026-10-09-genusloci-ui-design.md)):
   - pure, tested prep: `layout.ts` (cells, landmark pads, procedural buildings that avoid roads, water, parks and pads), `palette.ts` (scene hues by lineage), `venues.ts` (per-slot landmark views), `geometry.ts` (street ribbons, polygons)
   - scene: `CityCanvas` (camera, MapControls, bloom and vignette), `Ground`, `Streets`, `Buildings` (instanced, window-light shader), `Landmarks` (per venue kind, neon sign = dominant scene, health = brightness), `Crowd` (instanced agents eased between ticks)
-- **`app/api/world/[slug]`** — serves a built World (404 if unknown or not built). Hosting the files on Vercel is an M7 task.
+- **`app/api/world/[slug]`** — serves a built World via `world/store.ts`: `.cache/worlds` locally, else the **private** Vercel Blob store (`worlds/<slug>.world.json`, read with `BLOB_READ_WRITE_TOKEN`); 404 if unknown or not built.
 - **`ui/`** — `useCityWorld` (Qloo world first, then synthetic over OSM, then Synthville), `useSimulation` (worker lifecycle, pushed frames in a ref plus state, actions, rewind), `GameShell` (composition and tools), `Hud`, `Toolbar`, `TimelineBar`, `VenuePanel`; `ClientGame` loads it client-only (`next/dynamic` with `ssr: false`)
 - **`agents/`** — LLM features on the Vercel AI SDK v7 (decision 0003):
   - `providers.ts` — provider chain (DeepSeek → Groq → Cerebras → OpenRouter → Gemini; only those with keys), `fallbackModel` (next provider if a call fails before streaming), `modelFor(tier)`; DeepSeek thinking is off
@@ -65,6 +65,14 @@
 - The co-pilot only changes the live city through `apply`, which it is told to use only when the user asks.
 - Sim ticks make zero API calls; the server is stateless apart from caches.
 
+## Deployment (M7)
+
+- **Vercel project** `genusloci-culture-simulator`, connected to the GitHub repo: pushes to `main` deploy production. Live at https://genusloci-culture-simulator.vercel.app. `vercel.json` pins the Next.js preset.
+- **Environment variables** (encrypted, production and preview): `QLOO_API_KEY`, `DEEPSEEK_API_KEY`, `QLOO_CACHE_DIR=/tmp/qloo`, and `BLOB_READ_WRITE_TOKEN` from the connected private Blob store `genusloci-worlds`.
+- **Worlds:** run `pnpm build:world <city>` locally, then `pnpm upload:worlds`. They are uploaded with private access, so anonymous URLs return 403. Upload again after a rebuild; no redeploy is needed, but serverless instances memoise worlds until they recycle.
+- `.vercelignore` keeps `.cache/`, `data/` and env files out of CLI deploys.
+- **Caution:** `vercel link`, `vercel env pull` and `vercel blob create-store` rewrite `.env.local` from Vercel's *development* environment, which drops variables that exist only locally. Keep a copy of local keys, and revert their `.gitignore` edits, which re-add `.env*` after the `!.env.example` exception.
+
 ## Commands (verified 2026-10-09)
 
 - `pnpm install` — install dependencies
@@ -75,6 +83,7 @@
 - `pnpm test:watch` — watch mode
 - `pnpm bench:sim` — simulation tick-rate benchmark (target ≥ 10 ticks/sec at 5,000 agents)
 - `pnpm calibrate` — baseline fidelity and ecology report on the synthetic fixture (`--london` for synthetic London, `--world=<city>` for a built Qloo world)
+- `pnpm upload:worlds [city…]` — upload built worlds to the private Blob store (needs `BLOB_READ_WRITE_TOKEN`)
 - `pnpm build:world <city>` — build a city's Qloo World into `.cache/worlds` (about 55–80 Qloo calls the first time; reruns are free from the file cache)
 - `pnpm qloo:smoke [city]` — a few live Qloo calls through the file cache (reruns are free); prints counts and the remaining monthly quota, never response data
 - `pnpm build:geo <city>` — fetch a city's roads, water and parks from Overpass into `public/geo/<city>.json` (one request per run; don't loop)
