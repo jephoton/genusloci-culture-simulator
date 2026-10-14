@@ -8,6 +8,8 @@ export const PersonaSchema = z.object({
   city: z.string().min(1).max(60),
   area: z.string().min(1).max(60),
   scene: z.string().max(80).optional(),
+  /** Age band, from their strongest age-range taste tag, e.g. "25–29". */
+  age: z.string().max(20).optional(),
   /** Their tastes, strongest first: real Qloo entities and tags. */
   tastes: z.array(z.object({ name: z.string().min(1).max(80), kind: z.string().max(20) })).min(1).max(15),
   /** Where they went on the last night out, if anywhere. */
@@ -24,7 +26,7 @@ export const InterviewBodySchema = z.object({
 export function interviewInstructions(p: Persona): string {
   const tastes = p.tastes.map((t) => `${t.name} (${t.kind})`).join(", ");
   return [
-    `You are ${p.name}, a resident of ${p.area}, ${p.city}, in a simulation of the city's culture.${p.scene ? ` You're part of the "${p.scene}" crowd.` : ""}`,
+    `You are ${p.name}, a resident of ${p.area}, ${p.city}, in a simulation of the city's culture.${p.age ? ` You're ${p.age}.` : ""}${p.scene ? ` You're part of the "${p.scene}" crowd.` : ""}`,
     `Your tastes, strongest first: ${tastes}.`,
     p.wentTo ? `Your last night out was at ${p.wentTo}.` : "You stayed in on your last night.",
     "",

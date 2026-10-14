@@ -267,15 +267,19 @@ const FIRST_NAMES = [
 
 /** An interview persona for a resident: name, home, scene and tastes as real names. */
 export function personaOf(ctx: CityContext, profile: ResidentProfile): Persona {
-  const tastes = profile.genes.slice(0, 12).flatMap((g) => {
-    const e = ctx.world.entities[g.entity];
-    return e ? [{ name: e.name, kind: e.type === "place" ? `${e.kind ?? "place"}` : e.type }] : [];
-  });
+  const isAge = (id: string) => id.startsWith("urn:tag:age_range:");
+  const ageTag = profile.genes.map((g) => ctx.world.entities[g.entity]).find((e) => e && isAge(e.id));
+  const tastes = profile.genes
+    .map((g) => ctx.world.entities[g.entity])
+    .filter((e) => e && !isAge(e.id))
+    .slice(0, 12)
+    .map((e) => ({ name: e.name, kind: e.type === "place" ? `${e.kind ?? "place"}` : e.type }));
   return {
     name: FIRST_NAMES[profile.agent % FIRST_NAMES.length],
     city: ctx.world.city.name,
     area: cellArea(ctx, profile.homeCell),
     scene: profile.scene >= 0 ? sceneLabel(ctx, profile.scene) : undefined,
+    age: ageTag ? ageTag.name.replace(/^Ages\s+/, "") : undefined,
     tastes: tastes.length > 0 ? tastes : [{ name: "going out", kind: "habit" }],
     wentTo: profile.venue >= 0 && profile.venue < ctx.frame.nVenues ? venueName(ctx, profile.venue) : undefined,
   };
