@@ -149,7 +149,7 @@ export function Toolbar({
   return (
     <aside
       aria-label="Tools"
-      className={`panel pointer-events-auto absolute left-2 right-2 top-28 ${mobileOpen ? "flex" : "hidden"} max-h-[calc(100dvh-13rem)] flex-col gap-2 p-3 sm:left-4 sm:right-auto sm:top-24 sm:flex sm:max-h-[calc(100dvh-12rem)] sm:w-64`}
+      className={`panel pointer-events-auto absolute left-2 right-2 top-28 ${mobileOpen ? "flex" : "hidden"} max-h-[calc(100dvh-13rem)] flex-col gap-2 overflow-y-auto p-3 sm:left-4 sm:right-auto sm:top-24 sm:flex sm:max-h-[calc(100dvh-16.5rem)] sm:w-64`}
     >
       <ToolButton active={tool.kind === "select"} label="Select" hint="Click a venue to see how it is doing." onClick={() => onTool({ kind: "select" })} />
       <ToolButton
