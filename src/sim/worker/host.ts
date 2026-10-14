@@ -6,13 +6,16 @@ import { buildFrame } from "@/sim/frame";
 import { demandByCell, pickCandidates, scoutCandidates } from "@/sim/scout";
 import { MAX_WHATIF_WEEKS, whatIf } from "@/sim/whatif";
 import { residentProfile, typicalResident } from "@/sim/resident";
+import { BOOKING_RUNS, type BookingAct, bookActs } from "@/sim/booking";
 import type { SimState } from "@/sim/state";
 import { Timeline } from "@/sim/timeline";
 import {
+  BOOKING_WEEKS,
   type CommandResult,
   DIGEST_EVERY,
   type FrameMessage,
   MAIN_TIMELINE,
+  MAX_BOOKING_ACTS,
   MAX_SCOUT_CELLS,
   MAX_SCOUT_WEEKS,
   MAX_TICKS_PER_RUN,
@@ -211,6 +214,22 @@ export class SimHost {
         if (!Array.isArray(raw) || raw.length < 1 || raw.length > 5) throw new Error("actions must list 1 to 5 actions");
         const actions = raw.map((a) => parseAction(a));
         return { result: whatIf(s, actions, cmd.weeks) };
+      }
+      case "book": {
+        const s = this.timeline(cmd.timeline).state;
+        if (!isIndex(cmd.venue, s.nVenues) || s.venueExpires[cmd.venue] >= 0) throw new Error(`unknown venue ${String(cmd.venue)}`);
+        if (!(BOOKING_WEEKS as readonly number[]).includes(cmd.weeks)) throw new Error(`weeks must be one of ${BOOKING_WEEKS.join(", ")}`);
+        const raw: unknown = cmd.acts;
+        if (!Array.isArray(raw) || raw.length < 1 || raw.length > MAX_BOOKING_ACTS) throw new Error(`acts must list 1 to ${MAX_BOOKING_ACTS} acts`);
+        const { reachKm, capacity, nearbyKm } = SCOUT_DEFAULTS;
+        const acts: BookingAct[] = raw.map((a) => {
+          const action = parseAction({ type: "scheduleEvent", cell: s.venueCell[cmd.venue], duration: cmd.weeks, reachKm, capacity, ...(a as object) });
+          if (action.type !== "scheduleEvent") throw new Error("bad act");
+          const error = validateAction(s, action);
+          if (error) throw new Error(error);
+          return { entity: action.entity, profile: action.profile };
+        });
+        return { results: bookActs(s, cmd.venue, acts, { weeks: cmd.weeks, runs: BOOKING_RUNS, reachKm, capacity, nearbyKm }), baselineTick: s.tick };
       }
       case "resident": {
         const s = this.timeline(cmd.timeline).state;

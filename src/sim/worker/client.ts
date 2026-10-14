@@ -111,6 +111,11 @@ export class SimClient {
     return this.request<"scout">({ type: "scout", timeline, entity, cells, weeks });
   }
 
+  /** Book for my venue: `acts` ({ entity, profile? }) compared at `venue` for `weeks`. */
+  book(timeline: string, venue: number, acts: unknown[], weeks: number) {
+    return this.request<"book">({ type: "book", timeline, venue, acts, weeks });
+  }
+
   /** A typical member of `scene` (skipping the `skip` most typical), or null. */
   resident(timeline: string, scene: number, skip?: number) {
     return this.request<"resident">({ type: "resident", timeline, scene, skip });

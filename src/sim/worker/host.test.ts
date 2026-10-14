@@ -93,6 +93,22 @@ describe("SimHost", () => {
     expect(send(host, { type: "whatIf", timeline: "main", actions: [{ type: "closeVenue", venue: 0 }], weeks: 27 }).ok).toBe(false);
   });
 
+  it("compares acts at a venue and validates the request", () => {
+    const host = new SimHost();
+    send(host, { type: "init", world: makeTinyWorld(), seed: 1, config });
+    send(host, { type: "run", timeline: "main", ticks: 1 });
+    const r = ok(send(host, { type: "book", timeline: "main", venue: 0, acts: [{ entity: 5 }, { entity: 6, profile: [{ entity: 7, weight: 1 }] }], weeks: 1 })) as unknown as {
+      results: { act: number }[];
+      baselineTick: number;
+    };
+    expect(r.results.map((x) => x.act).sort()).toEqual([0, 1]);
+    expect(r.baselineTick).toBe(1);
+    expect(send(host, { type: "book", timeline: "main", venue: 0, acts: [{ entity: 5 }], weeks: 3 }).ok).toBe(false);
+    expect(send(host, { type: "book", timeline: "main", venue: 999, acts: [{ entity: 5 }], weeks: 1 }).ok).toBe(false);
+    expect(send(host, { type: "book", timeline: "main", venue: 0, acts: [], weeks: 1 }).ok).toBe(false);
+    expect(send(host, { type: "book", timeline: "main", venue: 0, acts: [{ entity: 99999 }], weeks: 1 }).ok).toBe(false);
+  });
+
   it("profiles a typical resident of a scene", () => {
     const host = new SimHost();
     send(host, { type: "init", world: makeTinyWorld(), seed: 1, config: { ...config, sceneEvery: 1 } });

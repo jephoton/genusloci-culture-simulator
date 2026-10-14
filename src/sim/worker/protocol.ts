@@ -3,6 +3,7 @@ import type { SimConfig } from "@/sim/config";
 import type { SimDigest } from "@/sim/digest";
 import type { Frame } from "@/sim/frame";
 import type { ScoutResult } from "@/sim/scout";
+import type { BookingResult } from "@/sim/booking";
 import type { ResidentProfile } from "@/sim/resident";
 import type { WhatIfResult } from "@/sim/whatif";
 
@@ -23,6 +24,10 @@ export const MAX_SCOUT_WEEKS = 12;
  */
 export const SCOUT_DEFAULTS = { weeks: 4, duration: 3, reachKm: 1.5, capacity: 3000, nearbyKm: 1 } as const;
 
+/** Book for my venue: acts per comparison, run lengths (weeks) on offer. */
+export const MAX_BOOKING_ACTS = 5;
+export const BOOKING_WEEKS = [1, 2, 4] as const;
+
 export type WorkerCommand =
   | { type: "init"; world: unknown; seed: number; config?: Partial<SimConfig> }
   | { type: "act"; timeline: string; action: unknown }
@@ -39,7 +44,9 @@ export type WorkerCommand =
   /** Compares `actions` on a fork against a no-action baseline fork; the timeline is untouched. */
   | { type: "whatIf"; timeline: string; actions: unknown[]; weeks: number }
   /** A typical member of a scene (the `skip`-th closest to its centre), for interviews. */
-  | { type: "resident"; timeline: string; scene: number; skip?: number };
+  | { type: "resident"; timeline: string; scene: number; skip?: number }
+  /** Compares acts as events at a host venue against a no-event baseline; the timeline is untouched. */
+  | { type: "book"; timeline: string; venue: number; acts: unknown[]; weeks: number };
 
 export type WorkerRequest = WorkerCommand & { id: number };
 
@@ -58,6 +65,7 @@ export type CommandResults = {
   scout: { results: ScoutResult[]; baselineTick: number };
   whatIf: { result: WhatIfResult };
   resident: { profile: ResidentProfile | null };
+  book: { results: BookingResult[]; baselineTick: number };
 };
 
 export type CommandResult = CommandResults[keyof CommandResults];
