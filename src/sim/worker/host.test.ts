@@ -93,6 +93,17 @@ describe("SimHost", () => {
     expect(send(host, { type: "whatIf", timeline: "main", actions: [{ type: "closeVenue", venue: 0 }], weeks: 27 }).ok).toBe(false);
   });
 
+  it("profiles a typical resident of a scene", () => {
+    const host = new SimHost();
+    send(host, { type: "init", world: makeTinyWorld(), seed: 1, config: { ...config, sceneEvery: 1 } });
+    send(host, { type: "run", timeline: "main", ticks: 2 });
+    const scene = (ok(send(host, { type: "digest", timeline: "main" })).digest as unknown as { scenes: { id: number }[] }).scenes[0].id;
+    const r = ok(send(host, { type: "resident", timeline: "main", scene })) as unknown as { profile: { scene: number; genes: unknown[] } };
+    expect(r.profile.scene).toBe(scene);
+    expect(r.profile.genes.length).toBeGreaterThan(0);
+    expect((ok(send(host, { type: "resident", timeline: "main", scene: 9999 })) as unknown as { profile: null }).profile).toBeNull();
+  });
+
   it("rejects invalid demand and scout requests", () => {
     const host = new SimHost();
     send(host, { type: "init", world: makeTinyWorld(), seed: 1, config });

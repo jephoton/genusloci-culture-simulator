@@ -111,6 +111,11 @@ export class SimClient {
     return this.request<"scout">({ type: "scout", timeline, entity, cells, weeks });
   }
 
+  /** A typical member of `scene` (skipping the `skip` most typical), or null. */
+  resident(timeline: string, scene: number, skip?: number) {
+    return this.request<"resident">({ type: "resident", timeline, scene, skip });
+  }
+
   /** "What happens if…": `actions` on a fork versus a no-action baseline, `weeks` ahead. */
   whatIf(timeline: string, actions: unknown[], weeks: number) {
     return this.request<"whatIf">({ type: "whatIf", timeline, actions, weeks });

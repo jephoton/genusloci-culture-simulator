@@ -33,6 +33,8 @@ export type Simulation = {
   scout(entity: number, cells: number[]): Promise<CommandResults["scout"]>;
   /** "What happens if…" on forked futures (live city untouched). Rejects on failure. */
   whatIf(actions: Action[], weeks: number): Promise<CommandResults["whatIf"]>;
+  /** A typical member of a scene, for interviews (`skip` meets someone else). Rejects on failure. */
+  resident(scene: number, skip?: number): Promise<CommandResults["resident"]>;
   /** The live city's digest right now (frames carry one only every few ticks). Rejects on failure. */
   latestDigest(): Promise<SimDigest>;
   dismissError(): void;
@@ -195,6 +197,11 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
     return client ? client.whatIf(MAIN_TIMELINE, actions, weeks) : Promise.reject(new Error("the simulation isn't running"));
   }, []);
 
+  const resident = useCallback((scene: number, skip?: number) => {
+    const client = clientRef.current;
+    return client ? client.resident(MAIN_TIMELINE, scene, skip) : Promise.reject(new Error("the simulation isn't running"));
+  }, []);
+
   const latestDigest = useCallback(async () => {
     const client = clientRef.current;
     if (!client) throw new Error("the simulation isn't running");
@@ -206,6 +213,6 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
   const dismissError = useCallback(() => setError(null), []);
 
   return {
-    status, error, playing, speed, frame, digest, frames, play, pause, setSpeed, act, rewind, demand, scout, whatIf, latestDigest, dismissError,
+    status, error, playing, speed, frame, digest, frames, play, pause, setSpeed, act, rewind, demand, scout, whatIf, resident, latestDigest, dismissError,
   };
 }

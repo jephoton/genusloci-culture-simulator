@@ -5,6 +5,7 @@ import { digest } from "@/sim/digest";
 import { buildFrame } from "@/sim/frame";
 import { demandByCell, pickCandidates, scoutCandidates } from "@/sim/scout";
 import { MAX_WHATIF_WEEKS, whatIf } from "@/sim/whatif";
+import { residentProfile, typicalResident } from "@/sim/resident";
 import type { SimState } from "@/sim/state";
 import { Timeline } from "@/sim/timeline";
 import {
@@ -210,6 +211,13 @@ export class SimHost {
         if (!Array.isArray(raw) || raw.length < 1 || raw.length > 5) throw new Error("actions must list 1 to 5 actions");
         const actions = raw.map((a) => parseAction(a));
         return { result: whatIf(s, actions, cmd.weeks) };
+      }
+      case "resident": {
+        const s = this.timeline(cmd.timeline).state;
+        const skip = cmd.skip ?? 0;
+        if (!Number.isInteger(cmd.scene) || !Number.isInteger(skip) || skip < 0 || skip > 1000) throw new Error("bad resident request");
+        const agent = typicalResident(s, cmd.scene, skip);
+        return { profile: agent === null ? null : residentProfile(s, agent) };
       }
       default:
         throw new Error(`unknown command "${String((cmd as { type?: unknown }).type)}"`);
