@@ -194,6 +194,8 @@ function Game({
   useEffect(() => {
     sceneNamesRef.current = sceneNames;
   }, [sceneNames]);
+  /** A scene's display name: its field-guide name once named, else "Scene N". Changes identity when names arrive. */
+  const sceneTitle = useCallback((id: number) => sceneNames.get(id)?.name ?? `Scene ${id}`, [sceneNames]);
 
   const [interview, setInterview] = useState<{ scene: number; skip: number; persona: Persona } | null>(null);
   const resident = sim.resident;
@@ -433,21 +435,21 @@ function Game({
             announce(`${view.name} is playing tonight`, view.position);
           } else {
             const scene = homeScene(frame, frame.venueCell[c.slot]);
-            announce(scene >= 0 ? `${view.name} opened (demand from Scene ${scene})` : `${view.name} opened`, view.position);
+            announce(scene >= 0 ? `${view.name} opened (demand from ${sceneTitle(scene)})` : `${view.name} opened`, view.position);
           }
         } else if (c.kind === "venueStruggling") {
           const view = views[c.slot];
           if (view) announce(`${view.name} is struggling: few visitors`, view.position);
         } else if (c.kind === "sceneBorn") {
           const anchor = sceneAnchor(frame, layout, c.scene) ?? undefined;
-          announce(c.parent === null ? `A new scene formed: Scene ${c.scene}` : `Scene ${c.scene} split off from Scene ${c.parent}`, anchor);
+          announce(c.parent === null ? `A new scene formed: ${sceneTitle(c.scene)}` : `A scene split off from ${sceneTitle(c.parent)}`, anchor);
         } else if (c.kind === "sceneEnded") {
-          if (c.into === null) announce(`Scene ${c.scene} faded away`);
-          else announce(`Scene ${c.scene} merged into Scene ${c.into}`, sceneAnchor(frame, layout, c.into) ?? undefined);
+          if (c.into === null) announce(`${sceneTitle(c.scene)} faded away`);
+          else announce(`${sceneTitle(c.scene)} merged into ${sceneTitle(c.into)}`, sceneAnchor(frame, layout, c.into) ?? undefined);
         }
       }
     },
-    [announce, layout, world],
+    [announce, layout, world, sceneTitle],
   );
 
   const onGroundClick = useCallback(
@@ -571,7 +573,7 @@ function Game({
         />
       ) : (
         <>
-          <Toolbar world={world} digest={sim.digest} tool={tool} onTool={onTool} />
+          <Toolbar world={world} digest={sim.digest} tool={tool} onTool={onTool} sceneTitle={sceneTitle} />
           <button
             type="button"
             onClick={() => setCopilotOpen(true)}
@@ -597,6 +599,7 @@ function Game({
             onBook={onBook}
             onCancel={() => exitScout(true)}
             onRetry={retryScout}
+            sceneTitle={sceneTitle}
           />
         ) : (
           <>

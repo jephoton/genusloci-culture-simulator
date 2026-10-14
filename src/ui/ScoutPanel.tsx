@@ -35,8 +35,10 @@ function Metric({ label, value, unit, share, tone }: { label: string; value: num
  * highlights its pin on the map.
  */
 export function ScoutPanel({
-  headliner, weeks, spots, results, loading, error, stale, frame, onHover, onBook, onCancel, onRetry,
+  headliner, weeks, spots, results, loading, error, stale, frame, onHover, onBook, onCancel, onRetry, sceneTitle = (id) => `Scene ${id}`,
 }: {
+  /** A scene's display name (its field-guide name once named). */
+  sceneTitle?: (id: number) => string;
   headliner: string;
   weeks: number;
   /** The spots being compared, in pin order (A, B, C, then the player's D). */
@@ -168,7 +170,7 @@ export function ScoutPanel({
                       {shown.map((id) => (
                         <span key={id} className="flex items-center gap-1 text-zinc-300">
                           <span aria-hidden className="size-2 rounded-full" style={{ background: css(sceneRgb(hues, id)) }} />
-                          {id < hues.length ? `Scene ${id}` : "New scene"}
+                          {id < hues.length ? sceneTitle(id) : "New scene"}
                         </span>
                       ))}
                       {r.scenes.length > shown.length && <span className="text-zinc-500">+{r.scenes.length - shown.length}</span>}

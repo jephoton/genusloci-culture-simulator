@@ -57,7 +57,9 @@ function Choice({ active, label, disabled, title, onClick }: { active: boolean; 
 type Group = { title: string; artists: { i: number; name: string }[] };
 
 /** Headliners grouped by the living scene they define (largest first); everyone else last. */
-function headlinerGroups(world: World, digest: SimDigest | null): Group[] {
+export const defaultSceneTitle = (id: number) => `Scene ${id}`;
+
+function headlinerGroups(world: World, digest: SimDigest | null, sceneTitle: (id: number) => string): Group[] {
   const groups: Group[] = [];
   const used = new Set<number>();
   for (const scene of digest?.scenes ?? []) {
@@ -66,7 +68,7 @@ function headlinerGroups(world: World, digest: SimDigest | null): Group[] {
       .map((e) => ({ i: e.index, name: e.name }));
     if (artists.length === 0) continue;
     for (const a of artists) used.add(a.i);
-    groups.push({ title: `Loved by Scene ${scene.id}`, artists });
+    groups.push({ title: `Loved by ${sceneTitle(scene.id)}`, artists });
   }
   const rest = world.entities.flatMap((e, i) => (e.type === "artist" && !used.has(i) ? [{ i, name: e.name }] : []));
   if (rest.length > 0) groups.push({ title: groups.length > 0 ? "Other headliners" : "Headliners", artists: rest });
@@ -108,15 +110,17 @@ function HeadlinerPicker({ groups, selected, onPick }: { groups: Group[]; select
 }
 
 export function Toolbar({
-  world, digest, tool, onTool,
+  world, digest, tool, onTool, sceneTitle = defaultSceneTitle,
 }: {
   world: World;
+  /** A scene's display name (its field-guide name once named). */
+  sceneTitle?: (id: number) => string;
   digest: SimDigest | null;
   tool: Tool;
   onTool: (tool: Tool) => void;
 }) {
   const kindsHere = useMemo(() => new Set(world.entities.flatMap((e) => (e.type === "place" ? [e.kind ?? "other"] : []))), [world]);
-  const groups = useMemo(() => headlinerGroups(world, digest), [world, digest]);
+  const groups = useMemo(() => headlinerGroups(world, digest, sceneTitle), [world, digest, sceneTitle]);
 
   let step: string | null = null;
   if (tool.kind === "open") {
