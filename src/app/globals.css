@@ -18,3 +18,9 @@ body {
   background: #07080b;
   color: #e4e4e7;
 }
+
+/* Keyboard focus is always visible (mouse clicks don't show it). */
+:where(button, a, input, select, [tabindex]):focus-visible {
+  outline: 2px solid rgb(196 181 253 / 0.9);
+  outline-offset: 2px;
+}
