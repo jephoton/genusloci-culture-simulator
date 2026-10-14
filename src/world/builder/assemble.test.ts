@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { QEntity } from "@/qloo/schemas";
-import { applySeedHeatmaps, assembleWorld, attachHeatmaps, type CityBundle, sphericalKMeans, tagLabel } from "@/world/builder/assemble";
+import { applySeedHeatmaps, areaNames, assembleWorld, attachHeatmaps, type CityBundle, sphericalKMeans, tagLabel } from "@/world/builder/assemble";
 import { fromLocalMetres } from "@/world/projection";
 import { parseWorld, type Geo } from "@/world/schema";
 
@@ -193,5 +193,18 @@ describe("tagLabel", () => {
     expect(tagLabel({ id: "urn:tag:age_range:qloo:25_29", name: "25 29" })).toBe("Ages 25–29");
     expect(tagLabel({ id: "urn:tag:age_range:qloo:55", name: "55+" })).toBe("Ages 55+");
     expect(tagLabel({ id: "urn:tag:ambience:qloo:lively", name: " lively" })).toBe("Lively");
+  });
+});
+
+describe("areaNames", () => {
+  it("votes by closeness and prefers specific names over catch-alls", () => {
+    const venues = [
+      ...Array.from({ length: 6 }, () => ({ x: 0, y: 0, area: "Borough" })),
+      { x: 50, y: 0, area: "Soho" },
+      { x: 60, y: 0, area: "Soho" },
+      { x: 2000, y: 0, area: "Far" },
+      { x: 0, y: 10 },
+    ];
+    expect(areaNames([[40, 0], [2000, 50], [900, 900]], venues)).toEqual(["Soho", "Far", undefined]);
   });
 });

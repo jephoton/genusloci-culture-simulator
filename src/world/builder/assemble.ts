@@ -287,6 +287,7 @@ export function assembleWorld(bundle: CityBundle, options: Partial<AssembleOptio
       ...(i < placed.length ? { cell: v.cell } : {}),
       capacity: Math.max(1, Math.round(capWeight(v) * capScale * 10) / 10),
       kind: v.kind,
+      ...(v.entity.place?.neighborhood ? { area: v.entity.place.neighborhood } : {}),
     });
   });
   for (const [id, d] of placeTags) add({ id, name: d.name, type: "tag", tags: [], popularity: d.n / nV });
@@ -435,6 +436,8 @@ export function assembleWorld(bundle: CityBundle, options: Partial<AssembleOptio
   }
   if (archetypes.length === 0) throw new Error("assembleWorld: no archetypes (venues had no taste data)");
 
+  const cellAreas = areaNames(centres, venues.map((v) => ({ x: v.x, y: v.y, area: v.entity.place?.neighborhood })));
+
   // Cells: archetype mix from a Gaussian kernel over each archetype's venues.
   const twoSigma2 = 2 * o.kernelM ** 2;
   const cells: World["cells"] = centres.map(([x, y], ci) => {
@@ -454,6 +457,7 @@ export function assembleWorld(bundle: CityBundle, options: Partial<AssembleOptio
       lat,
       lon,
       density: density[ci],
+      ...(cellAreas[ci] ? { area: cellAreas[ci] } : {}),
       archetypes: mix.map((weight, archetype) => ({ archetype, weight })),
     };
   });
@@ -472,6 +476,33 @@ export function assembleWorld(bundle: CityBundle, options: Partial<AssembleOptio
     },
     heatmapPlan,
   };
+}
+
+/**
+ * A neighbourhood name per cell: a vote of venues within `radiusM`, weighted by closeness, where
+ * catch-all names (on more than a quarter of venues, e.g. a borough) count for less than specific ones.
+ */
+export function areaNames(
+  centres: [number, number][],
+  venues: { x: number; y: number; area?: string }[],
+  radiusM = 400,
+): (string | undefined)[] {
+  const named = venues.filter((v): v is { x: number; y: number; area: string } => Boolean(v.area));
+  const freq = new Map<string, number>();
+  for (const v of named) freq.set(v.area, (freq.get(v.area) ?? 0) + 1);
+  return centres.map(([x, y]) => {
+    const votes = new Map<string, number>();
+    for (const v of named) {
+      const d = Math.hypot(v.x - x, v.y - y);
+      if (d > radiusM) continue;
+      const generic = (freq.get(v.area) ?? 0) > named.length / 4 ? 0.3 : 1;
+      votes.set(v.area, (votes.get(v.area) ?? 0) + generic / (d + 50));
+    }
+    let best: string | undefined;
+    let bestVote = 0;
+    for (const [a, w] of votes) if (w > bestVote || (w === bestVote && best !== undefined && a < best)) [best, bestVote] = [a, w];
+    return best;
+  });
 }
 
 /** Seed heatmap rank exponent: higher concentrates a scene's residents where Qloo's signal is strongest. */

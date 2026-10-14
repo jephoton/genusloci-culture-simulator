@@ -25,6 +25,8 @@ export const EntitySchema = z.object({
   capacity: z.number().positive().optional(),
   /** Landmark style for venues. */
   kind: z.enum(VENUE_KINDS).optional(),
+  /** Neighbourhood name for venues (from Qloo), e.g. "Soho". */
+  area: z.string().optional(),
 });
 
 export const EdgeSchema = z.object({
@@ -41,6 +43,8 @@ export const CellSchema = z.object({
   /** Relative population density; drives agent placement. */
   density: z.number().nonnegative(),
   archetypes: z.array(z.object({ archetype: index, weight: z.number().nonnegative() })),
+  /** Neighbourhood name, from the venues around the cell (real worlds only). */
+  area: z.string().optional(),
 });
 
 export const ArchetypeSchema = z.object({
