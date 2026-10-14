@@ -67,18 +67,23 @@ Every week, residents go out to a venue that suits their taste. There they're ex
 *(today)* marks what works now.
 
 0. **Setup:** load the demo city (London, or NYC for US judges), paused at week 0, with the default camera.
-1. **Hook (20 s):** "This is London tonight. Every dot is a resident with real taste from Qloo; every lit landmark is a real venue." Press **Play** at ½ wk/s. Crowds stream out along real streets, gather at venues and walk home. *(today)*
-2. **Scenes emerge (30 s):** "Nobody told it what scenes exist. They emerge." Hover a row in the **Scenes** panel to highlight a scene's people and venues, then click to fly there. *(today, with placeholder names)*
+1. **Hook (20 s):** "This is London tonight. Every dot is a resident with real taste from Qloo; every lit landmark is a real venue." Press **Play** at 1 day/s (½ if the room needs it to be slower). Crowds stream out along real streets, gather at venues and walk home. *(today)*
+2. **Scenes emerge (30 s):** "Nobody told it what scenes exist. They emerge." Hover a row in the **Scenes** panel to highlight a scene's people and venues, then click to fly there. *(today; scenes get plain names a few seconds after they form)*
 3. **The proof (15 s):** point at **Fidelity** in the HUD. Residents were seeded from one set of Qloo heatmaps; fidelity checks them against *different* Qloo heatmaps, and it rises as the city runs (London about 0.17 → 0.20 over a year, Singapore 0.04 → 0.12). Be honest that it's modest: it's a real, falsifiable check, which is the point. *(today)*
 4. **The shock (40 s):** select the venue at the heart of the biggest scene, then **Close venue**. You see the implosion and the regulars scattering. Play a few weeks: toasts report the scene splitting or fading, and a venue auto-opening in the gap. *(today)*
-5. **The what-if (40 s):** rewind with the timeline slider, which is exact. Instead, **Open a venue** nearby: pick a kind, watch the ghost preview, place it. The scene survives. "Two futures, one decision apart." *(today; side-by-side compare comes in M7)*
+5. **The what-if (40 s):** rewind with the timeline slider, which is exact. Instead, **Open a venue** nearby: pick a kind, watch the ghost preview, place it. The scene survives. "Two futures, one decision apart." *(today)*
 6. **The promoter (40 s):** "You're a promoter. Where should this headliner play?" Open **Scout a location** and pick the headliner.
    - The city pauses, an amber demand glow shows where their fans live, and pins A–C appear.
    - The tool simulates 4 weeks at each spot and ranks them on turnout, new fans, scenes reached and harm to neighbours.
    - Drop your own pin D to compare, then **Book it**: shockwave, beacon, and the crowd converges. *(today)*
 7. **The co-pilot (30 s):** open **Ask the co-pilot** and pick *"What happens if the busiest club closes?"*. It reads the city, ranks the clubs, runs an 8-week what-if against a no-change baseline (repeated 4 times with different random seeds), and answers with real venue names, visit shifts with ranges and scene sizes, separating clear effects from ones too small to call. Then ask it to *"close it in the live city"* to watch it act. *(today)*
 8. **Meet a resident (20 s):** click **Talk** on a scene in the legend and ask *"What's a good night out for you?"*. The resident answers in character from their real simulated tastes. *(today)*
-8. **Close (10 s):** "Agents with taste. Genus Loci: every city's culture is a living species."
+9. **Close (10 s):** "Agents with taste. Genus Loci: every city's culture is a living species."
+
+**Rehearsed on the live site (2026-10-14):**
+- Steps 1–3 and 6–8 ran end to end on production in London: scenes formed and were named; Scout ranked Westminster, Saint Giles and Lambeth and booked Ghetts; the co-pilot answered in 4 tool calls with ranges and clear-versus-noise effects; Sam from Lambeth gave an in-character interview.
+- Steps 4–5 (map clicks: select, close, rewind, open with the ghost) weren't re-run this time because the browser pane was hidden (a hidden tab doesn't render). They were verified in M5.
+- On the day: keep the tab visible and focused. Background tabs pause the 3D rendering, though the simulation keeps running.
 
 **Fallbacks:**
 - **If Qloo is slow:** prebuilt cities load from cached files.
