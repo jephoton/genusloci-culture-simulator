@@ -13,7 +13,8 @@
     "calibrate": "tsx scripts/calibrate.ts",
     "build:geo": "tsx scripts/build-geo.ts",
     "qloo:smoke": "tsx scripts/qloo-smoke.ts",
-    "build:world": "tsx scripts/build-world.ts"
+    "build:world": "tsx scripts/build-world.ts",
+    "upload:worlds": "tsx scripts/upload-worlds.ts"
   },
   "dependencies": {
     "@ai-sdk/deepseek": "3.0.56",
@@ -24,6 +25,7 @@
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.1",
     "@react-three/postprocessing": "^3.1.3",
+    "@vercel/blob": "2.8.0",
     "ai": "7.0.122",
     "next": "16.4.0",
     "postprocessing": "^6.39.5",
