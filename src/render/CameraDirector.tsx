@@ -1,8 +1,9 @@
 "use client";
 
 import { useFrame, useThree } from "@react-three/fiber";
-import { type RefObject, useEffect, useRef } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 import type * as THREE from "three";
+import { prefersReducedMotion } from "@/render/motion";
 
 /** A camera flight request: look at (x, 0, z). `at` (performance.now ms) identifies the request. */
 export type FlyTo = { x: number; z: number; at: number };
@@ -24,6 +25,7 @@ export function CameraDirector({ flyTo }: { flyTo: RefObject<FlyTo | null> }) {
   const controls = useThree((s) => s.controls) as Controls | null;
   const camera = useThree((s) => s.camera);
   const flight = useRef<Flight | null>(null);
+  const [reduced] = useState(prefersReducedMotion);
   /** The last request handled (started or cancelled), so each is flown once. */
   const handled = useRef(-1);
 
@@ -55,7 +57,8 @@ export function CameraDirector({ flyTo }: { flyTo: RefObject<FlyTo | null> }) {
     }
     const f = flight.current;
     if (!f) return;
-    const k = Math.min(1, (performance.now() - f.at) / FLY_MS);
+    // Reduced motion jumps straight there.
+    const k = reduced ? 1 : Math.min(1, (performance.now() - f.at) / FLY_MS);
     const e = ease(k);
     const x = f.fromX + f.dx * e;
     const z = f.fromZ + f.dz * e;

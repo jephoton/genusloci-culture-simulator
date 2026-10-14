@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { sceneAnchor } from "@/render/anchors";
 import { diffFrames, type FrameChange } from "@/render/effects/diff";
 import { EffectsDirector, type Origin } from "@/render/effects/director";
+import { prefersReducedMotion } from "@/render/motion";
 import type { ShockwaveEffect } from "@/render/effects/ShockwaveEffect";
 import type { FrameStore } from "@/render/frame-store";
 import type { CityLayout } from "@/render/layout";
@@ -36,7 +37,7 @@ export function Effects({
   /** Who caused a change. Called for each change before `onChanges` sees it. */
   classify?: (change: FrameChange, frame: Frame) => Origin;
 }) {
-  const director = useMemo(() => new EffectsDirector(), []);
+  const director = useMemo(() => new EffectsDirector(prefersReducedMotion()), []);
   const lastFrame = useRef<Frame | null>(null);
   const onChangesRef = useRef(onChanges);
   const classifyRef = useRef(classify);

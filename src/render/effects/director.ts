@@ -37,6 +37,9 @@ export class EffectsDirector {
   private shakeDuration = 0;
   private shakeAmp = 0;
 
+  /** With `reducedMotion`, there are no screen-space waves or shakes; ground ripples remain. */
+  constructor(private readonly reducedMotion = false) {}
+
   /**
    * Player openings and events get the full wave and shake; automatic openings a small wave and ripple
    * and no shake; closures always implode but only shake when the player did it.
@@ -97,11 +100,13 @@ export class EffectsDirector {
   }
 
   private addWave(w: Wave): void {
+    if (this.reducedMotion) return;
     this.waves.unshift(w);
     if (this.waves.length > MAX_WAVES) this.waves.length = MAX_WAVES;
   }
 
   private kick(now: number, amp: number, duration: number): void {
+    if (this.reducedMotion) return;
     const remaining = this.shake(now);
     if (Math.hypot(remaining[0], remaining[1]) > amp) return;
     this.shakeStart = now;

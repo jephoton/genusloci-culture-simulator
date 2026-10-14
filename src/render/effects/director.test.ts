@@ -21,6 +21,14 @@ describe("EffectsDirector", () => {
     expect(Math.abs(sx) + Math.abs(sy)).toBeGreaterThan(0);
   });
 
+  it("skips waves and shakes, but keeps ripples, with reduced motion", () => {
+    const d = new EffectsDirector(true);
+    d.ingest([{ kind: "venueOpened", slot: 2 }], 1000, anchors);
+    expect(d.waves).toHaveLength(0);
+    expect(d.ripples).toHaveLength(1);
+    expect(d.shake(1050)).toEqual([0, 0]);
+  });
+
   it("implodes on closure (negative strength) and ripples for scene births", () => {
     const d = new EffectsDirector();
     d.ingest([{ kind: "venueClosed", slot: 1 }, { kind: "sceneBorn", scene: 3, parent: null }], 0, anchors);
