@@ -9,6 +9,7 @@ import type { SimDigest } from "@/sim/digest";
 import type { Frame } from "@/sim/frame";
 import { SimClient } from "@/sim/worker/client";
 import { type CommandResults, MAIN_TIMELINE } from "@/sim/worker/protocol";
+import { recordSizes, type SceneHistory } from "@/ui/scene-history";
 import type { World } from "@/world/schema";
 
 export type SimStatus = "loading" | "ready" | "error";
@@ -21,6 +22,8 @@ export type Simulation = {
   frame: Frame | null;
   digest: SimDigest | null;
   frames: RefObject<FrameStore>;
+  /** Scene sizes over the digests seen so far (for sparklines). */
+  sceneHistory: SceneHistory;
   play(): void;
   pause(): void;
   setSpeed(ticksPerSecond: number): void;
@@ -54,7 +57,13 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
   const playingRef = useRef(false);
   const speedRef = useRef(DEFAULT_SPEED);
   const [frame, setFrame] = useState<Frame | null>(null);
-  const [digest, setDigest] = useState<SimDigest | null>(null);
+  const [digest, setDigestState] = useState<SimDigest | null>(null);
+  const [sceneHistory, setSceneHistory] = useState<SceneHistory>(() => new Map());
+  /** Every digest also extends the scene-size history (rewinds trim it). */
+  const setDigest = useCallback((d: SimDigest) => {
+    setDigestState(d);
+    setSceneHistory((h) => recordSizes(h, d));
+  }, []);
   const [status, setStatus] = useState<SimStatus>("loading");
   const [error, setError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -67,7 +76,7 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
     store.receivedAt = store.clock.now();
     setFrame(f);
     if (f.digest) setDigest(f.digest);
-  }, []);
+  }, [setDigest]);
 
   useEffect(() => {
     const client = SimClient.spawn();
@@ -104,7 +113,7 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
       playingRef.current = false;
       clock.setPlaying(false, performance.now());
     };
-  }, [world, seed, config, accept, clock]);
+  }, [world, seed, config, accept, clock, setDigest]);
 
   const report = useCallback((e: unknown) => setError(message(e)), []);
 
@@ -166,7 +175,7 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
         return false;
       }
     },
-    [refresh, report],
+    [refresh, report, setDigest],
   );
 
   const rewind = useCallback(
@@ -181,7 +190,7 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
         report(e);
       }
     },
-    [refresh, report],
+    [refresh, report, setDigest],
   );
 
   const demand = useCallback((entity: number) => {
@@ -215,11 +224,11 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
     const { digest: d } = await client.digest(MAIN_TIMELINE);
     setDigest(d);
     return d;
-  }, []);
+  }, [setDigest]);
 
   const dismissError = useCallback(() => setError(null), []);
 
   return {
-    status, error, playing, speed, frame, digest, frames, play, pause, setSpeed, act, rewind, demand, scout, whatIf, book, resident, latestDigest, dismissError,
+    status, error, playing, speed, frame, digest, frames, sceneHistory, play, pause, setSpeed, act, rewind, demand, scout, whatIf, book, resident, latestDigest, dismissError,
   };
 }
