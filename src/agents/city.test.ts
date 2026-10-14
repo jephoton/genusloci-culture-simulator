@@ -1,0 +1,84 @@
+import { describe, expect, it } from "vitest";
+import { type CityContext, citySummary, describeWhatIf, find, resolveArea, sceneInfo, toSimActions, venueInfo } from "@/agents/city";
+import { DEFAULT_CONFIG } from "@/sim/config";
+import { digest } from "@/sim/digest";
+import { buildFrame } from "@/sim/frame";
+import { initState } from "@/sim/state";
+import { step } from "@/sim/step";
+import { whatIf } from "@/sim/whatif";
+import { makeTinyWorld } from "@/world/fixtures/tiny-world";
+
+// Tiny world with neighbourhood names on a few cells (synthetic data).
+const base = makeTinyWorld();
+const world = { ...base, cells: base.cells.map((c, i) => (i < 4 ? { ...c, area: "Old Town" } : c)) };
+const s = initState(world, { ...DEFAULT_CONFIG, nAgents: 300, agentReserve: 0, sceneEvery: 1 }, 3);
+for (let t = 0; t < 3; t++) step(s);
+const { frame } = buildFrame(s, "main", 0, true, 1);
+const ctx: CityContext = {
+  world,
+  frame,
+  digest: digest(s),
+  layout: {
+    center: { x: 0, z: 0 },
+    bounds: { minX: -100, maxX: 100, minZ: -100, maxZ: 100 },
+    cellX: Float32Array.from(world.cells.map((_, i) => (i % 4) * 50 - 75)),
+    cellZ: Float32Array.from(world.cells.map((_, i) => Math.floor(i / 4) * 50 - 75)),
+  },
+};
+
+describe("city tools", () => {
+  it("summarises the city with named scenes and their homes", () => {
+    const sum = citySummary(ctx);
+    expect(sum.residents).toBe(300);
+    expect(sum.scenes.length).toBeGreaterThan(0);
+    expect(sum.scenes[0].name).toMatch(/^Scene \d+ \(/);
+    expect(sum.scenes[0].homes.length).toBeGreaterThan(0);
+    expect(citySummary({ ...ctx, sceneNames: new Map([[sum.scenes[0].id, "Night Owls"]]) }).scenes[0].name).toBe("Night Owls");
+  });
+
+  it("finds venues, artists and areas by name, best match first", () => {
+    const venueName = world.entities[frame.venueEntity[0]].name;
+    const r = find(ctx, venueName.toLowerCase());
+    expect(r.results[0]).toMatchObject({ kind: "venue", venue: 0, name: venueName });
+    const artist = world.entities.findIndex((e) => e.type === "artist");
+    expect(find(ctx, world.entities[artist].name, "artist").results[0]).toMatchObject({ kind: "artist", id: artist });
+    expect(find(ctx, "old town", "area").results).toEqual([{ kind: "area", name: "Old Town", cells: 4 }]);
+    expect(find(ctx, "zzzz").results).toEqual([]);
+  });
+
+  it("describes a venue and a scene, and explains bad ids", () => {
+    const v = venueInfo(ctx, 0);
+    expect(v).toMatchObject({ venue: 0, open: true, event: false });
+    expect(venueInfo(ctx, 9999)).toHaveProperty("error");
+    const id = ctx.digest!.scenes[0].id;
+    expect(sceneInfo(ctx, id)).toMatchObject({ scene: id, size: ctx.digest!.scenes[0].size });
+    expect(sceneInfo(ctx, 9999)).toHaveProperty("error");
+  });
+
+  it("resolves areas and maps co-pilot actions to simulation actions", () => {
+    expect(resolveArea(ctx, { name: "old town" })).toEqual([0, 1, 2, 3]);
+    expect(resolveArea(ctx, { near_venue: 0 })).toEqual([frame.venueCell[0]]);
+    expect(resolveArea(ctx, { name: "Atlantis" })).toHaveProperty("error");
+    const artist = world.entities.findIndex((e) => e.type === "artist");
+    const sceneId = ctx.digest!.scenes[0].id;
+    const r = toSimActions(ctx, [
+      { do: "close_venue", venue: 0 },
+      { do: "throw_event", artist, area: { name: "Old Town" } },
+      { do: "rent_pressure", area: { name: "Old Town" }, magnitude: 0.5 },
+      { do: "open_venue", kind: "club", area: { near_venue: 1 } },
+      { do: "migrate", count: 50, area: { near_venue: 1 }, like_scene: sceneId },
+    ]);
+    if ("error" in r) throw new Error(r.error);
+    expect(r.actions.map((a) => a.type)).toEqual(["closeVenue", "scheduleEvent", "rentPressure", "openVenue", "migrate"]);
+    expect(r.actions[2]).toMatchObject({ cells: [0, 1, 2, 3], magnitude: 0.5 });
+    expect(toSimActions(ctx, [{ do: "throw_event", artist: frame.venueEntity[0], area: { name: "Old Town" } }])).toHaveProperty("error");
+  });
+
+  it("names a what-if result for the model", () => {
+    const r = describeWhatIf(ctx, whatIf(s, [{ type: "closeVenue", venue: 0 }], 3));
+    expect(r.actionsApplied).toEqual(["ok"]);
+    expect(r.venuesThatCloseOnlyWithChange).toContain(world.entities[frame.venueEntity[0]].name);
+    expect(r.biggestLosers[0].venue).toBe(world.entities[frame.venueEntity[0]].name);
+    expect(r.scenes.every((x) => typeof x.change === "number")).toBe(true);
+  });
+});
