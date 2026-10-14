@@ -29,8 +29,10 @@ export function SceneCard({
   onPin: (scene: number) => void;
   onTalk: (scene: number) => void;
 }) {
-  const artists = info.tastes.filter((t) => t.type === "artist").map((t) => t.name);
-  const tags = info.tastes.filter((t) => t.type !== "artist").map((t) => t.name);
+  // Different Qloo tags can share a name (e.g. "Historic" as decor and as a neighbourhood trait).
+  const unique = (names: string[]) => [...new Set(names)];
+  const artists = unique(info.tastes.filter((t) => t.type === "artist").map((t) => t.name));
+  const tags = unique(info.tastes.filter((t) => t.type !== "artist").map((t) => t.name));
   const first = history[0]?.size;
   const change = first !== undefined ? info.size - first : 0;
   return (
