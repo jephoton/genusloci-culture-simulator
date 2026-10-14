@@ -8,7 +8,7 @@ Thousands of simulated residents carry real tastes: Qloo place tags and the arti
 
 ![London in Genus Loci: residents coloured by scene stream between real venues while the co-pilot explains the city's scenes](docs/images/london.png)
 
-Built for the [Qloo Agentic Hackathon](https://qloo-hackathon.devpost.com/), "Agents, but with taste".
+Built for the [Qloo Agentic Hackathon](https://qloo.devpost.com/), "Agents, but with taste".
 
 ## Who it's for
 
