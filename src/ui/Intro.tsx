@@ -40,7 +40,7 @@ export function Intro({ city, open, onClose }: { city: string; open: boolean; on
         <div className="space-y-1.5">
           <h3 className="text-xs uppercase tracking-wide text-zinc-400">Try this</h3>
           <ol className="list-decimal space-y-1 pl-5">
-            <li>Press <span className="text-zinc-50">Play</span> and watch scenes form in the legend on the right.</li>
+            <li>Press <span className="text-zinc-50">Play</span> and watch scenes form in the Scenes list.</li>
             <li>Open <span className="text-zinc-50">Ask the co-pilot</span>: <em>&ldquo;What happens if the busiest club closes?&rdquo;</em></li>
             <li>Click <span className="text-zinc-50">Talk</span> on a scene to interview one of its residents.</li>
           </ol>

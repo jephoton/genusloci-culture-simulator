@@ -1,9 +1,9 @@
 import type { SimDigest } from "@/sim/digest";
 import { dayLabel } from "@/ui/words";
 
-function Stat({ label, value }: { label: string; value: string | number }) {
+function Stat({ label, value, wide = false }: { label: string; value: string | number; wide?: boolean }) {
   return (
-    <div>
+    <div className={wide ? "hidden sm:block" : undefined}>
       <p className="text-[11px] uppercase tracking-widest text-zinc-400">{label}</p>
       <p className="font-mono text-sm tabular-nums">{value}</p>
     </div>
@@ -25,7 +25,7 @@ export function Hud({
   onCityChange: (slug: string) => void;
 }) {
   return (
-    <header className="panel pointer-events-none absolute left-4 top-4 flex flex-wrap items-center gap-5 px-4 py-2">
+    <header className="panel pointer-events-none absolute left-2 right-2 top-2 flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 sm:left-4 sm:right-auto sm:top-4 sm:gap-5 sm:px-4">
       <div>
         <p className="text-[11px] uppercase tracking-[0.3em] text-violet-300">Genus Loci</p>
         {cities.length > 1 ? (
@@ -46,10 +46,10 @@ export function Hud({
         )}
       </div>
       <Stat label="Date" value={dayLabel(tick, ticksPerWeek)} />
-      <Stat label="Residents" value={digest?.agents ?? "—"} />
-      <Stat label="Venues" value={digest ? `${digest.venues.open} open · ${digest.venues.closed} closed` : "—"} />
-      <Stat label="Events" value={digest?.venues.events ?? "—"} />
-      <Stat label="Scenes" value={digest?.scenes.length ?? "—"} />
+      <Stat wide label="Residents" value={digest?.agents ?? "—"} />
+      <Stat wide label="Venues" value={digest ? `${digest.venues.open} open · ${digest.venues.closed} closed` : "—"} />
+      <Stat wide label="Events" value={digest?.venues.events ?? "—"} />
+      <Stat wide label="Scenes" value={digest?.scenes.length ?? "—"} />
       <Stat label="Fidelity" value={digest ? digest.fidelity.toFixed(2) : "—"} />
     </header>
   );

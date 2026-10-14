@@ -216,6 +216,8 @@ function Game({
   );
 
   const intro = useIntro();
+  /** Phones show one panel at a time, picked from a tab row under the HUD (ignored from the sm breakpoint). */
+  const [mobileTab, setMobileTab] = useState<"tools" | "scenes" | null>(null);
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [copilotDeps] = useState<ToolDeps>(() => ({
     context: (d) => {
@@ -575,18 +577,64 @@ function Game({
         />
       ) : (
         <>
-          <Toolbar world={world} digest={sim.digest} tool={tool} onTool={onTool} sceneTitle={sceneTitle} />
+          <Toolbar
+            world={world}
+            digest={sim.digest}
+            tool={tool}
+            onTool={(t) => {
+              onTool(t);
+              // On phones, get the panel out of the way once there's something to place on the map.
+              if (isPlacing(t)) setMobileTab(null);
+            }}
+            sceneTitle={sceneTitle}
+            mobileOpen={mobileTab === "tools"}
+          />
           <button
             type="button"
             onClick={() => setCopilotOpen(true)}
-            className="panel pointer-events-auto absolute bottom-24 left-4 w-64 px-3 py-2 text-left text-sm hover:bg-white/5"
+            className="panel pointer-events-auto absolute bottom-24 left-4 hidden w-64 px-3 py-2 text-left text-sm hover:bg-white/5 sm:block"
           >
             <span className="block">Ask the co-pilot</span>
             <span className="block text-xs text-zinc-400">“What happens if this club closes?”</span>
           </button>
         </>
       )}
-      <div className={`pointer-events-none absolute right-4 top-24 flex max-h-[calc(100dvh-12rem)] flex-col gap-3 ${scout ? "w-80" : "w-72"}`}>
+      <nav aria-label="Panels" className="pointer-events-auto absolute left-2 right-2 top-[4.6rem] flex gap-2 sm:hidden">
+        {(
+          [
+            ["tools", "Tools"],
+            ["scenes", "Scenes"],
+            ["copilot", "Co-pilot"],
+          ] as const
+        ).map(([key, label]) => {
+          const active = key === "copilot" ? copilotOpen && !interview : mobileTab === key && !copilotOpen && !interview;
+          return (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={active}
+              onClick={() => {
+                setInterview(null);
+                if (key === "copilot") {
+                  setCopilotOpen(!active);
+                  setMobileTab(null);
+                } else {
+                  setCopilotOpen(false);
+                  setMobileTab(active ? null : key);
+                }
+              }}
+              className={`panel flex-1 py-1.5 text-sm ${active ? "bg-violet-500/25 text-violet-100 ring-1 ring-violet-400/50" : "text-zinc-200"}`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </nav>
+      <div
+        className={`pointer-events-none absolute left-2 right-2 top-28 ${
+          scout || selected !== null || (mobileTab === "scenes" && !copilotOpen && !interview) ? "flex" : "hidden"
+        } max-h-[calc(100dvh-13rem)] flex-col gap-3 sm:left-auto sm:right-4 sm:top-24 sm:flex sm:max-h-[calc(100dvh-12rem)] ${scout ? "sm:w-80" : "sm:w-72"}`}
+      >
         {scout ? (
           <ScoutPanel
             headliner={world.entities[scout.entity].name}
@@ -615,7 +663,10 @@ function Game({
             <SceneLegend
               digest={sim.digest}
               names={sceneNames}
-              onTalk={(scene) => talkTo(scene)}
+              onTalk={(scene) => {
+                setMobileTab(null);
+                talkTo(scene);
+              }}
               frame={sim.frame}
               pinned={pinnedLive?.kind === "scene" ? pinnedLive.id : null}
               focused={focus !== null}
@@ -644,7 +695,7 @@ function Game({
         onClick={intro.show}
         aria-label="What is this?"
         title="What is this?"
-        className="panel pointer-events-auto absolute bottom-7 right-2 grid size-7 place-items-center text-sm text-zinc-300 hover:text-zinc-50"
+        className="panel pointer-events-auto absolute bottom-[5.25rem] right-2 grid size-7 place-items-center text-sm text-zinc-300 hover:text-zinc-50 sm:bottom-7"
       >
         ?
       </button>

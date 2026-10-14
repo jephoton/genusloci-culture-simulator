@@ -110,9 +110,11 @@ function HeadlinerPicker({ groups, selected, onPick }: { groups: Group[]; select
 }
 
 export function Toolbar({
-  world, digest, tool, onTool, sceneTitle = defaultSceneTitle,
+  world, digest, tool, onTool, sceneTitle = defaultSceneTitle, mobileOpen = false,
 }: {
   world: World;
+  /** On phones the toolbar is a panel opened from the tab row; always shown from the `sm` breakpoint. */
+  mobileOpen?: boolean;
   /** A scene's display name (its field-guide name once named). */
   sceneTitle?: (id: number) => string;
   digest: SimDigest | null;
@@ -132,7 +134,10 @@ export function Toolbar({
   }
 
   return (
-    <aside aria-label="Tools" className="panel pointer-events-auto absolute left-4 top-24 flex max-h-[calc(100dvh-12rem)] w-64 flex-col gap-2 p-3">
+    <aside
+      aria-label="Tools"
+      className={`panel pointer-events-auto absolute left-2 right-2 top-28 ${mobileOpen ? "flex" : "hidden"} max-h-[calc(100dvh-13rem)] flex-col gap-2 p-3 sm:left-4 sm:right-auto sm:top-24 sm:flex sm:max-h-[calc(100dvh-12rem)] sm:w-64`}
+    >
       <ToolButton active={tool.kind === "select"} label="Select" hint="Click a venue to see how it is doing." onClick={() => onTool({ kind: "select" })} />
       <ToolButton
         active={tool.kind === "open"}

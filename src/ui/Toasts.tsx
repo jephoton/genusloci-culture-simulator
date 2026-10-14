@@ -9,7 +9,7 @@ export function Toasts({ toasts, onSelect }: { toasts: Toast[]; onSelect?: (toas
       role="status"
       aria-live="polite"
       aria-label="Notifications"
-      className="pointer-events-none absolute left-1/2 top-20 flex w-[min(24rem,calc(100%-2rem))] -translate-x-1/2 flex-col items-center gap-2"
+      className="pointer-events-none absolute left-1/2 top-[7.5rem] flex sm:top-20 w-[min(24rem,calc(100%-2rem))] -translate-x-1/2 flex-col items-center gap-2"
     >
       {toasts.map((t) =>
         t.anchor && onSelect ? (

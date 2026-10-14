@@ -33,11 +33,11 @@ export function TimelineBar({
     setScrub(null);
   };
   return (
-    <footer className="panel pointer-events-auto absolute bottom-4 left-1/2 flex w-[min(760px,calc(100%-2rem))] -translate-x-1/2 items-center gap-3 p-3">
+    <footer className="panel pointer-events-auto absolute bottom-5 left-1/2 flex w-[min(760px,calc(100%-1rem))] -translate-x-1/2 items-center gap-2 p-2 sm:bottom-4 sm:w-[min(760px,calc(100%-2rem))] sm:gap-3 sm:p-3">
       <button
         type="button"
         onClick={playing ? onPause : onPlay}
-        className="w-20 rounded-lg bg-violet-500/25 py-2 text-sm font-medium text-violet-100 ring-1 ring-violet-400/40 hover:bg-violet-500/35"
+        className="w-16 shrink-0 rounded-lg bg-violet-500/25 py-2 sm:w-20 text-sm font-medium text-violet-100 ring-1 ring-violet-400/40 hover:bg-violet-500/35"
       >
         {playing ? "Pause" : "Play"}
       </button>
@@ -54,12 +54,12 @@ export function TimelineBar({
             {s.label}
           </button>
         ))}
-        <span className="ml-1 text-[10px] text-zinc-500">{unit === "day" ? "day/s" : "wk/s"}</span>
+        <span className="ml-1 hidden text-[10px] text-zinc-500 sm:inline">{unit === "day" ? "day/s" : "wk/s"}</span>
       </div>
       <input
         type="range"
         aria-label={`Rewind to ${unit}`}
-        className="flex-1 accent-violet-400"
+        className="min-w-0 flex-1 accent-violet-400"
         min={earliest}
         max={Math.max(tick, earliest)}
         value={value}
@@ -67,7 +67,7 @@ export function TimelineBar({
         onPointerUp={commit}
         onKeyUp={commit}
       />
-      <span className="w-28 whitespace-nowrap text-right font-mono text-sm tabular-nums">{dayLabel(value, ticksPerWeek)}</span>
+      <span className="w-[5.5rem] shrink-0 whitespace-nowrap text-right font-mono text-xs tabular-nums sm:w-28 sm:text-sm">{dayLabel(value, ticksPerWeek)}</span>
     </footer>
   );
 }

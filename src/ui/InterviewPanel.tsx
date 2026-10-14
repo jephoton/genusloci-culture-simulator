@@ -31,7 +31,7 @@ export function InterviewPanel({ persona, onAnother, onClose }: { persona: Perso
     send(input);
   };
   return (
-    <aside aria-label={`Interview with ${persona.name}`} className="panel pointer-events-auto absolute bottom-24 left-4 top-24 flex w-80 flex-col">
+    <aside aria-label={`Interview with ${persona.name}`} className="panel pointer-events-auto absolute left-2 right-2 top-28 bottom-[4.75rem] sm:bottom-24 sm:left-4 sm:right-auto sm:top-24 sm:w-80 flex flex-col">
       <header className="space-y-1 border-b border-white/10 px-3 py-2">
         <div className="flex items-start justify-between gap-2">
           <div>

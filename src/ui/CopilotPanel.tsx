@@ -122,7 +122,7 @@ export function CopilotPanel({
     setInput("");
   };
   return (
-    <aside aria-label="Co-pilot" className="panel pointer-events-auto absolute bottom-24 left-4 top-24 flex w-80 flex-col">
+    <aside aria-label="Co-pilot" className="panel pointer-events-auto absolute left-2 right-2 top-28 bottom-[4.75rem] sm:bottom-24 sm:left-4 sm:right-auto sm:top-24 sm:w-80 flex flex-col">
       <header className="flex items-center justify-between border-b border-white/10 px-3 py-2">
         <div>
           <h2 className="text-sm font-medium">Co-pilot</h2>
