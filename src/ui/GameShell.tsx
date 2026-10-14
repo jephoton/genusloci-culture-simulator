@@ -442,7 +442,7 @@ function Game({
     const out = scout.candidates.map((c, i) => spot(c, pinLetter(i), false));
     if (scout.own !== null) out.push(spot(scout.own, OWN_LETTER, true));
     return out;
-  }, [layout, scout]);
+  }, [layout, scout, world]);
   const scoutOverlay = useMemo<ScoutOverlay | null>(
     () =>
       scout && {
