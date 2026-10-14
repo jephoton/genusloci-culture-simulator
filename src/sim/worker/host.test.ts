@@ -83,10 +83,10 @@ describe("SimHost", () => {
     send(host, { type: "init", world: makeTinyWorld(), seed: 1, config });
     send(host, { type: "run", timeline: "main", ticks: 2 });
     const r = ok(send(host, { type: "whatIf", timeline: "main", actions: [{ type: "closeVenue", venue: 0 }], weeks: 2 })) as unknown as {
-      result: { startTick: number; venues: { closedOnlyInScenario: number[] } };
+      result: { startTick: number; venues: { closedOnlyInScenario: { venue: number }[] } };
     };
     expect(r.result.startTick).toBe(2);
-    expect(r.result.venues.closedOnlyInScenario).toContain(0);
+    expect(r.result.venues.closedOnlyInScenario.map((x) => x.venue)).toContain(0);
     expect(ok(send(host, { type: "digest", timeline: "main" })).digest.tick).toBe(2);
     expect(send(host, { type: "whatIf", timeline: "main", actions: [], weeks: 2 }).ok).toBe(false);
     expect(send(host, { type: "whatIf", timeline: "main", actions: [{ type: "nope" }], weeks: 2 }).ok).toBe(false);
