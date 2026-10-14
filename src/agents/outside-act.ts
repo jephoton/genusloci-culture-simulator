@@ -18,6 +18,8 @@ export type OutsideAct = {
 };
 
 const MAX_SIMILAR = 8;
+/** Venue attributes that say nothing about an artist's crowd (ownership, inclusivity, age bands). */
+const NOT_A_TASTE = /^urn:tag:(inclusivity|age_range):/;
 const MAX_TAGS = 8;
 
 /** Matches Qloo's answer about an artist to the world's entities; null if nothing in the city connects. */
@@ -36,7 +38,7 @@ export function matchOutsideAct(world: Pick<World, "entities">, artist: QEntity,
   const tagHits = tags
     .flatMap((t) => {
       const i = index.get(t.id);
-      return i !== undefined && world.entities[i].type === "tag" ? [{ entity: i, name: world.entities[i].name }] : [];
+      return i !== undefined && world.entities[i].type === "tag" && !NOT_A_TASTE.test(t.id) ? [{ entity: i, name: world.entities[i].name }] : [];
     })
     .slice(0, MAX_TAGS);
   if (inCity === null && sim.length === 0 && tagHits.length === 0) return null;
