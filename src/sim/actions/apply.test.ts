@@ -68,6 +68,20 @@ describe("scheduleEvent", () => {
     expect(s.venueOpen[ev]).toBe(0);
   });
 
+  it("uses a given taste profile instead of its entity's edges", () => {
+    const s = fresh();
+    const profile = [{ entity: idx(2, 6), weight: 1 }, { entity: idx(2, 7), weight: 0.5 }];
+    const r = applyAction(s, { ...event, profile }, rng());
+    if (!r.ok || r.venue === undefined) throw new Error("not scheduled");
+    const nE = s.cw.nEntities;
+    const row = Array.from(s.venueProfile.subarray(r.venue * nE, (r.venue + 1) * nE));
+    expect(row[idx(2, 6)]).toBe(1);
+    expect(row[idx(2, 7)]).toBe(0.5);
+    expect(row[idx(0, 5)]).toBe(0); // not the entity's own profile
+    expect(row.filter((x) => x > 0)).toHaveLength(2);
+    expect(validateAction(s, { ...event, profile: [{ entity: 9999, weight: 1 }] })).toMatch(/profile/);
+  });
+
   it("is limited by maxEvents", () => {
     const s = fresh({ maxEvents: 1 });
     expect(applyAction(s, event, rng()).ok).toBe(true);

@@ -20,6 +20,11 @@ export const ActionSchema = z.discriminatedUnion("type", [
     /** Agents whose home is within this distance treat the event as a candidate. */
     reachKm: z.number().positive().max(100),
     capacity: z.number().positive(),
+    /**
+     * Optional taste profile (in-city entities and weights) replacing the entity's own edges, e.g. an
+     * artist the city doesn't know, described by the artists and tags their fans like (from Qloo).
+     */
+    profile: z.array(z.object({ entity: index, weight: z.number().min(0).max(1) })).min(1).max(32).optional(),
   }),
   z.object({
     type: z.literal("migrate"),

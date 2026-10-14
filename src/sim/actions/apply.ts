@@ -26,6 +26,7 @@ export function validateAction(s: SimState, a: Action): string | null {
     case "scheduleEvent":
       if (a.entity >= nE) return `unknown entity ${a.entity}`;
       if (a.cell >= nC) return `unknown cell ${a.cell}`;
+      if (a.profile?.some((g) => g.entity >= nE)) return "unknown entity in scheduleEvent.profile";
       if (!venueRoom) return "no free venue slots";
       return activeEvents(s).length >= s.config.maxEvents ? "too many active events" : null;
     case "migrate": {
@@ -75,6 +76,11 @@ export function applyAction(s: SimState, a: Action, rng: Rng): ActionResult {
     }
     case "scheduleEvent": {
       const venue = addVenue(s, a.entity, a.cell, a.capacity, s.tick + weeksToTicks(a.duration, s.config.ticksPerWeek), a.reachKm);
+      if (a.profile && venue >= 0) {
+        const nE = s.cw.nEntities;
+        s.venueProfile.fill(0, venue * nE, (venue + 1) * nE);
+        for (const g of a.profile) s.venueProfile[venue * nE + g.entity] = Math.max(s.venueProfile[venue * nE + g.entity], g.weight);
+      }
       return { ok: true, venue };
     }
     case "migrate":
