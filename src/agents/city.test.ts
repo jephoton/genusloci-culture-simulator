@@ -97,8 +97,10 @@ describe("city tools", () => {
   it("names a what-if result for the model", () => {
     const r = describeWhatIf(ctx, whatIf(s, [{ type: "closeVenue", venue: 0 }], 3));
     expect(r.actionsApplied).toEqual(["ok"]);
-    expect(r.venuesThatCloseOnlyWithChange).toContain(world.entities[frame.venueEntity[0]].name);
-    expect(r.biggestLosers[0].venue).toBe(world.entities[frame.venueEntity[0]].name);
-    expect(r.scenes.every((x) => typeof x.change === "number")).toBe(true);
+    expect(r.venuesThatCloseOnlyWithChange[0]).toEqual({ venue: world.entities[frame.venueEntity[0]].name, inRuns: `${r.runs} of ${r.runs}` });
+    expect(r.biggestLosers[0]).toMatchObject({ venue: world.entities[frame.venueEntity[0]].name, verdict: "clear" });
+    expect(r.biggestLosers[0].change).toMatch(/^-\d+/);
+    expect(r.scenes.every((x) => x.verdict === "clear" || x.verdict === "too small to call")).toBe(true);
+    expect(r.note).toContain(`${r.runs} times`);
   });
 });

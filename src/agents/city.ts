@@ -5,7 +5,7 @@ import type { Action } from "@/sim/actions/schema";
 import type { SimDigest } from "@/sim/digest";
 import type { Frame } from "@/sim/frame";
 import type { ResidentProfile } from "@/sim/resident";
-import type { WhatIfResult } from "@/sim/whatif";
+import type { Spread, WhatIfResult } from "@/sim/whatif";
 import { SCOUT_DEFAULTS } from "@/sim/worker/protocol";
 import { areaName } from "@/ui/words";
 import type { CityLayout } from "@/render/layout";
@@ -286,20 +286,39 @@ export function personaOf(ctx: CityContext, profile: ResidentProfile): Persona {
 }
 
 /** A what-if result with names, rounded, for the model. */
+/** "−30 (range −38 to −22)", or just "−30" when every run agreed exactly. */
+function changeText(c: Spread): string {
+  const f = (x: number) => (x > 0 ? `+${Math.round(x)}` : `${Math.round(x)}`);
+  return Math.round(c.min) === Math.round(c.max) ? f(c.mean) : `${f(c.mean)} (range ${f(c.min)} to ${f(c.max)})`;
+}
+
+/** Whether a change is clear across runs: every run agrees on its direction. */
+const clear = (c: Spread) => (c.min > 0 || c.max < 0 ? "clear" : "too small to call");
+
+/** A what-if result with names, rounded, for the model. Changes are mean (range) over paired runs. */
 export function describeWhatIf(ctx: CityContext, r: WhatIfResult) {
   const name = (entity: number) => ctx.world.entities[entity]?.name ?? `#${entity}`;
-  const shift = (x: WhatIfResult["winners"][number]) => ({ venue: name(x.entity), withoutChange: Math.round(x.baseline), withChange: Math.round(x.scenario), change: Math.round(x.scenario - x.baseline) });
-  const venueNames = (slots: number[]) => slots.map((v) => (v < ctx.frame.nVenues ? venueName(ctx, v) : `new venue ${v}`));
+  const shift = (x: WhatIfResult["winners"][number]) => ({
+    venue: name(x.entity),
+    withoutChange: Math.round(x.baseline),
+    withChange: Math.round(x.scenario),
+    change: changeText(x.change),
+    verdict: x.consistent ? "clear" : "too small to call",
+  });
+  const venueNames = (rows: { venue: number; runs: number }[]) =>
+    rows.map((row) => ({ venue: row.venue < ctx.frame.nVenues ? venueName(ctx, row.venue) : `new venue ${row.venue}`, inRuns: `${row.runs} of ${r.runs}` }));
   return {
     weeks: r.weeks,
+    runs: r.runs,
     actionsApplied: r.actions.map((a) => (a.ok ? "ok" : a.error)),
     scenes: r.scenes.map((s) => ({
       scene: s.id,
       name: sceneLabel(ctx, s.id),
       now: s.before,
-      withoutChange: s.baseline,
-      withChange: s.scenario,
-      change: s.scenario - s.baseline,
+      withoutChange: Math.round(s.baseline),
+      withChange: Math.round(s.scenario),
+      change: changeText(s.change),
+      verdict: clear(s.change),
     })),
     newScenesWithChange: r.newScenes.scenario.map((s) => ({ size: s.size, tastes: s.topEntities.slice(0, 3).map(name) })),
     newScenesWithoutChange: r.newScenes.baseline.map((s) => ({ size: s.size, tastes: s.topEntities.slice(0, 3).map(name) })),
@@ -307,8 +326,8 @@ export function describeWhatIf(ctx: CityContext, r: WhatIfResult) {
     venuesThatSurviveOnlyWithChange: venueNames(r.venues.closedOnlyInBaseline),
     biggestGainers: r.winners.map(shift),
     biggestLosers: r.losers.map(shift),
-    headlinerFans: r.fans.map((f) => ({ artist: name(f.entity), now: f.before, withoutChange: f.baseline, withChange: f.scenario })),
+    headlinerFans: r.fans.map((f) => ({ artist: name(f.entity), now: f.before, withoutChange: Math.round(f.baseline), withChange: Math.round(f.scenario), change: changeText(f.change), verdict: clear(f.change) })),
     fidelity: { withoutChange: round(r.fidelity.baseline), withChange: round(r.fidelity.scenario) },
-    note: "Visits are totals over the simulated weeks. Changes of a few percent can be noise between runs.",
+    note: `Each comparison was run ${r.runs} times with different random seeds. Changes are the average with the range across runs; "clear" means every run moved the same way, "too small to call" means runs disagreed. Report clear effects confidently and say plainly when an effect is too small to call. Visits are totals over the simulated weeks.`,
   };
 }

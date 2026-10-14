@@ -25,7 +25,7 @@ export function copilotInstructions(city: string): string {
     "How to answer:",
     "- Short and concrete: a sentence of answer, then 2–4 bullet points with numbers from the tools (scene sizes, visits, fans).",
     "- Name venues, artists, scenes and neighbourhoods only as tools returned them.",
-    "- Say plainly when an effect is small (a few percent) or could be noise, and what the simulation can't capture.",
+    "- what_if repeats each comparison with different random seeds and marks every change \"clear\" or \"too small to call\". Lead with clear effects; call the rest noise. Mention ranges when they matter. Say what the simulation can't capture.",
     "- Never mention tool names, ids or JSON to the user.",
   ].join("\n");
 }
