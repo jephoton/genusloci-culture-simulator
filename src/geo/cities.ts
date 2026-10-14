@@ -5,6 +5,8 @@ export const CITIES = {
   london: { slug: "london", name: "London", lat: 51.5072, lon: -0.1276, radiusM: 1500 },
   // Centred between City Hall and the Singapore River: Marina Bay, Clarke Quay, the Civic District, Chinatown's edge.
   singapore: { slug: "singapore", name: "Singapore", lat: 1.2905, lon: 103.8505, radiusM: 1500 },
+  // Houston St at Broadway: the West Village, SoHo, NoHo, the East Village and the Lower East Side.
+  newyork: { slug: "newyork", name: "New York", lat: 40.7246, lon: -73.9969, radiusM: 1500 },
 } satisfies Record<string, CitySpec>;
 
 export type CitySlug = keyof typeof CITIES;
