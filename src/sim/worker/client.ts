@@ -111,6 +111,11 @@ export class SimClient {
     return this.request<"scout">({ type: "scout", timeline, entity, cells, weeks });
   }
 
+  /** "What happens if…": `actions` on a fork versus a no-action baseline, `weeks` ahead. */
+  whatIf(timeline: string, actions: unknown[], weeks: number) {
+    return this.request<"whatIf">({ type: "whatIf", timeline, actions, weeks });
+  }
+
   /** Stops the worker and rejects anything still waiting. */
   terminate(): void {
     this.terminated = true;

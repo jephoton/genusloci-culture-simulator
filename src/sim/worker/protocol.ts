@@ -3,6 +3,7 @@ import type { SimConfig } from "@/sim/config";
 import type { SimDigest } from "@/sim/digest";
 import type { Frame } from "@/sim/frame";
 import type { ScoutResult } from "@/sim/scout";
+import type { WhatIfResult } from "@/sim/whatif";
 
 export const MAIN_TIMELINE = "main";
 export const MAX_TICKS_PER_RUN = 520;
@@ -33,7 +34,9 @@ export type WorkerCommand =
   | { type: "pause" }
   | { type: "frame"; timeline: string }
   | { type: "demand"; timeline: string; entity: number }
-  | { type: "scout"; timeline: string; entity: number; cells: number[]; weeks?: number };
+  | { type: "scout"; timeline: string; entity: number; cells: number[]; weeks?: number }
+  /** Compares `actions` on a fork against a no-action baseline fork; the timeline is untouched. */
+  | { type: "whatIf"; timeline: string; actions: unknown[]; weeks: number };
 
 export type WorkerRequest = WorkerCommand & { id: number };
 
@@ -50,6 +53,7 @@ export type CommandResults = {
   frame: { frame: Frame };
   demand: { demand: number[]; candidates: number[] };
   scout: { results: ScoutResult[]; baselineTick: number };
+  whatIf: { result: WhatIfResult };
 };
 
 export type CommandResult = CommandResults[keyof CommandResults];

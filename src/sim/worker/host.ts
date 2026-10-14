@@ -4,6 +4,7 @@ import { DEFAULT_CONFIG, parseConfigOverrides } from "@/sim/config";
 import { digest } from "@/sim/digest";
 import { buildFrame } from "@/sim/frame";
 import { demandByCell, pickCandidates, scoutCandidates } from "@/sim/scout";
+import { MAX_WHATIF_WEEKS, whatIf } from "@/sim/whatif";
 import type { SimState } from "@/sim/state";
 import { Timeline } from "@/sim/timeline";
 import {
@@ -199,6 +200,16 @@ export class SimHost {
         if (error) throw new Error(error);
         const results = scoutCandidates(s, cells as number[], { entity, weeks, duration, reachKm, capacity, nearbyKm });
         return { results, baselineTick: s.tick };
+      }
+      case "whatIf": {
+        const s = this.timeline(cmd.timeline).state;
+        if (!Number.isInteger(cmd.weeks) || cmd.weeks < 1 || cmd.weeks > MAX_WHATIF_WEEKS) {
+          throw new Error(`weeks must be an integer in [1, ${MAX_WHATIF_WEEKS}]`);
+        }
+        const raw: unknown = cmd.actions;
+        if (!Array.isArray(raw) || raw.length < 1 || raw.length > 5) throw new Error("actions must list 1 to 5 actions");
+        const actions = raw.map((a) => parseAction(a));
+        return { result: whatIf(s, actions, cmd.weeks) };
       }
       default:
         throw new Error(`unknown command "${String((cmd as { type?: unknown }).type)}"`);
