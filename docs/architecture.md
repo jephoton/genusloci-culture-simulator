@@ -2,6 +2,12 @@
 
 <!-- generated: maintained by agents; keep in sync with the spec -->
 
+## Pending feature batch (saved, uncommitted)
+
+See [active continuation handoff](superpowers/plans/2026-10-14-deferred-features-handoff.md) before continuing. The branch `codex/deferred-features` adds simulation closure evidence (`sim/closures.ts`), snapshot-safe event scheduling (`sim/scheduling.ts`, action schema, worker, booking previews), and optional seeded residential movement/turnover (`sim/steps/ecology.ts`, clustering, config). General ecology defaults remain disabled; the playable demo enables them. Closure evidence and event labels/calendar metadata travel in frames; recent transmitted history is bounded while state retains history.
+
+The server adds an operator-authenticated `/api/world-builds` route using a private Blob compare-and-swap ledger, fenced global lease, cached stage replay and per-call budget debit. Existing world loading prefers a successfully committed build output. It currently supports registry cities only. `WORLD_BUILD_TOKEN` authorizes operators; `WORLD_BUILD_QUOTA_REMAINING` initializes a conservative shared quota estimate; the reserve is at least 1,000 calls. **Monthly quota reconciliation and an operator page are unfinished**, with failing tests already added. No production environment variables were changed. This section describes work in progress, not verified shipped behavior.
+
 **Goal:** a god-game sandbox of a real city's cultural ecosystem, grounded in Qloo's taste graph, built for the Qloo Agentic Hackathon (deadline 2026-10-31 11:45 GMT+8).
 
 **Full design:** [superpowers/specs/2026-10-09-genusloci-design.md](superpowers/specs/2026-10-09-genusloci-design.md)

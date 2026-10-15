@@ -2,7 +2,30 @@
 
 <!-- generated: maintained by agents -->
 
-**Phase:** M5b-2 implemented; M7 shipping follow-up remains. Real Qloo worlds, booking, scene cards and family trees are implemented.
+## Deferred-features batch: done (2026-10-15)
+
+Implemented by Codex ([plan](superpowers/plans/2026-10-14-deferred-features.md), [handoff](superpowers/plans/2026-10-14-deferred-features-handoff.md)) and finished, verified and committed by Claude.
+
+- **Closure explanations:** natural, manual and event closures record their evidence (rolling weekly visits, rent-adjusted capacity, health, how long the venue was below the threshold). This shows in the venue panel, the toasts and the co-pilot. No speculative causes are given.
+- **Scenes keep moving:**
+  - opt-in residential moves, resident turnover and evidence-based scene splits (off by default, on in the demo);
+  - measured over seeds 7, 11 and 23 for 100 weeks: about 2,300 moves and more scene switching;
+  - **no natural splits happened**, so the family tree stays mostly flat (see Next).
+- **Dated bookings:**
+  - start week and day plus exact nights, a snapshot-safe calendar and cancellation;
+  - outside artists keep their own name;
+  - the co-pilot gets `event_calendar`, dates and `cancel_event`.
+- **On-demand city builds:**
+  - an authenticated, resumable `/api/world-builds` with registry cities only, per-build budgets of 20–180, a 1,000-call reserve, private Blob checkpoints, CAS and leases;
+  - plus **monthly quota reconciliation** (PATCH; builds block at month rollover until reconciled) and a minimal **`/build-city`** operator page.
+  - Not configured in production (no `WORLD_BUILD_TOKEN`), so it's off there. See [on-demand-world-builds.md](on-demand-world-builds.md).
+- **Fixes while finishing:**
+  - a `runtime` route config that Next 16 rejects with `cacheComponents` (it would have broken the build);
+  - mixed line endings in three new files;
+  - "1 nights" wording.
+- **Verified:** 439 tests, lint, production build and `git diff --check` all pass. In the browser on London: a dated one-night booking was compared, booked and shown on the calendar, then cancelled; an outside artist (Burna Boy) was booked and kept their name; the operator page answers with a clean 503 when builds are disabled. Not run live: a real build (it would spend quota and write to the production Blob store).
+
+**Phase:** M5b-2, M5e (with dates) and the deferred-features batch done; M7 shipping follow-up remains. Real Qloo worlds, booking, scene cards and family trees are implemented.
 
 ## Done
 - Concept, name (**Genus Loci**), design spec, roadmap. Repo: https://github.com/jephoton/genusloci-culture-simulator (public, MIT).
@@ -158,7 +181,9 @@
    - ~~GitHub homepage~~: set to the live URL.
    - ~~Phone layout~~: done. Below the `sm` breakpoint the top bar shows city, date and fidelity; a Tools · Scenes · Co-pilot tab row opens one full-width panel at a time; placing something closes the tools panel. Desktop is unchanged.
    - a demo-runbook rehearsal on the live site.
-3. Remaining product follow-ups: explain venue closures, review scene movement after week 4, and consider on-demand city builds with a budget guard.
+3. ~~Deferred-feature batch~~: done (see above).
+4. **Scene splits:** with ecology on, scenes move but still never split naturally in 100 weeks, so the family tree looks flat. This needs a short modelling look (split thresholds or clustering), or the demo should lean on the scene card and the newcomers tool.
+5. The user's UI overhaul, then final M7 polish: demo rehearsal (steps 4–5 in a visible tab), video, Devpost.
 
 ## Carry into M5b (from M4a)
 - **Layout on the main thread:** ≈ 0.8 s on London. Move it to a worker or precompute it per city.
