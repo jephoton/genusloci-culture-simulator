@@ -37,7 +37,7 @@ export type Simulation = {
   /** "What happens if…" on forked futures (live city untouched). Rejects on failure. */
   whatIf(actions: Action[], weeks: number): Promise<CommandResults["whatIf"]>;
   /** Book for my venue: compares acts at a venue for `weeks` (live city untouched). Rejects on failure. */
-  book(venue: number, acts: { entity: number; profile?: { entity: number; weight: number }[] }[], weeks: number): Promise<CommandResults["book"]>;
+  book(venue: number, acts: { entity: number; profile?: { entity: number; weight: number }[] }[], weeks: number, date?: { startTick?: number; durationDays?: number }): Promise<CommandResults["book"]>;
   /** A typical member of a scene, for interviews (`skip` meets someone else). Rejects on failure. */
   resident(scene: number, skip?: number): Promise<CommandResults["resident"]>;
   /** The live city's digest right now (frames carry one only every few ticks). Rejects on failure. */
@@ -168,6 +168,8 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
           const result = await client.run(MAIN_TIMELINE, 1);
           setDigest(result.digest);
           await refresh();
+          const failed = result.results.find((r) => !r.ok);
+          if (failed && !failed.ok) { report(failed.error); return false; }
         }
         return true;
       } catch (e) {
@@ -208,9 +210,9 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
     return client ? client.whatIf(MAIN_TIMELINE, actions, weeks) : Promise.reject(new Error("the simulation isn't running"));
   }, []);
 
-  const book = useCallback((venue: number, acts: { entity: number; profile?: { entity: number; weight: number }[] }[], weeks: number) => {
+  const book = useCallback((venue: number, acts: { entity: number; profile?: { entity: number; weight: number }[] }[], weeks: number, date: { startTick?: number; durationDays?: number } = {}) => {
     const client = clientRef.current;
-    return client ? client.book(MAIN_TIMELINE, venue, acts, weeks) : Promise.reject(new Error("the simulation isn't running"));
+    return client ? client.book(MAIN_TIMELINE, venue, acts, weeks, date) : Promise.reject(new Error("the simulation isn't running"));
   }, []);
 
   const resident = useCallback((scene: number, skip?: number) => {

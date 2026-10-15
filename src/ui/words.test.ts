@@ -60,3 +60,10 @@ describe("areaName with neighbourhoods", () => {
     expect(areaName(layout, -45, 0)).toBe("the west");
   });
 });
+
+describe("plural", () => {
+  it("drops the s for one", async () => {
+    const { plural } = await import("@/ui/words");
+    expect([plural(1, "night"), plural(3, "night"), plural(2, "week")]).toEqual(["1 night", "3 nights", "2 weeks"]);
+  });
+});

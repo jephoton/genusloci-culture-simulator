@@ -13,6 +13,9 @@ import { chooseVenueEntity } from "@/render/placement";
 import { type ClosureRules, venueViewsOf } from "@/render/venues";
 import { DEFAULT_CONFIG } from "@/sim/config";
 import type { Frame } from "@/sim/frame";
+import { closureExplanation } from "@/sim/closures";
+import type { BookingDate } from "@/sim/booking";
+import { EventCalendar } from "@/ui/EventCalendar";
 import type { ScoutResult } from "@/sim/scout";
 import { SCOUT_DEFAULTS } from "@/sim/worker/protocol";
 import { Hud } from "@/ui/Hud";
@@ -41,7 +44,7 @@ import type { World } from "@/world/schema";
 import { Attribution } from "@/ui/Attribution";
 import { useCityWorld } from "@/ui/useCityWorld";
 import { CITIES } from "@/geo/cities";
-import { areaName, kindWord } from "@/ui/words";
+import { areaName, kindWord, plural } from "@/ui/words";
 import { DEMO_CONFIG, DEMO_SEED } from "@/ui/demo-config";
 
 /** When the running sim closes venues, so struggling ones can be flagged before they go. */
@@ -240,7 +243,7 @@ function Game({
       const L = latest.current;
       const f = L.frames.current.current;
       const a = actions[0];
-      const cell = a.type === "closeVenue" ? f?.venueCell[a.venue] : "cell" in a ? a.cell : a.cells[0];
+      const cell = a.type === "closeVenue" ? f?.venueCell[a.venue] : "cell" in a ? a.cell : "cells" in a ? a.cells[0] : undefined;
       if (cell !== undefined) L.flyTo([L.layout.cellX[cell], L.layout.cellZ[cell]]);
     },
   }));
@@ -406,16 +409,16 @@ function Game({
     [play],
   );
   const comparePlan = useCallback(
-    async (acts: BookingAct[], weeks: number) => {
+    async (acts: BookingAct[], weeks: number, date: BookingDate) => {
       if (planVenue === null) return [];
-      const { results } = await book(planVenue, acts.map(({ entity, profile }) => ({ entity, profile })), weeks);
+      const { results } = await book(planVenue, acts.map(({ entity, profile }) => ({ entity, profile })), weeks, date);
       return results;
     },
     [book, planVenue],
   );
   const currentFrame = sim.frame;
   const bookPlan = useCallback(
-    (a: BookingAct, weeks: number) => {
+    (a: BookingAct, weeks: number, date: BookingDate) => {
       const f = currentFrame;
       if (planVenue === null || !f) return;
       const cell = f.venueCell[planVenue];
@@ -428,8 +431,8 @@ function Game({
       const { reachKm, capacity } = SCOUT_DEFAULTS;
       const resume = planWasPlaying.current;
       endPlan(false);
-      void act({ type: "scheduleEvent", entity: a.entity, cell, duration: weeks, reachKm, capacity, ...(a.profile ? { profile: a.profile } : {}) }).then((ok) => {
-        if (ok) notify(`Booked ${a.label} at ${venueName} for ${weeks} ${weeks === 1 ? "week" : "weeks"}`, anchor);
+      void act({ type: "scheduleEvent", entity: a.entity, cell, duration: weeks, ...date, label: a.label, hostVenue: planVenue, reachKm, capacity, ...(a.profile ? { profile: a.profile } : {}) }).then((ok) => {
+        if (ok) notify(`Booked ${a.label} at ${venueName} for ${date.durationDays !== undefined ? plural(date.durationDays, "night") : plural(weeks, "week")}, week ${Math.floor((date.startTick ?? f.tick) / f.ticksPerWeek)}`, anchor);
         else placed.current.delete(key);
         if (resume) play();
       });
@@ -494,7 +497,8 @@ function Game({
           if (c.kind === "venueClosed") {
             // The player's own closures were their choice; the rest ran out of visitors.
             const byPlayer = closedByPlayer.current.delete(placementKey(view.entity, frame.venueCell[c.slot]));
-            announce(byPlayer ? `${view.name} closed` : `${view.name} closed: not enough visitors`, view.position);
+            const evidence = frame.venueClosures?.[c.slot];
+            announce(evidence ? `${view.name}: ${closureExplanation(evidence)}` : byPlayer ? `${view.name} closed` : `${view.name} closed: not enough visitors`, view.position);
             continue;
           }
           // The player's own placements were confirmed when they were made.
@@ -737,6 +741,8 @@ function Game({
             world={world}
             city={citySlug}
             venueEntity={sim.frame.venueEntity[planVenue]}
+            tick={sim.frame.tick}
+            ticksPerWeek={sim.frame.ticksPerWeek}
             sceneTitle={sceneTitle}
             compare={comparePlan}
             onBook={bookPlan}
@@ -744,6 +750,7 @@ function Game({
           />
         ) : (
           <>
+            {sim.frame && <EventCalendar frame={sim.frame} world={world} onCancel={(event) => void act({ type: "cancelEvent", event })} />}
             {pinnedScene && selected === null && sim.frame && (
               <SceneCard
                 key={pinnedScene.scene}

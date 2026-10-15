@@ -65,7 +65,7 @@ export function venueViews(frame: Frame, layout: CityLayout, world: World): Venu
     views.push({
       slot: v,
       entity,
-      name: world.entities[entity].name,
+      name: frame.venueLabels?.[v] ?? world.entities[entity].name,
       kind: world.entities[entity].kind ?? "other",
       position: landmarkPosition(layout, cell, pad),
       scale: landmarkScale(layout, cell, pad),

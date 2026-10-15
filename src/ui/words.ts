@@ -60,3 +60,6 @@ export function dayLabel(tick: number, ticksPerWeek: number): string {
   const { week, day } = weekAndDay(tick, ticksPerWeek);
   return day ? `Week ${week} · ${day}` : `Week ${week}`;
 }
+
+/** "1 night", "3 nights", "1 week", "2 weeks". */
+export const plural = (n: number, unit: string) => `${n} ${unit}${n === 1 ? "" : "s"}`;

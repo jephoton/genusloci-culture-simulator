@@ -1,3 +1,4 @@
+import { closureExplanation } from "@/sim/closures";
 import type { Frame } from "@/sim/frame";
 import type { World } from "@/world/schema";
 
@@ -15,13 +16,16 @@ export function VenuePanel({
   if (slot === null || !frame || slot >= frame.nVenues) return null;
   const entity = world.entities[frame.venueEntity[slot]];
   const open = frame.venueOpen[slot] === 1;
+  const closure = frame.venueClosures?.[slot];
+  const capacity = frame.venueCapacity?.[slot] ?? entity.capacity ?? 0;
+  const rent = frame.venueRent?.[slot] ?? 1;
   const isEvent = frame.venueExpires[slot] >= 0;
   return (
     <aside aria-label="Venue" className="panel pointer-events-auto w-full space-y-3 p-4">
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-[11px] uppercase tracking-widest text-zinc-400">{isEvent ? "Event" : (entity.kind ?? "venue").replace("_", " ")}</p>
-          <h2 className="text-lg font-medium leading-tight">{entity.name}</h2>
+          <h2 className="text-lg font-medium leading-tight">{frame.venueLabels?.[slot] ?? entity.name}</h2>
         </div>
         <button type="button" onClick={onDismiss} aria-label="Close panel" className="rounded px-2 text-zinc-400 hover:bg-white/10">×</button>
       </div>
@@ -32,7 +36,14 @@ export function VenuePanel({
         <dd className="font-mono tabular-nums">{Math.round(frame.venueHealth[slot] * 100)}%</dd>
         <dt className="text-zinc-400">{frame.ticksPerWeek === 1 ? "Visitors this week" : "Visitors tonight"}</dt>
         <dd className="font-mono tabular-nums">{frame.venueAttendance[slot]}</dd>
+        <dt className="text-zinc-400">Rolling weekly visits</dt>
+        <dd className="font-mono tabular-nums">{frame.venueWeekVisits?.[slot] ?? "—"}</dd>
+        <dt className="text-zinc-400">Effective capacity</dt>
+        <dd className="font-mono tabular-nums">{Math.round(capacity * rent)}</dd>
+        <dt className="text-zinc-400">Rent multiplier</dt>
+        <dd className="font-mono tabular-nums">{rent.toFixed(2)}×</dd>
       </dl>
+      {closure && <p className="text-sm text-zinc-300">{closureExplanation(closure)}</p>}
       {open && !isEvent && onPlan && (
         <button
           type="button"
