@@ -64,13 +64,15 @@ Every week, residents go out to a venue that suits their taste. There they're ex
 
 ## Demo runbook (about 3 minutes, as intended for demo day)
 
+For a full hands-on tour of every feature (about 30 minutes, with a checklist), see [feature-walkthrough.md](feature-walkthrough.md).
+
 *(today)* marks what works now.
 
 0. **Setup:** load the demo city (London, or NYC for US judges), paused at week 0, with the default camera.
 1. **Hook (20 s):** "This is London tonight. Every dot is a resident with real taste from Qloo; every lit landmark is a real venue." Press **Play** at 1 day/s (½ if the room needs it to be slower). Crowds stream out along real streets, gather at venues and walk home. *(today)*
 2. **Scenes emerge (30 s):** "Nobody told it what scenes exist. They emerge." Hover a row in the **Scenes** panel to highlight a scene's people and venues, then click to fly there. *(today; scenes get plain names a few seconds after they form)*
 3. **The proof (15 s):** point at **Fidelity** in the HUD. Residents were seeded from one set of Qloo heatmaps; fidelity checks them against *different* Qloo heatmaps, and it rises as the city runs (after 60 weeks: London about 0.22, New York 0.31, Singapore 0.11). Be honest that it's modest: it's a real, falsifiable check, which is the point. *(today)*
-4. **The shock (40 s):** select the venue at the heart of the biggest scene, then **Close venue**. You see the implosion and the regulars scattering. Play a few weeks: toasts report the scene splitting or fading, and a venue auto-opening in the gap. *(today)*
+4. **The shock (40 s):** select the venue at the heart of the biggest scene, then **Close venue**. You see the implosion and the regulars scattering; the venue panel says why it closed. Play a few weeks: watch the scene card's size line, struggling venues pulsing red nearby, and possibly a venue auto-opening in the gap. Don't promise a split: natural splits are rare (see current-state, "Scene dynamics"). *(today)*
 5. **The what-if (40 s):** rewind with the timeline slider, which is exact. Instead, **Open a venue** nearby: pick a kind, watch the ghost preview, place it. The scene survives. "Two futures, one decision apart." *(today)*
 6. **The promoter (40 s):** "You're a promoter. Where should this headliner play?" Open **Scout a location** and pick the headliner.
    - The city pauses, an amber demand glow shows where their fans live, and pins A–C appear.
