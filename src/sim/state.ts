@@ -1,4 +1,6 @@
+import type { VenueClosure } from "@/sim/closures";
 import type { ActionLogEntry } from "@/sim/actions/schema";
+import type { ScheduledEvent } from "@/sim/scheduling";
 import { DEFAULT_CONFIG, type SimConfig } from "@/sim/config";
 import { addGene, cloneGenomes, createGenomes, type Genomes, genomeSimilarity } from "@/sim/genome";
 import { createRng, type Rng } from "@/sim/rng";
@@ -30,7 +32,10 @@ export type SimState = {
 
   // Venues: slots [0, nVenues) are in use; the table holds venueEntity.length slots.
   nVenues: number;
+  venueClosures: (VenueClosure | null)[];
+  closureEvents: VenueClosure[];
   venueEntity: Int32Array;
+  venueLabels: (string | null)[];
   venueCell: Int32Array;
   venueCapacity: Float32Array;
   /** slots × nEntities: 1 for the venue's entity, else edge weight entity→e. */
@@ -56,6 +61,8 @@ export type SimState = {
   scenes: SceneState;
   /** Successfully applied actions, in order. */
   log: ActionLogEntry[];
+  scheduledEvents: ScheduledEvent[];
+  nextEventId: number;
 };
 
 /** Index of a weighted random choice, or -1 if all weights are 0. */
@@ -182,7 +189,10 @@ export function initState(world: World, config: SimConfig = DEFAULT_CONFIG, seed
     genomes,
     attendance: new Int32Array(slots).fill(-1),
     nVenues: 0,
+    venueClosures: Array.from({ length: vSlots }, () => null),
+    closureEvents: [],
     venueEntity: new Int32Array(vSlots),
+    venueLabels: Array(vSlots).fill(null),
     venueCell: new Int32Array(vSlots),
     venueCapacity: new Float32Array(vSlots),
     venueProfile: new Float32Array(vSlots * cw.nEntities),
@@ -198,6 +208,8 @@ export function initState(world: World, config: SimConfig = DEFAULT_CONFIG, seed
     cellRent: new Float32Array(cw.nCells).fill(1),
     scenes: createSceneState(slots),
     log: [],
+    scheduledEvents: [],
+    nextEventId: 0,
   };
 
   const byCell = agentsByCell(s, cw.nCells);
@@ -228,5 +240,9 @@ export function cloneState(s: SimState): SimState {
   out.nearbyVenues = [...s.nearbyVenues];
   out.scenes = cloneSceneState(s.scenes);
   out.log = [...s.log];
+  out.venueLabels = [...s.venueLabels];
+  out.venueClosures = s.venueClosures.map((c) => c ? { ...c } : null);
+  out.closureEvents = s.closureEvents.map((c) => ({ ...c }));
+  out.scheduledEvents = structuredClone(s.scheduledEvents);
   return out;
 }

@@ -17,6 +17,6 @@ export function hashState(s: SimState): string {
   feed(s.genomes.w);
   feed(s.scenes.assignment);
   for (const c of s.scenes.centroids) feed(c);
-  feedBytes(new TextEncoder().encode(JSON.stringify([s.scenes.lineages, s.scenes.events, s.scenes.live, s.log])));
+  feedBytes(new TextEncoder().encode(JSON.stringify([s.scenes.lineages, s.scenes.events, s.scenes.live, s.log, s.scheduledEvents, s.nextEventId, s.venueClosures, s.closureEvents, s.venueLabels])));
   return (h >>> 0).toString(16).padStart(8, "0");
 }

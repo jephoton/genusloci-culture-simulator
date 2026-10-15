@@ -22,6 +22,20 @@ describe("simToCentroid / agentVector", () => {
 });
 
 describe("clusterAgents", () => {
+  it("subdivides a dispersed warm scene only when both coherent groups meet minimum size", () => {
+    const state = initState(world, { ...config, nAgents: 80, agentReserve: 0, minSceneSize: 20, sceneSplitSimilarity: 0.8 }, 3);
+    state.genomes.ids.fill(-1);
+    state.genomes.w.fill(0);
+    for (let i = 0; i < 80; i++) addGene(state.genomes, i, i < 40 ? 1 : 2, 1);
+    const warm = new Float32Array(state.cw.nEntities);
+    warm[1] = warm[2] = Math.SQRT1_2;
+    const split = clusterAgents(state, [warm], createRng(2));
+    expect(split.sizes.sort((a, b) => a - b)).toEqual([40, 40]);
+    for (let i = 40; i < 80; i++) {
+      state.genomes.ids[i * GENOME_CAP] = i < 50 ? 2 : 1;
+    }
+    expect(clusterAgents(state, [warm], createRng(2)).centroids).toHaveLength(1);
+  });
   const s = initState(world, config, 3);
   const result = clusterAgents(s, [], createRng(1));
 

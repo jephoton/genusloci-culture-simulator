@@ -1,3 +1,4 @@
+import { recordClosure } from "@/sim/closures";
 import type { SimState } from "@/sim/state";
 import { perTick, weeksToTicks } from "@/sim/time";
 
@@ -28,7 +29,7 @@ export function updateVenues(s: SimState): boolean {
 
     if (s.venueExpires[v] >= 0) {
       if (s.tick + 1 >= s.venueExpires[v]) {
-        s.venueOpen[v] = 0;
+        recordClosure(s, v, "event_expired");
         closed = true;
       }
       continue;
@@ -37,7 +38,7 @@ export function updateVenues(s: SimState): boolean {
     if (s.tick >= graceTicks && s.venueHealth[v] < closeThreshold) s.venueLowTicks[v]++;
     else s.venueLowTicks[v] = 0;
     if (s.venueLowTicks[v] >= closeAfterTicks) {
-      s.venueOpen[v] = 0;
+      recordClosure(s, v, "poor_health");
       closed = true;
     }
   }

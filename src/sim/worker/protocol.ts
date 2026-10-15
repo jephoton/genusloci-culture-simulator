@@ -46,7 +46,7 @@ export type WorkerCommand =
   /** A typical member of a scene (the `skip`-th closest to its centre), for interviews. */
   | { type: "resident"; timeline: string; scene: number; skip?: number }
   /** Compares acts as events at a host venue against a no-event baseline; the timeline is untouched. */
-  | { type: "book"; timeline: string; venue: number; acts: unknown[]; weeks: number };
+  | { type: "book"; timeline: string; venue: number; acts: unknown[]; weeks: number; startTick?: number; durationDays?: number };
 
 export type WorkerRequest = WorkerCommand & { id: number };
 

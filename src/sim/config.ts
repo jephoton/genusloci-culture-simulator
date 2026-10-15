@@ -30,6 +30,12 @@ export type SimConfig = {
   initialAdoptWeight: number;
   /** Weekly P(drift) = driftRate × curiosity. */
   driftRate: number;
+  /** Weekly chance to consider a better home based on rent and nearby scene membership. */
+  residentialMoveRate: number;
+  /** Weekly resident replacement probability; new residents draw from their home's archetypes. */
+  residentTurnoverRate: number;
+  /** Optional cosine ceiling for evidence-gated subdivision of dispersed warm scenes; 0 disables. */
+  sceneSplitSimilarity: number;
   /** Weekly fraction of every gene's weight that fades. */
   decayRate: number;
   minWeight: number;
@@ -79,6 +85,9 @@ export const DEFAULT_CONFIG: SimConfig = {
   socialWeight: 0.5,
   initialAdoptWeight: 0.15,
   driftRate: 0.05,
+  residentialMoveRate: 0,
+  residentTurnoverRate: 0,
+  sceneSplitSimilarity: 0,
   decayRate: 0.02,
   minWeight: 0.02,
   healthAlpha: 0.2,
@@ -121,6 +130,9 @@ export const SimConfigSchema = z.object({
   socialWeight: nonNeg,
   initialAdoptWeight: unit,
   driftRate: unit,
+  residentialMoveRate: unit,
+  residentTurnoverRate: unit,
+  sceneSplitSimilarity: unit,
   decayRate: unit,
   minWeight: unit,
   healthAlpha: unit,

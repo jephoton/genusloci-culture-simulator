@@ -28,6 +28,8 @@ export type EventRunOptions = {
   /** A venue whose own change in visits is reported (`hostChange`) and left out of neighbourLoss. */
   hostVenue?: number;
   runs: number;
+  startTick?: number;
+  durationDays?: number;
 };
 
 export type EventOutcome = {
@@ -50,9 +52,16 @@ export const fansOf = (s: SimState, entity: number) => {
 };
 
 function onePair(live: SimState, candidates: EventCandidate[], o: EventRunOptions, seed: number): EventOutcome[] {
-  const ticks = weeksToTicks(o.weeks, live.config.ticksPerWeek);
-  const baseline = cloneState(live);
-  baseline.rngState = seed;
+  const ticks = o.durationDays ?? weeksToTicks(o.weeks, live.config.ticksPerWeek);
+  const atDate = cloneState(live);
+  atDate.rngState = seed;
+  const startTick = o.startTick ?? live.tick;
+  if (!Number.isInteger(startTick) || startTick < live.tick) throw new Error("event date is in the past or invalid");
+  if (startTick > live.tick + 52 * live.config.ticksPerWeek) throw new Error("event date must be within 52 weeks");
+  if (!Number.isInteger(ticks) || ticks < 1 || ticks > 364) throw new Error("invalid event duration");
+  if (o.durationDays !== undefined && live.config.ticksPerWeek !== 7) throw new Error("day durations require daily simulation");
+  while (atDate.tick < startTick) step(atDate);
+  const baseline = cloneState(atDate);
   const baseVisits = new Float64Array(baseline.venueEntity.length);
   for (let t = 0; t < ticks; t++) {
     step(baseline);
@@ -60,13 +69,13 @@ function onePair(live: SimState, candidates: EventCandidate[], o: EventRunOption
   }
 
   return candidates.map((c): EventOutcome => {
-    const before = c.profile ? null : fansOf(live, c.entity);
-    const s = cloneState(live);
-    s.rngState = seed;
+    const before = c.profile ? null : fansOf(atDate, c.entity);
+    const s = cloneState(atDate);
     const [res] = step(s, [
-      { type: "scheduleEvent", entity: c.entity, cell: c.cell, duration: o.duration, reachKm: o.reachKm, capacity: o.capacity, ...(c.profile ? { profile: c.profile } : {}) },
+      { type: "scheduleEvent", entity: c.entity, cell: c.cell, duration: o.duration, durationDays: o.durationDays, hostVenue: o.hostVenue, reachKm: o.reachKm, capacity: o.capacity, ...(c.profile ? { profile: c.profile } : {}) },
     ]);
-    const slot = res.ok && res.venue !== undefined ? res.venue : -1;
+    if (!res.ok) throw new Error(res.error);
+    const slot = res.venue ?? -1;
     let turnout = 0;
     const sceneCounts = new Map<number, number>();
     const visits = new Float64Array(s.venueEntity.length);

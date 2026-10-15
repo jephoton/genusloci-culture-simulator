@@ -1,3 +1,4 @@
+import type { VenueClosure } from "@/sim/closures";
 import { digest, type SimDigest } from "@/sim/digest";
 import { profileCosine } from "@/sim/niches";
 import type { SceneEvent } from "@/sim/scenes/types";
@@ -12,6 +13,7 @@ export type Frame = {
   earliestTick: number;
   /** Bumped on init and rewind: only frames of the same epoch with consecutive ticks are a continuous story. */
   epoch: number;
+  scheduledEvents?: import("@/sim/scheduling").ScheduledEvent[];
   /** Scene events recorded by the step that produced this frame (tick === frame.tick - 1). */
   sceneEvents: SceneEvent[];
   alive: Uint8Array;
@@ -22,7 +24,14 @@ export type Frame = {
   /** Per lineage id: parent lineage id, or -1. */
   lineageParents: Int32Array;
   nVenues: number;
+  venueClosures?: (VenueClosure | null)[];
+  closureEvents?: VenueClosure[];
+  venueWeekVisits?: Int32Array;
+  venueCapacity?: Float32Array;
+  venueRent?: Float32Array;
+  venueLowTicks?: Int32Array;
   venueEntity: Int32Array;
+  venueLabels?: (string | null)[];
   venueCell: Int32Array;
   venueOpen: Uint8Array;
   venueHealth: Float32Array;
@@ -74,6 +83,10 @@ export function buildFrame(
     ticksPerWeek: s.config.ticksPerWeek,
     earliestTick,
     epoch,
+    scheduledEvents: structuredClone([
+      ...s.scheduledEvents.filter((e) => e.status === "scheduled" || e.status === "started"),
+      ...s.scheduledEvents.filter((e) => e.status !== "scheduled" && e.status !== "started").slice(-12),
+    ]),
     sceneEvents: events.slice(first),
     alive: s.alive.slice(),
     homeCell: s.homeCell.slice(),
@@ -81,7 +94,14 @@ export function buildFrame(
     scene,
     lineageParents: Int32Array.from(s.scenes.lineages, (l) => l.parent ?? -1),
     nVenues: n,
+    venueClosures: s.venueClosures.slice(0, n).map((c) => c ? { ...c } : null),
+    closureEvents: s.closureEvents.slice(-64).map((c) => ({ ...c })),
+    venueWeekVisits: s.venueWeekVisits.slice(0, n),
+    venueCapacity: s.venueCapacity.slice(0, n),
+    venueRent: Float32Array.from(s.venueCell.slice(0, n), (cell) => s.cellRent[cell]),
+    venueLowTicks: s.venueLowTicks.slice(0, n),
     venueEntity: s.venueEntity.slice(0, n),
+    venueLabels: s.venueLabels.slice(0, n),
     venueCell: s.venueCell.slice(0, n),
     venueOpen: s.venueOpen.slice(0, n),
     venueHealth: s.venueHealth.slice(0, n),

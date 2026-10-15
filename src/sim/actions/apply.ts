@@ -5,6 +5,8 @@ import { agentsByCell, chooseFriends, seedGenome, type SimState } from "@/sim/st
 import { weeksToTicks } from "@/sim/time";
 import { activeEvents, addVenue, buildNearbyVenues, hasVenueRoom } from "@/sim/venue-table";
 import { DEFAULT_VENUE_CAPACITY } from "@/sim/world-index";
+import { MAX_PENDING_EVENTS } from "@/sim/scheduling";
+import { recordClosure } from "@/sim/closures";
 
 export const MAX_RENT = 5;
 
@@ -16,6 +18,10 @@ export function validateAction(s: SimState, a: Action): string | null {
   const nC = s.cw.nCells;
   const venueRoom = hasVenueRoom(s);
   switch (a.type) {
+    case "cancelEvent": {
+      const e = s.scheduledEvents.find((e) => e.id === a.event);
+      return e && (e.status === "scheduled" || e.status === "started") ? null : "event is not scheduled or running";
+    }
     case "closeVenue":
       if (a.venue >= s.nVenues) return `unknown venue ${a.venue}`;
       return s.venueOpen[a.venue] ? null : `venue ${a.venue} is already closed`;
@@ -27,6 +33,15 @@ export function validateAction(s: SimState, a: Action): string | null {
       if (a.entity >= nE) return `unknown entity ${a.entity}`;
       if (a.cell >= nC) return `unknown cell ${a.cell}`;
       if (a.profile?.some((g) => g.entity >= nE)) return "unknown entity in scheduleEvent.profile";
+      if (a.durationDays !== undefined && s.config.ticksPerWeek !== 7) return "day durations require daily simulation";
+      if (a.hostVenue !== undefined && (a.hostVenue >= s.nVenues || !s.venueOpen[a.hostVenue])) return "host venue is closed or unknown";
+      if (a.hostVenue !== undefined && s.venueCell[a.hostVenue] !== a.cell) return "event cell does not match host venue";
+      if (a.startTick !== undefined) {
+        if (a.startTick < s.tick) return "event date is in the past";
+        if (a.startTick > s.tick + 52 * s.config.ticksPerWeek) return "event date must be within 52 weeks";
+        if (s.scheduledEvents.filter((e) => e.status === "scheduled").length >= MAX_PENDING_EVENTS) return "too many scheduled events";
+        if (a.startTick > s.tick) return null;
+      }
       if (!venueRoom) return "no free venue slots";
       return activeEvents(s).length >= s.config.maxEvents ? "too many active events" : null;
     case "migrate": {
@@ -61,12 +76,21 @@ function migrate(s: SimState, a: MigrateAction, rng: Rng): number {
 }
 
 /** Applies `a` if valid. Invalid actions change nothing and return ok: false with the reason. */
-export function applyAction(s: SimState, a: Action, rng: Rng): ActionResult {
+export function applyAction(s: SimState, a: Action, rng: Rng, trackEvent = true): ActionResult {
   const error = validateAction(s, a);
   if (error) return { ok: false, error };
   switch (a.type) {
+    case "cancelEvent": {
+      const e = s.scheduledEvents.find((e) => e.id === a.event)!;
+      if (e.status === "started" && e.venue !== undefined) {
+        recordClosure(s, e.venue, "manual");
+        s.nearbyVenues = buildNearbyVenues(s);
+      }
+      e.status = "cancelled";
+      return { ok: true, event: e.id };
+    }
     case "closeVenue":
-      s.venueOpen[a.venue] = 0;
+      recordClosure(s, a.venue, "manual");
       s.nearbyVenues = buildNearbyVenues(s);
       return { ok: true, venue: a.venue };
     case "openVenue": {
@@ -75,11 +99,22 @@ export function applyAction(s: SimState, a: Action, rng: Rng): ActionResult {
       return { ok: true, venue };
     }
     case "scheduleEvent": {
-      const venue = addVenue(s, a.entity, a.cell, a.capacity, s.tick + weeksToTicks(a.duration, s.config.ticksPerWeek), a.reachKm);
+      if (a.startTick !== undefined && a.startTick > s.tick) {
+        const id = s.nextEventId++;
+        s.scheduledEvents.push({ id, startTick: a.startTick, action: structuredClone(a), status: "scheduled" });
+        return { ok: true, event: id };
+      }
+      const venue = addVenue(s, a.entity, a.cell, a.capacity, s.tick + (a.durationDays ?? weeksToTicks(a.duration, s.config.ticksPerWeek)), a.reachKm);
+      s.venueLabels[venue] = a.label ?? null;
       if (a.profile && venue >= 0) {
         const nE = s.cw.nEntities;
         s.venueProfile.fill(0, venue * nE, (venue + 1) * nE);
         for (const g of a.profile) s.venueProfile[venue * nE + g.entity] = Math.max(s.venueProfile[venue * nE + g.entity], g.weight);
+      }
+      if (trackEvent) {
+        const id = s.nextEventId++;
+        s.scheduledEvents.push({ id, startTick: s.tick, action: structuredClone(a), status: "started", venue });
+        if (a.startTick !== undefined) return { ok: true, venue, event: id };
       }
       return { ok: true, venue };
     }

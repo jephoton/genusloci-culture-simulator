@@ -100,6 +100,35 @@ export function clusterAgents(s: SimState, seeds: Float32Array[], rng: Rng): Clu
   const norms = genomeNorms(s);
   let centroids: Float32Array[] = seeds.map((c) => Float32Array.from(c));
 
+  // Warm scenes can conceal two coherent subgroups even when neither is novel enough to
+  // cross newSceneThreshold. Consider one dispersed sampled member per existing scene;
+  // demand a real cosine improvement and minimum support on BOTH sides before adding it.
+  if (config.sceneSplitSimilarity > 0 && seeds.length > 0 && centroids.length < config.maxScenes) {
+    const membership = assign(s, centroids, norms);
+    const candidates = new Int32Array(seeds.length).fill(-1);
+    const similarity = new Float64Array(seeds.length).fill(config.sceneSplitSimilarity);
+    for (let t = 0; t < config.sceneSample; t++) {
+      const i = rng.int(n);
+      const c = membership[i];
+      if (c < 0 || c >= seeds.length) continue;
+      const sim = simWithNorm(genomes, i, centroids[c], norms[i]);
+      if (sim < similarity[c]) { candidates[c] = i; similarity[c] = sim; }
+    }
+    for (let c = 0; c < seeds.length && centroids.length < config.maxScenes; c++) {
+      if (candidates[c] < 0) continue;
+      const candidate = agentVector(genomes, candidates[c], nE);
+      let support = 0;
+      let retained = 0;
+      for (let i = 0; i < n; i++) {
+        if (membership[i] !== c) continue;
+        const old = simWithNorm(genomes, i, centroids[c], norms[i]);
+        const next = simWithNorm(genomes, i, candidate, norms[i]);
+        if (next > old + 0.1) support++; else retained++;
+      }
+      if (support >= config.minSceneSize && retained >= config.minSceneSize) centroids.push(candidate);
+    }
+  }
+
   for (let t = 0; t < config.sceneSample && centroids.length < config.maxScenes; t++) {
     const i = rng.int(n);
     if (!s.alive[i] || norms[i] === 0) continue;

@@ -4,7 +4,8 @@ import type { SimState } from "@/sim/state";
 /** An act a venue could book: an in-city artist, optionally with a taste profile (an outside artist). */
 export type BookingAct = { entity: number; profile?: { entity: number; weight: number }[] };
 
-export type BookingOptions = { weeks: number; runs: number; reachKm: number; capacity: number; nearbyKm: number };
+export type BookingDate = { startTick?: number; durationDays?: number };
+export type BookingOptions = BookingDate & { weeks: number; runs: number; reachKm: number; capacity: number; nearbyKm: number };
 
 export type BookingResult = {
   /** Index into the acts that were asked for. */
@@ -31,7 +32,7 @@ export function bookActs(live: SimState, hostVenue: number, acts: BookingAct[], 
   const outcomes = runEventCandidates(
     live,
     acts.map((a) => ({ entity: a.entity, cell, profile: a.profile })),
-    { weeks: o.weeks, duration: o.weeks, reachKm: o.reachKm, capacity: o.capacity, nearbyKm: o.nearbyKm, hostVenue, runs: o.runs },
+    { weeks: o.weeks, duration: o.weeks, startTick: o.startTick, durationDays: o.durationDays, reachKm: o.reachKm, capacity: o.capacity, nearbyKm: o.nearbyKm, hostVenue, runs: o.runs },
   );
   return acts
     .map((_, act): BookingResult => {

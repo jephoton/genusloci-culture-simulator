@@ -16,6 +16,17 @@ const fresh = () => {
 };
 
 describe("bookActs", () => {
+  it("previews the booked day and exact duration rather than a whole immediate week", () => {
+    const s = initState(world, { ...DEFAULT_CONFIG, nAgents: 400, ticksPerWeek: 7, autoOpen: false }, 3);
+    step(s);
+    const acts = [{ entity: idx(0, 5) }];
+    const [night] = bookActs(s, 0, acts, { ...opts, startTick: s.tick + 4, durationDays: 1 });
+    const [week] = bookActs(s, 0, acts, { ...opts, startTick: s.tick + 4, durationDays: 7 });
+    expect(night.turnout).toBeGreaterThan(0);
+    expect(week.turnout).toBeGreaterThan(night.turnout);
+    expect(() => bookActs(s, 0, acts, { ...opts, startTick: s.tick - 1 })).toThrow(/past/);
+    expect(s.scheduledEvents).toEqual([]);
+  });
   it("ranks acts at the host venue without touching the live city, deterministically", () => {
     const s = fresh();
     const before = hashState(s);

@@ -5,6 +5,7 @@ const index = z.number().int().nonnegative();
 /** World-changing commands, shared by the god toolbar and the co-pilot. Indices refer to the current World/state. */
 export const ActionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("closeVenue"), venue: index }),
+  z.object({ type: z.literal("cancelEvent"), event: index }),
   z.object({
     type: z.literal("openVenue"),
     entity: index,
@@ -17,6 +18,12 @@ export const ActionSchema = z.discriminatedUnion("type", [
     cell: index,
     /** Ticks (weeks) the event stays open. */
     duration: z.number().int().min(1).max(52),
+    /** Absolute simulation tick to start; omitted means now. */
+    startTick: index.optional(),
+    /** Exact simulated days instead of whole weeks (daily mode only). */
+    durationDays: z.number().int().min(1).max(364).optional(),
+    label: z.string().trim().min(1).max(100).optional(),
+    hostVenue: index.optional(),
     /** Agents whose home is within this distance treat the event as a candidate. */
     reachKm: z.number().positive().max(100),
     capacity: z.number().positive(),
@@ -44,7 +51,7 @@ export const ActionSchema = z.discriminatedUnion("type", [
 export type Action = z.infer<typeof ActionSchema>;
 export type ActionLogEntry = { tick: number; action: Action };
 export type ActionResult =
-  | { ok: true; venue?: number; agents?: number }
+  | { ok: true; venue?: number; agents?: number; event?: number }
   | { ok: false; error: string };
 
 export function parseAction(json: unknown): Action {

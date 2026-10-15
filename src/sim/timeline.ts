@@ -38,7 +38,7 @@ export class Timeline {
   /** Queues an action for the next tick; returns why it can't apply, or null if queued. */
   queue(action: Action): string | null {
     const error = validateAction(this.state, action);
-    if (!error) this.pending.push(action);
+    if (!error) this.pending.push(structuredClone(action));
     return error;
   }
 
@@ -75,7 +75,7 @@ export class Timeline {
   /** An independent timeline that shares history (snapshots are never mutated) up to now. */
   fork(): Timeline {
     const t = new Timeline(cloneState(this.state), this.snapshotEvery, new Map(this.snapshots));
-    t.pending = [...this.pending];
+    t.pending = structuredClone(this.pending);
     return t;
   }
 

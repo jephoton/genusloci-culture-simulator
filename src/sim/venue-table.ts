@@ -30,10 +30,12 @@ export function addVenue(
     if (v >= s.venueEntity.length) return -1;
   }
   s.venueEntity[v] = entity;
+  s.venueLabels[v] = null;
   s.venueCell[v] = cell;
   s.venueCapacity[v] = capacity;
   writeVenueProfile(s.cw, entity, s.venueProfile, v * s.cw.nEntities);
   s.venueOpen[v] = 1;
+  s.venueClosures[v] = null;
   s.venueHealth[v] = 0.5;
   s.venueLowTicks[v] = 0;
   s.venueAttendance[v] = 0;

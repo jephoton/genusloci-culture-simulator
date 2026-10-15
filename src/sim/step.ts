@@ -13,6 +13,8 @@ import { chooseOutings } from "@/sim/steps/outing";
 import { updateVenues } from "@/sim/steps/venues";
 import { weeksToTicks } from "@/sim/time";
 import { buildNearbyVenues } from "@/sim/venue-table";
+import { finishEvents, startDueEvents } from "@/sim/scheduling";
+import { applyResidentialEcology } from "@/sim/steps/ecology";
 
 /**
  * One tick = one simulated week, or one day when config.ticksPerWeek is 7. Applies `actions` first (logging the successful ones at the current
@@ -26,12 +28,15 @@ export function step(s: SimState, actions: readonly Action[] = []): ActionResult
     if (result.ok) s.log.push({ tick: s.tick, action });
     return result;
   });
+  startDueEvents(s, rng);
+  applyResidentialEcology(s, rng);
   chooseOutings(s, rng);
   const roster = tallyAttendance(s);
   applyExposure(s, rng, roster);
   applyDrift(s, rng);
   applyDecay(s);
   if (updateVenues(s)) s.nearbyVenues = buildNearbyVenues(s);
+  finishEvents(s);
   if (s.tick % weeksToTicks(s.config.sceneEvery, s.config.ticksPerWeek) === 0) {
     updateLineages(s.scenes, clusterAgents(s, s.scenes.centroids, rng), s.tick, s.config);
     autoOpenVenue(s);

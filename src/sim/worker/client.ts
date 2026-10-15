@@ -112,8 +112,8 @@ export class SimClient {
   }
 
   /** Book for my venue: `acts` ({ entity, profile? }) compared at `venue` for `weeks`. */
-  book(timeline: string, venue: number, acts: unknown[], weeks: number) {
-    return this.request<"book">({ type: "book", timeline, venue, acts, weeks });
+  book(timeline: string, venue: number, acts: unknown[], weeks: number, date: { startTick?: number; durationDays?: number } = {}) {
+    return this.request<"book">({ type: "book", timeline, venue, acts, weeks, ...date });
   }
 
   /** A typical member of `scene` (skipping the `skip` most typical), or null. */

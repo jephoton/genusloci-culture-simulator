@@ -223,13 +223,13 @@ export class SimHost {
         if (!Array.isArray(raw) || raw.length < 1 || raw.length > MAX_BOOKING_ACTS) throw new Error(`acts must list 1 to ${MAX_BOOKING_ACTS} acts`);
         const { reachKm, capacity, nearbyKm } = SCOUT_DEFAULTS;
         const acts: BookingAct[] = raw.map((a) => {
-          const action = parseAction({ type: "scheduleEvent", cell: s.venueCell[cmd.venue], duration: cmd.weeks, reachKm, capacity, ...(a as object) });
+          const action = parseAction({ ...(a as object), type: "scheduleEvent", cell: s.venueCell[cmd.venue], duration: cmd.weeks, startTick: cmd.startTick, durationDays: cmd.durationDays, hostVenue: cmd.venue, reachKm, capacity });
           if (action.type !== "scheduleEvent") throw new Error("bad act");
           const error = validateAction(s, action);
           if (error) throw new Error(error);
           return { entity: action.entity, profile: action.profile };
         });
-        return { results: bookActs(s, cmd.venue, acts, { weeks: cmd.weeks, runs: BOOKING_RUNS, reachKm, capacity, nearbyKm }), baselineTick: s.tick };
+        return { results: bookActs(s, cmd.venue, acts, { weeks: cmd.weeks, startTick: cmd.startTick, durationDays: cmd.durationDays, runs: BOOKING_RUNS, reachKm, capacity, nearbyKm }), baselineTick: s.tick };
       }
       case "resident": {
         const s = this.timeline(cmd.timeline).state;
