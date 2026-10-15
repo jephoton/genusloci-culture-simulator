@@ -29,7 +29,7 @@ export type ToolError = { error: string };
 
 const round = (x: number, d = 2) => Math.round(x * 10 ** d) / 10 ** d;
 const cellArea = (ctx: CityContext, cell: number) => areaName(ctx.layout, ctx.layout.cellX[cell], ctx.layout.cellZ[cell], ctx.world);
-const venueName = (ctx: CityContext, v: number) => ctx.world.entities[ctx.frame.venueEntity[v]]?.name ?? `venue ${v}`;
+const venueName = (ctx: CityContext, v: number) => ctx.frame.venueLabels?.[v] ?? ctx.world.entities[ctx.frame.venueEntity[v]]?.name ?? `venue ${v}`;
 const isEvent = (ctx: CityContext, v: number) => ctx.frame.venueExpires[v] >= 0;
 
 export function sceneLabel(ctx: CityContext, id: number): string {
@@ -55,6 +55,8 @@ export function citySummary(ctx: CityContext) {
   const tpw = Math.max(1, frame.ticksPerWeek);
   return {
     city: world.city.name,
+    tick: frame.tick,
+    ticksPerWeek: tpw,
     week: Math.floor(frame.tick / tpw),
     residents: digest?.agents ?? Array.from(frame.alive).reduce((a, b) => a + b, 0),
     venues: digest?.venues,
@@ -139,8 +141,7 @@ export function find(ctx: CityContext, query: string, kind: "venue" | "place" | 
 }
 
 /**
- * Open permanent venues ranked by estimated weekly visits (health × capacity: health is the venue's
- * rolling weekly occupancy) or by health, lowest first.
+ * Open permanent venues ranked by measured rolling weekly visits or by health, lowest first.
  */
 export function listVenues(
   ctx: CityContext,
@@ -155,7 +156,7 @@ export function listVenues(
     if (opts.kind && (e.kind ?? "other") !== opts.kind) continue;
     const where = cellArea(ctx, frame.venueCell[v]);
     if (area && norm(where) !== area) continue;
-    rows.push({ venue: v, name: e.name, kind: e.kind ?? "other", area: where, health: round(frame.venueHealth[v]), weeklyVisits: Math.round(frame.venueHealth[v] * (e.capacity ?? 0)) });
+    rows.push({ venue: v, name: e.name, kind: e.kind ?? "other", area: where, health: round(frame.venueHealth[v]), weeklyVisits: frame.venueWeekVisits?.[v] ?? 0 });
   }
   const sort = opts.sort ?? "busiest";
   rows.sort((a, b) => (sort === "busiest" ? b.weeklyVisits - a.weeklyVisits : a.health - b.health) || a.venue - b.venue);
@@ -180,6 +181,12 @@ export function venueInfo(ctx: CityContext, v: number) {
     event: isEvent(ctx, v),
     health: round(frame.venueHealth[v]),
     visitorsTonight: frame.venueAttendance[v],
+    weeklyVisits: frame.venueWeekVisits?.[v] ?? null,
+    capacity: frame.venueCapacity?.[v] ?? e.capacity ?? null,
+    rent: frame.venueRent?.[v] ?? null,
+    effectiveCapacity: frame.venueCapacity && frame.venueRent ? round(frame.venueCapacity[v] * frame.venueRent[v]) : null,
+    lowWeeks: frame.venueLowTicks ? round(frame.venueLowTicks[v] / frame.ticksPerWeek) : null,
+    closure: frame.venueClosures?.[v] ?? null,
     tonightsScenes: [...crowd].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([scene, n]) => ({ scene, name: sceneLabel(ctx, scene), visitors: n })),
     identityScene: frame.venueScene[v] >= 0 ? { scene: frame.venueScene[v], name: sceneLabel(ctx, frame.venueScene[v]) } : null,
     tastes: e.tags.slice(0, 8).map((t) => world.entities.find((x) => x.id === t)?.name ?? t),
@@ -233,6 +240,12 @@ export function toSimActions(
   const { world, frame, digest } = ctx;
   const out: Action[] = [];
   for (const a of actions) {
+    if (a.do === "cancel_event") {
+      const e = frame.scheduledEvents?.find((e) => e.id === a.event);
+      if (!e || (e.status !== "scheduled" && e.status !== "started")) return { error: "Booking is not scheduled or running" };
+      out.push({ type: "cancelEvent", event: a.event });
+      continue;
+    }
     if (a.do === "close_venue") {
       if (!(a.venue >= 0 && a.venue < frame.nVenues) || isEvent(ctx, a.venue)) return { error: `No permanent venue ${a.venue}` };
       if (!frame.venueOpen[a.venue]) return { error: `${venueName(ctx, a.venue)} is already closed` };
@@ -248,7 +261,7 @@ export function toSimActions(
       out.push({ type: "openVenue", entity, cell });
     } else if (a.do === "throw_event") {
       const { reachKm, capacity } = SCOUT_DEFAULTS;
-      const base = { type: "scheduleEvent" as const, cell: primaryCell(ctx, cells), duration: a.weeks ?? 3, reachKm, capacity };
+      const base = { type: "scheduleEvent" as const, cell: primaryCell(ctx, cells), duration: a.weeks ?? 3, startTick: a.start_tick, durationDays: a.nights, label: a.outside_artist ?? (a.artist !== undefined ? world.entities[a.artist]?.name : undefined), reachKm, capacity };
       if (a.outside_artist !== undefined) {
         const act = outside.get(a.outside_artist);
         if (!act) return { error: `Couldn't look up "${a.outside_artist}" in Qloo.` };

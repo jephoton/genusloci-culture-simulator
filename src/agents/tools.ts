@@ -15,6 +15,7 @@ export const AreaSchema = z
 
 export const CopilotActionSchema = z.discriminatedUnion("do", [
   z.object({ do: z.literal("close_venue"), venue: id.describe("Venue id") }),
+  z.object({ do: z.literal("cancel_event"), event: id.describe("Booking id from event_calendar") }),
   z.object({
     do: z.literal("open_venue"),
     kind: z.enum(VENUE_KINDS),
@@ -32,6 +33,8 @@ export const CopilotActionSchema = z.discriminatedUnion("do", [
       .describe("Name of an artist NOT in this city: Qloo is asked live who their fans are, and the event gets that crowd's taste"),
     area: AreaSchema,
     weeks: z.number().int().min(1).max(8).optional().describe("How many weeks it runs (default 3)"),
+    start_tick: id.optional().describe("Absolute simulation day/tick from city_summary; omitted means now"),
+    nights: z.number().int().min(1).max(28).optional().describe("Exact nights in daily mode, overrides weeks"),
   }),
   z.object({
     do: z.literal("rent_pressure"),
@@ -51,6 +54,10 @@ export type CopilotAction = z.infer<typeof CopilotActionSchema>;
 
 /** Tools the browser executes (the simulation lives there). Descriptions are written for the model. */
 export const CLIENT_TOOLS = {
+  event_calendar: {
+    description: "List booked events, simulation start ticks, status and any start failures. Use ids to cancel bookings.",
+    inputSchema: z.object({}),
+  },
   city_summary: {
     description:
       "The city right now: date, residents, venue counts, fidelity, every scene (id, size, name, top tastes, home areas) and recent changes. Call this first.",

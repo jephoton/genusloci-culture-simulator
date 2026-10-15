@@ -47,7 +47,7 @@ describe("copilotStream", () => {
     expect(calls).toEqual(["search:Test Artist"]);
     const firstCall = model.doStreamCalls[0];
     expect(JSON.stringify(firstCall.prompt)).toContain("London");
-    expect(firstCall.tools?.map((t) => t.name).sort()).toEqual(["apply", "city_summary", "find", "qloo_search", "qloo_taste", "scene", "venue", "venues", "what_if"]);
+    expect(firstCall.tools?.map((t) => t.name).sort()).toEqual(["apply", "city_summary", "event_calendar", "find", "qloo_search", "qloo_taste", "scene", "venue", "venues", "what_if"]);
   });
 
   it("stops at a browser tool call, leaving it for the client to run", async () => {

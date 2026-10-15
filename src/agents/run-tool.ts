@@ -53,6 +53,8 @@ export async function runCityTool(name: string, input: unknown, deps: ToolDeps):
     const ctx = deps.context(digest);
     if (!ctx) return { error: "The city is still loading." };
     switch (name) {
+      case "event_calendar":
+        return { tick: ctx.frame.tick, ticksPerWeek: ctx.frame.ticksPerWeek, events: (ctx.frame.scheduledEvents ?? []).map((e) => ({ id: e.id, artist: e.action.label ?? ctx.world.entities[e.action.entity]?.name, startTick: e.startTick, durationDays: e.action.durationDays, durationWeeks: e.action.duration, status: e.status, error: e.error })) };
       case "city_summary":
         return citySummary(ctx);
       case "find": {

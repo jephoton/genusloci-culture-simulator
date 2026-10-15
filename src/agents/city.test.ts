@@ -86,6 +86,14 @@ describe("city tools", () => {
     expect(r.actions[2]).toMatchObject({ cells: [0, 1, 2, 3], magnitude: 0.5 });
     expect(toSimActions(ctx, [{ do: "throw_event", artist: frame.venueEntity[0], area: { name: "Old Town" } }])).toHaveProperty("error");
   });
+  it("maps dated events and calendar cancellation for the co-pilot", () => {
+    const artist = world.entities.findIndex((e) => e.type === "artist");
+    const r = toSimActions(ctx, [{ do: "throw_event", artist, area: { near_venue: 0 }, start_tick: frame.tick + 7, nights: 1 }]);
+    if ("error" in r) throw new Error(r.error);
+    expect(r.actions[0]).toMatchObject({ startTick: frame.tick + 7, durationDays: 1 });
+    const dated = { ...ctx, frame: { ...frame, scheduledEvents: [{ id: 9, startTick: 12, action: { type: "scheduleEvent" as const, entity: artist, cell: 0, duration: 1, reachKm: 1, capacity: 100 }, status: "scheduled" as const }] } };
+    expect(toSimActions(dated, [{ do: "cancel_event", event: 9 }])).toEqual({ actions: [{ type: "cancelEvent", event: 9 }] });
+  });
 
   it("builds a valid interview persona from a resident", () => {
     const p = personaOf(ctx, residentProfile(s, 5));
