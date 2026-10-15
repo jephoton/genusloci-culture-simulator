@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { get } from "@vercel/blob";
+import { loadBuiltWorldJson } from "@/world/builder/job-store";
 
 // Where built Qloo worlds live. They hold Qloo data, so never in git (Qloo terms):
 // - locally: .cache/worlds/<slug>.world.json, written by `pnpm build:world <slug>`;
@@ -33,6 +34,14 @@ async function readBlob(slug: string): Promise<string | null> {
 
 /** The built world's JSON for a city, or null if it hasn't been built (or uploaded). */
 export async function loadWorldJson(slug: string): Promise<string | null> {
+  // A committed on-demand build takes precedence over an older uploaded/local world.
+  // Check its durable pointer on every read so other instances see completion immediately.
+  try {
+    const built = await loadBuiltWorldJson(slug);
+    if (built) return built;
+  } catch {
+    // Existing worlds stay available during a build-store outage.
+  }
   const hit = memo.get(slug);
   if (hit) return hit;
   const json = (await readLocal(slug)) ?? (await readBlob(slug));
