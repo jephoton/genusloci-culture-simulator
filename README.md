@@ -32,7 +32,7 @@ Qloo data drives the model, not just its labels:
 | Place insights within the city (one union-of-tags query per venue kind) | The venues: location, kind, popularity and taste tags |
 | Artist recommendations for each anchor venue's crowd | Artists in residents' tastes, event headliners, venue–artist and artist–artist affinities |
 | Place and music tags | Taste genes, plus the affinities that drive who adopts what and how tastes drift |
-| Heatmaps | One per scene seeds where its residents live. A **different, held-out** one per scene measures **fidelity**, which rises as the city runs (London 0.17 → 0.20, New York about 0.34) |
+| Heatmaps | One per scene seeds where its residents live. A **different, held-out** one per scene measures **fidelity**, which rises as the city runs (after 60 weeks: London about 0.22, New York 0.31, Singapore 0.11) |
 | Search and tag affinities (live) | Co-pilot lookups, capped per question |
 
 Qloo responses are never committed to this repository (Qloo terms). City worlds are built with a CLI, cached locally, and served by the app from a private store.

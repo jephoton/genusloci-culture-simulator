@@ -31,7 +31,7 @@ Cities lose their culture one venue at a time, and nobody sees it coming. A club
   - Venues come from place insights (one union-of-tags query per venue kind).
   - Residents' tastes and the affinity graph come from those venues' tags and from artist recommendations for each venue's crowd.
   - Where each scene's residents live comes from one Qloo heatmap per scene.
-  - **Fidelity** is measured on a *different*, held-out heatmap per scene, and it rises as the simulation runs. London goes from 0.17 to 0.20 over a simulated year, Singapore from 0.04 to 0.12, and New York sits at about 0.34. The scores are modest, but honest and falsifiable.
+  - **Fidelity** is measured on a *different*, held-out heatmap per scene, and it rises as the simulation runs. After 60 simulated weeks (mean of three seeds) London scores about 0.22, Singapore 0.11 and New York 0.31, and all three climb from where they start. The scores are modest, but honest and falsifiable.
 - **Simulation:** deterministic TypeScript in a Web Worker.
   - Daily ticks cover outings, exposure, adoption along Qloo affinities, drift, decay and venue health.
   - Scenes are tracked with warm-started spherical k-means and lineages.

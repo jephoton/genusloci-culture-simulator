@@ -25,6 +25,27 @@ Implemented by Codex ([plan](superpowers/plans/2026-10-14-deferred-features.md),
   - "1 nights" wording.
 - **Verified:** 439 tests, lint, production build and `git diff --check` all pass. In the browser on London: a dated one-night booking was compared, booked and shown on the calendar, then cancelled; an outside artist (Burna Boy) was booked and kept their name; the operator page answers with a clean 503 when builds are disabled. Not run live: a real build (it would spend quota and write to the production Blob store).
 
+## Scene dynamics (investigated 2026-10-15)
+- **On the real Qloo cities scenes do split, rarely.** London has 1–2 natural splits per 60-week run, around week 25; Singapore has 2–3 scene events per run; New York has almost none. The earlier "no natural splits" result came from the synthetic city.
+- **Why splits are rare:** scenes are tight by construction. A typical member's taste matches its scene's average at about 0.91–0.93: shared starting tastes are reinforced every night out, and drifted tastes enter at half weight and decay. The split check only looks at members below 0.7 similarity, and there are almost none.
+  - Averaging several atypical members into a candidate made no difference, so it was reverted.
+  - Tripling drift or doubling decay changed nothing.
+  - Making scenes genuinely more diverse would need a larger model change, such as venues' tastes drifting toward their crowds. That's deferred.
+- **Residential moves lowered fidelity**, so they're now off in the demo. Mean of seeds 7, 11 and 23 at week 60:
+
+  | City | With moves | Without |
+  |---|---|---|
+  | London | 0.15 | 0.22 |
+  | Singapore | 0.06 | 0.11 |
+  | New York | 0.22 | 0.31 |
+
+  Turnover and the split check stay on, and still give 1–3 scene events per run.
+- **Player actions can shake scenes up.** London, week 20, then 12 more weeks, over 3 seeds:
+  - bringing in 300 newcomers of one scene gave a birth or split in 2 of 3 runs;
+  - closing the 5 busiest venues of the biggest scene gave a split in 1 of 3;
+  - doubling the rent on 30 central cells gave none.
+- **Demo advice:** show change through player actions (newcomers, closures, events) and the scene card's size line. Don't promise natural splits.
+
 **Phase:** M5b-2, M5e (with dates) and the deferred-features batch done; M7 shipping follow-up remains. Real Qloo worlds, booking, scene cards and family trees are implemented.
 
 ## Done
@@ -113,7 +134,7 @@ Implemented by Codex ([plan](superpowers/plans/2026-10-14-deferred-features.md),
   - Singapore: 130 venues plus 30 reserve.
 - `pnpm build:world <city>` writes `.cache/worlds/<city>.world.json` (git-ignored). `/api/world/[slug]` serves it, and the game loads it first, falling back to the synthetic city.
 - The attribution now credits "Taste data: Qloo".
-- **Fidelity is held out:** one heatmap per scene seeds residents, and a different one is scored. London scores 0.17 → 0.20 and Singapore 0.04 → 0.12 over 60 weeks.
+- **Fidelity is held out:** one heatmap per scene seeds residents, and a different one is scored. London scores 0.17 → 0.20 and Singapore 0.04 → 0.12 over 60 weeks (as of M4; with turnover on and moves off, now about 0.22, 0.11 and New York 0.31 at week 60).
 - Equilibrated capacities give gradual venue turnover. A niche-loop bug in the sim is fixed.
 - Verified in the browser:
   - real venue names and kinds;
@@ -182,7 +203,7 @@ Implemented by Codex ([plan](superpowers/plans/2026-10-14-deferred-features.md),
    - ~~Phone layout~~: done. Below the `sm` breakpoint the top bar shows city, date and fidelity; a Tools · Scenes · Co-pilot tab row opens one full-width panel at a time; placing something closes the tools panel. Desktop is unchanged.
    - a demo-runbook rehearsal on the live site.
 3. ~~Deferred-feature batch~~: done (see above).
-4. **Scene splits:** with ecology on, scenes move but still never split naturally in 100 weeks, so the family tree looks flat. This needs a short modelling look (split thresholds or clustering), or the demo should lean on the scene card and the newcomers tool.
+4. ~~Scene splits~~: investigated (2026-10-15); see "Scene dynamics" below.
 5. The user's UI overhaul, then final M7 polish: demo rehearsal (steps 4–5 in a visible tab), video, Devpost.
 
 ## Carry into M5b (from M4a)
