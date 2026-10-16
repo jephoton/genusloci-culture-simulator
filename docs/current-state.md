@@ -2,13 +2,27 @@
 
 <!-- generated: maintained by agents -->
 
+## Independent review fixes (2026-10-16)
+
+All six findings reviewed at `894194f` are addressed on `codex/fix-review-findings`:
+- Event forecasts preserve older reservations' calendar priority and report candidate start failures.
+- Scout counts only the candidate's attendance and scenes, including the expiry tick when an automatic opening immediately reuses the slot.
+- Planning closes with an explanation if the tick, epoch or host changes. Comparison and booking callbacks validate the current snapshot; edited/unmounted requests cannot restore old results.
+- Outside-artist HTTP responses carry stable Qloo IDs. The browser resolves them against its own World, so old and newly built city worlds cannot mix numeric indices.
+- Scene naming prunes discarded future lineages/cooldowns and ignores old-generation responses, while keeping ancestor names and ordinary playback debounce behavior.
+- The operator console restores a persisted job's fixed budget and omits budget overrides on Continue/Retry; city selection is disabled while requests run.
+
+Verification: `npm test` passed 452 tests across 89 files; `npm run lint`, `npm run build` and `git diff --check` passed. Synthetic regressions reproduce calendar competition, later/same-tick slot reuse, reordered World entities, immutable build budgets, missing hosts, rewind and naming-response races. Browser smoke check: local London act comparisons worked, then rewind safely closed planning; `/build-city` loaded and returned its expected disabled 503 without configuration. Local LLM naming also returned 503, so successful naming lifecycle behavior was checked with synthetic hook tests. No live Qloo build or production environment change was performed. Changes are committed locally on the review-fix branch; they have not been pushed or deployed.
+
+Implementation checklist: [review fixes](superpowers/plans/2026-10-16-review-fixes.md).
+
 ## Deferred-features batch: done (2026-10-15)
 
 Implemented by Codex ([plan](superpowers/plans/2026-10-14-deferred-features.md), [handoff](superpowers/plans/2026-10-14-deferred-features-handoff.md)) and finished, verified and committed by Claude.
 
 - **Closure explanations:** natural, manual and event closures record their evidence (rolling weekly visits, rent-adjusted capacity, health, how long the venue was below the threshold). This shows in the venue panel, the toasts and the co-pilot. No speculative causes are given.
 - **Scenes keep moving:**
-  - opt-in residential moves, resident turnover and evidence-based scene splits (off by default, on in the demo);
+  - opt-in residential moves, resident turnover and evidence-based scene splits (general defaults off; demo enables turnover and split checks, with residential moves off after the fidelity investigation below);
   - measured over seeds 7, 11 and 23 for 100 weeks: about 2,300 moves and more scene switching;
   - **no natural splits happened**, so the family tree stays mostly flat (see Next).
 - **Dated bookings:**

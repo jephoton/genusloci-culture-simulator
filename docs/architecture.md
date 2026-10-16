@@ -2,11 +2,13 @@
 
 <!-- generated: maintained by agents; keep in sync with the spec -->
 
-## Pending feature batch (saved, uncommitted)
+## Simulation scheduling and world builds
 
-See [active continuation handoff](superpowers/plans/2026-10-14-deferred-features-handoff.md) before continuing. The branch `codex/deferred-features` adds simulation closure evidence (`sim/closures.ts`), snapshot-safe event scheduling (`sim/scheduling.ts`, action schema, worker, booking previews), and optional seeded residential movement/turnover (`sim/steps/ecology.ts`, clustering, config). General ecology defaults remain disabled; the playable demo enables them. Closure evidence and event labels/calendar metadata travel in frames; recent transmitted history is bounded while state retains history.
+The deferred-features batch adds simulation closure evidence (`sim/closures.ts`), snapshot-safe event scheduling (`sim/scheduling.ts`, action schema, worker, booking previews), and optional seeded residential movement/turnover (`sim/steps/ecology.ts`, clustering, config). General ecology defaults remain disabled; the demo enables turnover and the split check, while residential moves remain off after real-city fidelity measurements. Closure evidence and event labels/calendar metadata travel in frames; recent transmitted history is bounded while state retains history. Booking forecasts preserve calendar insertion order and count attendance by candidate lifetime, including final attendance when its venue slot is reused.
 
-The server adds an operator-authenticated `/api/world-builds` route using a private Blob compare-and-swap ledger, fenced global lease, cached stage replay and per-call budget debit. Existing world loading prefers a successfully committed build output. It currently supports registry cities only. `WORLD_BUILD_TOKEN` authorizes operators; `WORLD_BUILD_QUOTA_REMAINING` initializes a conservative shared quota estimate; the reserve is at least 1,000 calls. **Monthly quota reconciliation and an operator page are unfinished**, with failing tests already added. No production environment variables were changed. This section describes work in progress, not verified shipped behavior.
+The operator-authenticated `/api/world-builds` route uses a private Blob compare-and-swap ledger, fenced global lease, cached stage replay and per-call budget debit. Existing world loading prefers a successfully committed build output. It supports registry cities only. `WORLD_BUILD_TOKEN` authorizes operators; `WORLD_BUILD_QUOTA_REMAINING` initializes a conservative shared quota estimate; the reserve is at least 1,000 calls. Monthly quota reconciliation uses authenticated PATCH, and `/build-city` provides operator controls that retain a job's fixed call budget across reloads. See [operator instructions](on-demand-world-builds.md). Production build controls remain disabled until configured.
+
+Transient planning and naming state is tied to simulation timeline identity. Planning closes if its tick, epoch or host changes, and callbacks guard against stale comparisons. Naming prunes discarded lineages and rejects results from abandoned generations. Outside-artist HTTP responses contain stable Qloo IDs; `ui/outside-act-client.ts` matches those IDs to the caller's actual World, avoiding numeric-index mismatches after world publication.
 
 **Goal:** a god-game sandbox of a real city's cultural ecosystem, grounded in Qloo's taste graph, built for the Qloo Agentic Hackathon (deadline 2026-10-31 11:45 GMT+8).
 
@@ -56,7 +58,7 @@ The server adds an operator-authenticated `/api/world-builds` route using a priv
   - `rate-limit.ts` — per-visitor token bucket
 - **`app/api/copilot`, `app/api/name-scenes`, `app/api/interview`** — the LLM routes (503 without a key; 429 when rate-limited). City tools run in the browser via `useChat` `onToolCall`; Qloo tools run on the server.
 - **`sim/events.ts`, `sim/booking.ts`** — the shared paired-run engine for candidate events (Scout: one act, several spots; booking: one venue, several acts, including the host venue's own change). Events may carry a taste `profile` (outside artists).
-- **`app/api/outside-act` + `agents/outside-act.ts`** — live Qloo: search an artist, recommend similar artists and tag affinities, and match them to the city's entities to build an event profile.
+- **`app/api/outside-act` + `agents/outside-act.ts` + `ui/outside-act-client.ts`** — live Qloo: search an artist and return similar artists and tag affinities with stable IDs; the browser matches them to its own World to build an event profile.
 - **`sim/whatif.ts`, `sim/resident.ts`** — scenario versus baseline comparison (4 paired seeded runs; mean, range and consistency per effect; Scout uses the same pairing with 3 runs) and resident profiles, exposed as worker commands `whatIf` and `resident`.
 
 ## Qloo access
