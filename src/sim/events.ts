@@ -1,4 +1,6 @@
 import { geneSlot } from "@/sim/genome";
+import { applyAction } from "@/sim/actions/apply";
+import { createRng } from "@/sim/rng";
 import { cloneState, type SimState } from "@/sim/state";
 import { step } from "@/sim/step";
 import { weeksToTicks } from "@/sim/time";
@@ -70,21 +72,28 @@ function onePair(live: SimState, candidates: EventCandidate[], o: EventRunOption
 
   return candidates.map((c): EventOutcome => {
     const before = c.profile ? null : fansOf(atDate, c.entity);
-    const s = cloneState(atDate);
-    const [res] = step(s, [
-      { type: "scheduleEvent", entity: c.entity, cell: c.cell, duration: o.duration, durationDays: o.durationDays, hostVenue: o.hostVenue, reachKm: o.reachKm, capacity: o.capacity, ...(c.profile ? { profile: c.profile } : {}) },
-    ]);
+    // Register at booking time so older due bookings retain their calendar priority.
+    const s = cloneState(live);
+    s.rngState = seed;
+    const rng = createRng(s.rngState);
+    const res = applyAction(s,
+      { type: "scheduleEvent", entity: c.entity, cell: c.cell, startTick, duration: o.duration, durationDays: o.durationDays, hostVenue: o.hostVenue, reachKm: o.reachKm, capacity: o.capacity, ...(c.profile ? { profile: c.profile } : {}) }, rng);
     if (!res.ok) throw new Error(res.error);
-    const slot = res.venue ?? -1;
+    s.rngState = rng.state();
+    const event = s.scheduledEvents.find((e) => e.id === res.event)!;
+    while (s.tick < startTick) step(s);
+    let slot = -1;
     let turnout = 0;
     const sceneCounts = new Map<number, number>();
     const visits = new Float64Array(s.venueEntity.length);
-    const tally = () => {
+    const tally = (candidateRunning: boolean) => {
       for (let v = 0; v < s.nVenues; v++) visits[v] += s.venueAttendance[v];
-      if (slot < 0) return;
-      turnout += s.venueAttendance[slot];
+      if (!candidateRunning || slot < 0) return;
+      // autoOpenVenue may reuse an expired slot after outings and clear its counter.
+      // The per-agent attendance still records this tick's actual event visitors.
       for (let i = 0; i < s.attendance.length; i++) {
         if (s.attendance[i] !== slot) continue;
+        turnout++;
         const a = s.scenes.assignment[i];
         if (a >= 0) {
           const id = s.scenes.live[a];
@@ -92,10 +101,14 @@ function onePair(live: SimState, candidates: EventCandidate[], o: EventRunOption
         }
       }
     };
-    tally();
-    for (let t = 1; t < ticks; t++) {
+    for (let t = 0; t < ticks; t++) {
+      // Completion happens after attendance: include that final tick, then never count
+      // this event's reusable slot again, even if another booking occupies it.
+      const candidateRunning = event.status === "scheduled" || event.status === "started";
       step(s);
-      tally();
+      if (event.status === "failed") throw new Error(event.error ?? "event failed to start");
+      slot = event.venue ?? -1;
+      tally(candidateRunning);
     }
     let newFans = 0;
     if (before) {
@@ -104,7 +117,7 @@ function onePair(live: SimState, candidates: EventCandidate[], o: EventRunOption
     }
     let neighbourLoss = 0;
     for (let v = 0; v < Math.min(s.nVenues, baseline.nVenues); v++) {
-      if (v === slot || v === o.hostVenue || s.venueExpires[v] >= 0) continue;
+      if (v === o.hostVenue || s.venueExpires[v] >= 0) continue;
       if (distKm(s.cw, c.cell, s.venueCell[v]) > o.nearbyKm) continue;
       neighbourLoss += Math.max(0, baseVisits[v] - visits[v]);
     }
