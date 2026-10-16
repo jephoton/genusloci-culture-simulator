@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CITIES } from "@/geo/cities";
+import { buildSubmission } from "./build-console-state";
 
 type BuildStatus = { city: string; stage: string; status: string; calls: number; maxCalls: number; failures: number; updatedAt: string; error?: string };
 type Quota = { remaining: number | null; period: string | null; currentPeriod: string; floor: number };
@@ -35,7 +36,10 @@ export function BuildCityConsole() {
         cache: "no-store",
       });
       const data = (await res.json().catch(() => ({}))) as { build?: BuildStatus | null; quota?: Quota | { remaining: number; period: string }; error?: string };
-      if (data.build !== undefined) setBuild(data.build);
+      if (data.build !== undefined) {
+        setBuild(data.build);
+        if (data.build?.city === city) setMaxCalls(data.build.maxCalls);
+      }
       if (data.quota && "currentPeriod" in data.quota) setQuota(data.quota);
       if (method === "PATCH" && res.ok) setMessage(`Quota reconciled: ${(data.quota as { remaining: number }).remaining} calls for ${(data.quota as { period: string }).period}.`);
       else if (data.error) setMessage(`${res.status}: ${data.error}`);
@@ -66,7 +70,7 @@ export function BuildCityConsole() {
         <div className="flex flex-wrap items-end gap-3">
           <label className="space-y-1">
             <span className="block text-xs text-zinc-400">City</span>
-            <select value={city} onChange={(e) => { setCity(e.target.value); setBuild(null); }} className={field}>
+            <select disabled={busy} value={city} onChange={(e) => { setCity(e.target.value); setBuild(null); }} className={field}>
               {Object.values(CITIES).map((c) => (
                 <option key={c.slug} value={c.slug} className="bg-zinc-900">{c.name}</option>
               ))}
@@ -74,13 +78,13 @@ export function BuildCityConsole() {
           </label>
           <label className="space-y-1">
             <span className="block text-xs text-zinc-400">Call budget (20–180)</span>
-            <input type="number" min={20} max={180} value={maxCalls} onChange={(e) => setMaxCalls(Number(e.target.value))} className={`${field} w-28`} />
+            <input type="number" min={20} max={180} disabled={busy || build?.city === city} value={maxCalls} onChange={(e) => setMaxCalls(Number(e.target.value))} className={`${field} w-28`} />
           </label>
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" disabled={!hasToken || busy} onClick={() => void call("GET")} className={button}>Refresh status</button>
-          <button type="button" disabled={!hasToken || busy} onClick={() => void call("POST", { city, maxCalls })} className={button}>{build ? "Continue" : "Start"}</button>
-          <button type="button" disabled={!hasToken || busy || !build || (build.status !== "failed" && build.status !== "blocked")} onClick={() => void call("POST", { city, maxCalls, retry: true })} className={button}>Retry</button>
+          <button type="button" disabled={!hasToken || busy} onClick={() => void call("POST", buildSubmission(city, maxCalls, build))} className={button}>{build ? "Continue" : "Start"}</button>
+          <button type="button" disabled={!hasToken || busy || !build || (build.status !== "failed" && build.status !== "blocked")} onClick={() => void call("POST", buildSubmission(city, maxCalls, build, true))} className={button}>Retry</button>
         </div>
       </section>
 
