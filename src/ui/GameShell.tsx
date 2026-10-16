@@ -38,6 +38,7 @@ import { fetchOutsideAct } from "@/ui/outside-act-client";
 import { cellsWithin, sceneGenes } from "@/ui/area-tools";
 import { useCopilot } from "@/ui/useCopilot";
 import { useSceneNames } from "@/ui/useSceneNames";
+import { plannerSnapshot, samePlannerSnapshot, type PlannerSnapshot } from "@/ui/timeline-state";
 import { useSimulation } from "@/ui/useSimulation";
 import { VenuePanel } from "@/ui/VenuePanel";
 import type { World } from "@/world/schema";
@@ -198,7 +199,7 @@ function Game({
     if ("error" in info) return null;
     return { id, tastes: info.tastes.map((t) => t.name), homes: info.homes, parentId: info.splitFrom };
   });
-  const sceneNames = useSceneNames(world.city.name, liveDigest, describeScene);
+  const sceneNames = useSceneNames(world.city.name, liveDigest, describeScene, sim.frame, frames);
   const sceneNamesRef = useRef(sceneNames);
   useEffect(() => {
     sceneNamesRef.current = sceneNames;
@@ -390,9 +391,15 @@ function Game({
   /** Book for my venue: the venue being planned for, and whether the city was playing before. */
   const [planVenue, setPlanVenue] = useState<number | null>(null);
   const planWasPlaying = useRef(false);
+  const planSnapshot = useRef<PlannerSnapshot | null>(null);
+  const forecast = useRef<{ snapshot: PlannerSnapshot; acts: BookingAct[]; weeks: number; date: BookingDate } | null>(null);
   const book = sim.book;
   const startPlan = useCallback(
     (slot: number) => {
+      const snapshot = plannerSnapshot(latest.current.frames.current.current, slot);
+      if (!snapshot) return;
+      planSnapshot.current = snapshot;
+      forecast.current = null;
       planWasPlaying.current = playing;
       if (playing) pause();
       setPlanVenue(slot);
@@ -403,6 +410,8 @@ function Game({
   const endPlan = useCallback(
     (resume: boolean) => {
       setPlanVenue(null);
+      planSnapshot.current = null;
+      forecast.current = null;
       if (resume && planWasPlaying.current) play();
       planWasPlaying.current = false;
     },
@@ -410,19 +419,30 @@ function Game({
   );
   const comparePlan = useCallback(
     async (acts: BookingAct[], weeks: number, date: BookingDate) => {
-      if (planVenue === null) return [];
+      const snapshot = planSnapshot.current;
+      if (planVenue === null || !snapshot || !samePlannerSnapshot(snapshot, latest.current.frames.current.current, planVenue)) throw new Error("The city changed. Reopen the planner to compare again.");
+      forecast.current = null;
       const { results } = await book(planVenue, acts.map(({ entity, profile }) => ({ entity, profile })), weeks, date);
+      if (planSnapshot.current !== snapshot || !samePlannerSnapshot(snapshot, latest.current.frames.current.current, planVenue)) throw new Error("The city changed. Reopen the planner to compare again.");
+      forecast.current = { snapshot, acts: results.map((r) => acts[r.act]).filter(Boolean), weeks, date };
       return results;
     },
     [book, planVenue],
   );
-  const currentFrame = sim.frame;
+  useEffect(() => {
+    if (planVenue !== null && !samePlannerSnapshot(planSnapshot.current, sim.frame, planVenue)) {
+      endPlan(false);
+      notify("Planning closed because the city changed. Reopen the venue to compare again.");
+    }
+  }, [sim.frame, planVenue, endPlan, notify]);
   const bookPlan = useCallback(
     (a: BookingAct, weeks: number, date: BookingDate) => {
-      const f = currentFrame;
-      if (planVenue === null || !f) return;
+      const f = latest.current.frames.current.current;
+      const approved = forecast.current;
+      if (planVenue === null || !f || !approved || !samePlannerSnapshot(approved.snapshot, f, planVenue) || !approved.acts.includes(a) || approved.weeks !== weeks || approved.date !== date) return;
       const cell = f.venueCell[planVenue];
-      const venueName = world.entities[f.venueEntity[planVenue]].name;
+      const venueName = world.entities[f.venueEntity[planVenue]]?.name;
+      if (!venueName) return;
       // The frame feed would announce the event under its entity, a stand-in for outside artists.
       const key = placementKey(a.entity, cell);
       placed.current.add(key);
@@ -437,7 +457,7 @@ function Game({
         if (resume) play();
       });
     },
-    [act, currentFrame, endPlan, flyTo, layout, notify, planVenue, play, world],
+    [act, endPlan, flyTo, layout, notify, planVenue, play, world],
   );
 
   // A pinned scene that has merged or died stops being a focus.
@@ -454,14 +474,14 @@ function Game({
     (slot: number) => {
       // Scouting, a venue is just a place on the map: try the spot it stands on.
       if (scouting) {
-        const frame = frames.current.current;
+        const frame = latest.current.frames.current.current;
         if (frame && slot < frame.nVenues) tryOwnSpot(frame.venueCell[slot]);
         return;
       }
       setSelected(slot);
       setPinned({ kind: "venue", slot });
     },
-    [frames, scouting, tryOwnSpot],
+    [scouting, tryOwnSpot],
   );
 
   const onPinScene = useCallback(
@@ -472,11 +492,11 @@ function Game({
       }
       setPinned({ kind: "scene", id });
       setSelected(null);
-      const frame = frames.current.current;
+      const frame = latest.current.frames.current.current;
       const anchor = frame ? sceneAnchor(frame, layout, id) : null;
       if (anchor) flyTo(anchor);
     },
-    [flyTo, frames, layout, pinnedLive],
+    [flyTo, layout, pinnedLive],
   );
 
   // Peeks only: onFrameChanges (which runs afterwards) is what clears the sets.

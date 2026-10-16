@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { BookingResult } from "@/sim/booking";
 import type { BookingDate } from "@/sim/booking";
 import { BOOKING_WEEKS, MAX_BOOKING_ACTS } from "@/sim/worker/protocol";
@@ -63,15 +63,22 @@ export function BookingPanel({
   const [message, setMessage] = useState<string | null>(null);
   const [run, setRun] = useState<Run>(null);
   const [loading, setLoading] = useState(false);
+  const compareRequest = useRef(0);
+  useEffect(() => () => { compareRequest.current++; }, []);
+  const invalidateRun = () => {
+    compareRequest.current++;
+    setRun(null);
+    setLoading(false);
+  };
 
   const full = acts.length >= MAX_BOOKING_ACTS;
   const add = (act: BookingAct) => {
     setActs((a) => (a.some((x) => x.key === act.key) || a.length >= MAX_BOOKING_ACTS ? a : [...a, act]));
-    setRun(null);
+    invalidateRun();
   };
   const remove = (key: string) => {
     setActs((a) => a.filter((x) => x.key !== key));
-    setRun(null);
+    invalidateRun();
   };
 
   const addByName = async (e: FormEvent) => {
@@ -99,15 +106,17 @@ export function BookingPanel({
 
   const runCompare = async () => {
     if (acts.length === 0) return;
+    const request = ++compareRequest.current;
     setLoading(true);
     setMessage(null);
     try {
       const date = { startTick, durationDays };
-      setRun({ results: await compare(acts, weeks, date), acts, weeks, date });
+      const results = await compare(acts, weeks, date);
+      if (request === compareRequest.current) setRun({ results, acts, weeks, date });
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : String(e));
+      if (request === compareRequest.current) setMessage(e instanceof Error ? e.message : String(e));
     } finally {
-      setLoading(false);
+      if (request === compareRequest.current) setLoading(false);
     }
   };
 
@@ -172,7 +181,7 @@ export function BookingPanel({
             onClick={() => {
               setWeeks(w);
               setDurationDays(undefined);
-              setRun(null);
+              invalidateRun();
             }}
             className={`rounded-md px-2 py-1 ${weeks === w ? "bg-white/15" : "hover:bg-white/5"}`}
           >
@@ -181,10 +190,10 @@ export function BookingPanel({
         ))}
       </div>
       <div className="flex flex-wrap gap-2 text-xs">
-        <label>Start week <input aria-label="Start week" type="number" min={Math.floor(tick / ticksPerWeek)} max={Math.floor(tick / ticksPerWeek) + 52} value={Math.floor(startTick / ticksPerWeek)} onChange={(e) => { setStartTick(Number(e.target.value) * ticksPerWeek + startTick % ticksPerWeek); setRun(null); }} className="w-16 rounded bg-white/10 px-2 py-1" /></label>
+        <label>Start week <input aria-label="Start week" type="number" min={Math.floor(tick / ticksPerWeek)} max={Math.floor(tick / ticksPerWeek) + 52} value={Math.floor(startTick / ticksPerWeek)} onChange={(e) => { setStartTick(Number(e.target.value) * ticksPerWeek + startTick % ticksPerWeek); invalidateRun(); }} className="w-16 rounded bg-white/10 px-2 py-1" /></label>
         {ticksPerWeek === 7 && <>
-          <label>Day <select aria-label="Start day" value={startTick % 7} onChange={(e) => { setStartTick(Math.floor(startTick / 7) * 7 + Number(e.target.value)); setRun(null); }} className="rounded bg-zinc-800 px-2 py-1">{["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d, i) => <option key={d} value={i}>{d}</option>)}</select></label>
-          <label>Exact nights <input aria-label="Event nights" type="number" min={1} max={28} value={durationDays ?? weeks * 7} onChange={(e) => { setDurationDays(Number(e.target.value)); setRun(null); }} className="w-16 rounded bg-white/10 px-2 py-1" /></label>
+          <label>Day <select aria-label="Start day" value={startTick % 7} onChange={(e) => { setStartTick(Math.floor(startTick / 7) * 7 + Number(e.target.value)); invalidateRun(); }} className="rounded bg-zinc-800 px-2 py-1">{["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d, i) => <option key={d} value={i}>{d}</option>)}</select></label>
+          <label>Exact nights <input aria-label="Event nights" type="number" min={1} max={28} value={durationDays ?? weeks * 7} onChange={(e) => { setDurationDays(Number(e.target.value)); invalidateRun(); }} className="w-16 rounded bg-white/10 px-2 py-1" /></label>
         </>}
       </div>
       <p className="text-xs text-zinc-400">Dates use the simulation calendar. {durationDays !== undefined ? plural(durationDays, "night") : plural(weeks, "week")} starting in week {Math.floor(startTick / ticksPerWeek)}{ticksPerWeek === 7 ? ` · ${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][startTick % 7]}` : ""}. Past dates are rejected.</p>
