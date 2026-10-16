@@ -86,7 +86,7 @@ export function BookingPanel({
       return;
     }
     setLookingUp(true);
-    const r = await fetchOutsideAct(city, name);
+    const r = await fetchOutsideAct(city, name, world);
     setLookingUp(false);
     if ("error" in r) return setMessage(r.error);
     if (r.inCity !== null) add({ key: `in:${r.inCity}`, label: world.entities[r.inCity].name, entity: r.inCity });

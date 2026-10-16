@@ -238,7 +238,7 @@ function Game({
     latestDigest: () => latest.current.latestDigest(),
     whatIf: (actions, weeks) => latest.current.whatIf(actions, weeks),
     act: (action) => latest.current.act(action),
-    outsideAct: (name) => fetchOutsideAct(latest.current.citySlug, name),
+    outsideAct: (name) => fetchOutsideAct(latest.current.citySlug, name, latest.current.world),
     onApplied: (actions) => {
       const L = latest.current;
       const f = L.frames.current.current;
