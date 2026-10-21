@@ -53,7 +53,7 @@ Every week, residents go out to a venue that suits their taste. There they're ex
 
 > Cities lose their culture one venue at a time, and nobody can see it coming. A venue closing, a rent rise or a new club isn't just one business: it's a shock to an ecosystem of scenes. **Genus Loci** grows a living model of a real city's culture from Qloo's taste graph. Thousands of residents carry real tastes, go out to real venues and influence each other. Venues, promoters and city culture teams can test a decision before making it: *"What happens to this scene if this venue closes? Where is the scene going next? What's this neighbourhood missing?"* An AI co-pilot runs the scenarios and explains the results in plain English.
 
-- **Why it needs Qloo:** without the taste graph, the simulation has no physics. Venue choice, adoption and scene drift all come from Qloo affinities, and the heatmaps prove the simulated city matches the real one.
+- **Why it needs Qloo:** without the taste graph, the simulation has no physics. Venue choice, adoption and scene drift all come from Qloo affinities, and held-out heatmaps provide a limited spatial taste check.
 - **Who it's for:** independent venues (survival), promoters (where scenes are heading, and where to put an event), city night-time-economy teams (venue-closure policy).
 - **Tagline:** *Every city's culture is a living species.*
 
@@ -75,11 +75,15 @@ Every week, residents go out to a venue that suits their taste. There they're ex
 
 The timed steps below total 4 minutes 35 seconds, excluding setup and response waits. This is a rehearsal guide, not an organizer-mandated live presentation.
 
-For a shorter, optional three-minute judge walkthrough: introduce the Qloo-backed city (20 s), highlight one scene and its tastes (25 s), compare acts with **Plan a night here** and book one (45 s), show a co-pilot what-if against its baseline (65 s), then explain fidelity and model limits (25 s). Response latency may extend this; rehearse on the hosted app.
+For a shorter, optional three-minute judge walkthrough: introduce the Qloo-backed city (20 s), highlight one scene and its tastes (25 s), use **Plan event** to match a headliner, compare venues and schedule one (45 s), show a co-pilot what-if against its baseline (65 s), then explain fidelity and model limits (25 s). Response latency may extend this; rehearse on the hosted app.
 
 For a full hands-on tour of every feature (about 30 minutes, with a checklist), see [feature-walkthrough.md](feature-walkthrough.md).
 
-**Focused interface:** open one workspace at a time: **Venues**, **Scenes**, **City tools**, **Co-pilot**. Statistics/fidelity are in **City overview**. Speed/rewind are in **Playback**. **City tools → Events and scouting** contains Scout; **Open a place** contains venue creation. In a selected venue, **Venue actions** contains closure. The planner's **Schedule** disclosure contains dates/duration; the event calendar is above the **Venues** directory when no venue is selected.
+**Focused interface:** start with **Plan event**. **Explore city** contains **Venue directory**, **Scenes & crowds**, and **City sandbox**; older Venues/Scenes/City tools references below mean these submenus. Co-pilot is separate. Statistics/fidelity are in **City overview**; speed/rewind are in **Playback**. The calendar is above the directory when no venue is selected.
+
+**Primary rehearsal (about 90 seconds):** keep London paused; choose **Ghetts** and a future Friday in **Plan event → Find matching venues**. Explain that the shortlist ranks Qloo taste evidence. **Compare impact at 3 venues**, choose a card, and show the **No event / With event** table and three-run turnout range. Only **Schedule in the simulation** commits the event; **View event calendar** confirms it. This is the promoter's main story: one artist, a venue choice and an isolated modeled event effect. Real availability, ticket demand and causal business forecasts are not established. The wider ecosystem walkthrough below is optional after this decision.
+
+**Rate limits:** compact schemas, bounded responses/history and a visible cooldown reduce provider load. **New chat** reduces old context without resetting limits or city changes. The primary planning rehearsal works without an LLM for existing-world artists; outside artists separately need Qloo.
 
 **No LLM key:** rehearse the manual path: **Venues → choose venue → Plan a night here → Compare → Book**, then Play and explore Scenes. Existing-world artist comparisons need no LLM; outside artists separately need Qloo. Skip the co-pilot, scene naming and resident interview steps until a supported provider is configured and the server restarted. The offline drawer explains this; it does not simulate an AI answer. The agentic submission still needs a working provider for its conversational demonstration.
 

@@ -2,6 +2,18 @@
 
 <!-- generated: maintained by agents -->
 
+## Artist-first event planning, street names and provider limits (2026-10-21)
+
+The primary workspace is now **Plan event**: artist and simulation date → Qloo-evidence venue shortlist → paired venue impact → explicit simulated scheduling. **Explore city** holds Venue directory, Scenes & crowds and City sandbox. Existing venue-first booking remains available. The shortlist includes open permanent music venues/clubs/bars/performance spaces with directed artist affinity; outside artists use their returned fan profile, without an invented proxy fallback. No evidence produces an empty result rather than arbitrary recommendations.
+
+Comparisons expose usual host visits with and without the event, event attendance, combined totals and the observed three-seed turnout range. Snapshot and generation guards block stale comparisons and scheduling. The temporary event slot/capacity remains a model assumption, not a real venue reservation or validated ticket forecast. Automatic openings fill underserved scenes using catalogue taste templates; UI explanations and opening notifications now identify them as modeled openings. Manual placement also uses catalogue templates matched to area tastes.
+
+Subtle screen-projected OSM street names preserve existing city geometry, align to roads, fade by zoom and suppress overlapping labels. London, Singapore and New York supplements are documented in `public/geo/README.md`; regenerate with `npx tsx scripts/build-street-names.ts`. No world rebuild or Qloo ingestion was needed.
+
+Co-pilot requests use compact wire schemas (about 44% fewer schema characters), bounded response/tool rounds and context trimming at complete user turns. Provider Retry-After is propagated as a visible cooldown, with client/server gating. New chat clears context but preserves cooldown and the tool-execution ledger; duplicate tool-call IDs cannot replay city actions. The server cooldown is process-local, and character budgets approximate tokens. Provider account-wide limits remain; switching to a smaller model does not inherently bypass them.
+
+Verification: 482 tests across 98 files, TypeScript, lint and a production build passed. Independent review found no important issue in the planner, paired accounting or co-pilot mitigation. Browser rehearsal selected Ghetts, shortlisted and compared three venues without advancing the live city, scheduled at Quaglino's and confirmed the Friday calendar entry. Six road labels were rendered in the inspected closer London view. One short live co-pilot question completed its city lookup and answered 2,500 residents without a 429; longer scenarios still need account-budget testing. The runbook and walkthrough explain the primary flow and model limits. Work is local on `feat/focused-city-interface`; no merge, push or deployment was performed. Plan: [artist-first planning](superpowers/plans/2026-10-21-artist-first-planning.md).
+
 ## Artist picker consistency (2026-10-21)
 
 The booking planner's browser-native datalist is replaced with an app-styled editable combobox (`ArtistPicker.tsx`): dark scrollable results, violet keyboard highlights, filtered local artists, and exclusion of artists already in the lineup. Selecting a suggestion fills the field; Add retains the existing local/outside-artist path. Typing does not make Qloo calls. Arrow keys navigate, Enter selects an active suggestion, Escape dismisses only the suggestion list, and Tab/outside focus closes it. Results flow inside the drawer so they use its existing scrolling rather than an OS popup. Browser checks verified filtering, mouse/keyboard selection, adding a local artist and unmatched-name guidance without a new Qloo lookup.

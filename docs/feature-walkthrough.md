@@ -4,7 +4,17 @@ A hands-on tour of every feature, in an order where each section sets up the nex
 
 <!-- generated: navigation updated for the focused interface -->
 
-**Navigation:** the main screen shows the city, four workspace buttons and compact playback controls. **Venues**, **Scenes**, **City tools** and **Co-pilot** open one drawer at a time on desktop and phones. Start with **Venues → choose a venue → Plan a night here → Compare → Book**. The map is also clickable. **City overview** contains statistics and fidelity; **Playback** contains speed and rewind. In a venue, **Venue performance** contains detailed numbers and **Venue actions** contains **Close venue**. In the planner, expand **Schedule** for dates and duration.
+**Navigation:** start in **Plan event**: **artist and simulation date → Find matching venues → Compare impact → Schedule in the simulation**. **Explore city** reveals **Venue directory**, **Scenes & crowds** and **City sandbox**. **Co-pilot** is separate. One drawer opens at a time. Statistics/fidelity remain in **City overview**; speed/rewind remain in **Playback**. Below, older references to Venues, Scenes and City tools mean those three Explore city submenus. The venue-first planner remains in the directory under **Plan a night here**.
+
+### Start here: I have an artist and need a venue
+
+1. Keep London paused. In **Plan event**, type **Ghetts**, select the city suggestion, choose a future simulation week/day and number of nights, then **Find matching venues**. Typing alone makes no Qloo request; submitting an artist outside the city needs Qloo.
+2. Inspect up to three open music venues, clubs, bars or performance spaces with artist-affinity evidence. These are taste matches, not checks of real suitability or availability. Clicking a card locates it on the map. No evidence means no invented shortlist.
+3. **Compare impact at … venues**. The same artist, date and duration run against a no-event baseline across three paired seeds at each host. The live city stays unchanged. Select a result to see event visits, usual host visits and host-plus-event totals with and without the event. The three-run range is not a calibrated confidence interval, unique attendance or ticket demand.
+4. Expand **Crowds and nearby effects** if useful. **Schedule in the simulation** is the explicit commit, then **View event calendar**. Events use a temporary venue slot at the host location with model capacity assumptions; scheduling does not reserve a real venue. City changes invalidate unfinished comparisons.
+5. Explore the broader city after this decision. Real OSM street names fade with zoom and avoid overlap. Automatic and sandbox openings reuse catalogue place profiles as hypothetical templates; they do not announce real business openings.
+
+**Provider limits:** compact tool schemas, bounded output and trimmed history reduce token use. Respect the visible cooldown after a rate limit. **New chat** clears old context while retaining city changes and cooldown. Account-wide TPM/RPM limits still apply, including other requests using that account.
 
 **Without an LLM key:** the co-pilot drawer explains its unavailability and offers the venue flow. Resident interview buttons are hidden; scenes keep numeric names. Venue comparisons, bookings, scouting and city interventions still use the simulation. Outside-artist lookup separately needs Qloo. Configure one supported provider in `.env.local` (see `.env.example`) and restart to enable AI features; a configured key does not guarantee provider health.
 
