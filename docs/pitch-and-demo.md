@@ -57,12 +57,25 @@ Every week, residents go out to a venue that suits their taste. There they're ex
 - **Who it's for:** independent venues (survival), promoters (where scenes are heading, and where to put an event), city night-time-economy teams (venue-closure policy).
 - **Tagline:** *Every city's culture is a living species.*
 
-### Open alignment questions (to resolve next)
+### Hackathon alignment (checked 2026-10-21)
 
-- ~~Where to host what~~: **resolved** by **Scout a location** (M5c). *Book for my venue* (what to put on at a venue) is next.
-- ~~Closures invisible~~: struggling venues now pulse red and get a toast before they close; the demo city turns over (about 7 opens and 5 closes per 100 weeks). Closures don't yet explain *why* (e.g. "a rival nearby took its crowd").
+- The [official requirements](https://qloo.devpost.com/) require a working, publicly hosted app, a public source repository with an open-source license, and a description explaining Qloo's role. **A demo video is optional.** A local server is for rehearsal, not the submitted demo link.
+- No separate tracks or scheduled live pitch/demo-day requirement were found in the public overview, [rules](https://qloo.devpost.com/rules), [resources](https://qloo.devpost.com/resources) or [updates](https://qloo.devpost.com/updates). Recheck organizer announcements before submission.
+- The four equally weighted judging criteria are technology implementation, design, potential impact and quality of the idea. Position the product as a venue/promoter decision co-pilot: compare acts for a venue, scout locations, and explain scenario differences. Make that useful flow visible before exploring the simulation's broader features.
+- The [schedule](https://qloo.devpost.com/details/dates) sets the deadline at October 30, 2026, 11:45 pm EDT (October 31, 11:45 am Singapore time). Keep judge access free and unrestricted through the end of judging, November 16, 11:45 pm EST (November 17, 12:45 pm Singapore time).
+- Scout and **Plan a night here** both exist. Closure explanations now show recorded simulation evidence; they do not establish real-world causes. Held-out heatmap fidelity is a limited spatial taste check, not validation of causal business forecasts.
 
-## Demo runbook (about 3 minutes, as intended for demo day)
+### Dining and fashion scope
+
+- **Dining has a foundation:** the builder gathers restaurants and cafes and retains eligible cuisine/culinary-style tags. A bounded extension could surface those tastes and compare restaurant concepts or a post-gig dining fit using the existing scenario machinery. This dedicated workflow has not been implemented or validated.
+- **Fashion needs data work:** the schema supports brands, but the builder currently gathers artist recommendations, not brand affinities; shop gathering targets record stores. A small, real-Qloo brand-affinity overlay could be explored after checking coverage. Do not present brand taste as an existing feature.
+- Avoid adding full dining and retail activity loops before submission: they need new behavioral assumptions, calibration and flows. The current outing model does not independently simulate meals and shopping. One coherent decision flow matters more than covering every example domain.
+
+## Demo runbook (allow 5–6 minutes)
+
+The timed steps below total 4 minutes 35 seconds, excluding setup and response waits. This is a rehearsal guide, not an organizer-mandated live presentation.
+
+For a shorter, optional three-minute judge walkthrough: introduce the Qloo-backed city (20 s), highlight one scene and its tastes (25 s), compare acts with **Plan a night here** and book one (45 s), show a co-pilot what-if against its baseline (65 s), then explain fidelity and model limits (25 s). Response latency may extend this; rehearse on the hosted app.
 
 For a full hands-on tour of every feature (about 30 minutes, with a checklist), see [feature-walkthrough.md](feature-walkthrough.md).
 

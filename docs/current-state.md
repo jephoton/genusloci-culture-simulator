@@ -2,6 +2,10 @@
 
 <!-- generated: maintained by agents -->
 
+## Submission and demo check (2026-10-21)
+
+The [demo runbook](pitch-and-demo.md) now records the official submission requirements, schedule and scope assessment. A publicly hosted working app is required; a video is optional. No separate tracks or scheduled live pitch requirement were found in public organizer pages. The extended runbook needs about 5–6 minutes; an optional three-minute judge path is included. This check did not repeat a full browser rehearsal or implement new taste domains. Dining already has venue/tag support; brand ingestion and a dedicated fashion flow remain absent.
+
 ## Independent review fixes (2026-10-16)
 
 All six findings reviewed at `894194f` are addressed on `codex/fix-review-findings`:
@@ -12,7 +16,7 @@ All six findings reviewed at `894194f` are addressed on `codex/fix-review-findin
 - Scene naming prunes discarded future lineages/cooldowns and ignores old-generation responses, while keeping ancestor names and ordinary playback debounce behavior.
 - The operator console restores a persisted job's fixed budget and omits budget overrides on Continue/Retry; city selection is disabled while requests run.
 
-Verification: `npm test` passed 452 tests across 89 files; `npm run lint`, `npm run build` and `git diff --check` passed. Synthetic regressions reproduce calendar competition, later/same-tick slot reuse, reordered World entities, immutable build budgets, missing hosts, rewind and naming-response races. Browser smoke check: local London act comparisons worked, then rewind safely closed planning; `/build-city` loaded and returned its expected disabled 503 without configuration. Local LLM naming also returned 503, so successful naming lifecycle behavior was checked with synthetic hook tests. No live Qloo build or production environment change was performed. Changes are committed locally on the review-fix branch; they have not been pushed or deployed.
+Verification: `npm test` passed 452 tests across 89 files; `npm run lint`, `npm run build` and `git diff --check` passed. Synthetic regressions reproduce calendar competition, later/same-tick slot reuse, reordered World entities, immutable build budgets, missing hosts, rewind and naming-response races. Browser smoke check: local London act comparisons worked, then rewind safely closed planning; `/build-city` loaded and returned its expected disabled 503 without configuration. Local LLM naming also returned 503, so successful naming lifecycle behavior was checked with synthetic hook tests. No live Qloo build or production environment change was performed. The review fixes were subsequently merged into main and pushed; deployment status was not verified in the submission check.
 
 Implementation checklist: [review fixes](superpowers/plans/2026-10-16-review-fixes.md).
 
@@ -218,7 +222,7 @@ Implemented by Codex ([plan](superpowers/plans/2026-10-14-deferred-features.md),
    - a demo-runbook rehearsal on the live site.
 3. ~~Deferred-feature batch~~: done (see above).
 4. ~~Scene splits~~: investigated (2026-10-15); see "Scene dynamics" below.
-5. The user's UI overhaul, then final M7 polish: demo rehearsal (steps 4–5 in a visible tab), video, Devpost.
+5. The user's UI overhaul, then final M7 polish: hosted demo rehearsal (including steps 4–5 in a visible tab), judge walkthrough and Devpost. A video is optional, not a submission requirement; prioritize the usable hosted app.
 
 ## Carry into M5b (from M4a)
 - **Layout on the main thread:** ≈ 0.8 s on London. Move it to a worker or precompute it per city.
