@@ -49,16 +49,16 @@ export function Ground({
     <group>
       <mesh rotation-x={-Math.PI / 2} position={[center.x, 0, center.z]} onClick={onClick} onPointerMove={onPointerMove} onPointerOut={onPointerOut}>
         <planeGeometry args={[width, depth]} />
-        <meshStandardMaterial color="#0c0e13" roughness={1} />
+        <meshStandardMaterial color="#35464a" roughness={1} />
       </mesh>
       {water && (
         <mesh geometry={water} position-y={0.02}>
-          <meshStandardMaterial color="#0f2a45" emissive="#0b2440" emissiveIntensity={0.6} roughness={0.2} metalness={0.4} />
+          <meshStandardMaterial color="#34758a" emissive="#173f50" emissiveIntensity={0.2} roughness={0.45} metalness={0.15} />
         </mesh>
       )}
       {parks && (
         <mesh geometry={parks} position-y={0.03}>
-          <meshStandardMaterial color="#10301b" emissive="#0c2614" emissiveIntensity={0.5} roughness={1} />
+          <meshStandardMaterial color="#46745c" roughness={1} />
         </mesh>
       )}
     </group>

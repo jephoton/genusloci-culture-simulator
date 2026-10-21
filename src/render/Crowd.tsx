@@ -14,7 +14,7 @@ import type { Frame } from "@/sim/frame";
 import type { World } from "@/world/schema";
 
 const FIGURE_Y = 0.6;
-const GLOW = 1.6;
+const GLOW = 0.85;
 /** Time constant of the colour blend towards a new scene colour. */
 const BLEND_S = 0.35;
 /** Agents who stay in adopt their new colour at this phase of the week. */
@@ -341,7 +341,7 @@ export function Crowd({
 
   return (
     <instancedMesh key={slots} ref={meshRef} args={[undefined, undefined, slots]} frustumCulled={false}>
-      <sphereGeometry args={[0.45, 8, 6]} />
+      <sphereGeometry args={[0.28, 8, 6]} />
       <meshBasicMaterial toneMapped={false} />
     </instancedMesh>
   );
