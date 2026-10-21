@@ -2,6 +2,16 @@
 
 <!-- generated: maintained by agents -->
 
+## Stronger miniature-city art and live LLM check (2026-10-21)
+
+The first venue-detail pass was visually too subtle. The renderer now applies the miniature-city style across the default overview: painted low-rise background buildings with separate pitched roofs, sparse warm windows, distinct roof palettes, chunkier venue silhouettes, blue-hour lighting, quieter streets and smaller scene-coloured resident markers. Background walls and roofs remain two instanced meshes, independent of building count. Simulation placement, agent behavior and world data are unchanged.
+
+All venue kinds now have a deliberate architectural silhouette. Pitched roofs stay within existing pad footprints; unit tests walk the actual procedural model trees for every venue kind. Focus dims painted body/roof/trim as well as lights. Ghosts reuse the new shapes with their translucent materials. Geometry tests cover roof winding, finite normals and narrow-lot proportions.
+
+After restarting with the user's locally supplied provider configuration, `/api/copilot` reported configured. A real co-pilot request called the city tool but hit Groq's token-per-minute limit on its continuation. A later short follow-up successfully reported the simulated resident count, and background naming produced named scenes. This confirms an accepted key and working short responses/naming, not unlimited capacity for multi-step questions. Provider 429s now get a clear wait-and-retry message without exposing raw account details. No key value or environment file was read, printed or committed.
+
+Verification: 461 tests across 94 files and a production build passed. Independent review found a cafe sign inside its roof and painted surfaces bypassing focus dimming; both were corrected. Browser checks covered overview/readability, play/pause, scene naming/focus, map inspection, directory camera flight, closer zoom, and the roofed placement ghost with Escape cancellation. Plan: [stylized city](superpowers/plans/2026-10-21-stylized-city.md). The rendering change is local; no new world build, merge, push or deployment was performed.
+
 ## Focused venue interface (2026-10-21)
 
 The main story is venue selection, act comparison and booking. Desktop and mobile now share one workspace drawer: **Venues**, **Scenes**, **City tools**, **Co-pilot**. The default map has no expanded sidebars. A searchable venue directory supports keyboard selection; temporary events and closed venues are excluded from its booking list. The existing map inspection path remains available.

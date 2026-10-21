@@ -24,6 +24,8 @@ A hands-on tour of every feature, in an order where each section sets up the nex
 4. Visit `/api/copilot` on the same host. `{"configured":false}` means the running server sees no supported nonempty key; `{"configured":true}` only confirms configuration, not validity or credits. Reloading the app is necessary because its availability check runs on mount.
 5. Open **Co-pilot** and ask **What scenes live here, and where?** after playing enough for scenes to form. A successful answer verifies more than the configuration flag. Authentication errors suggest an invalid/revoked key; quota/rate-limit errors require checking provider limits; an unavailable model requires checking model permissions and the provider's current model list.
 
+**Live check (2026-10-21):** the configured Groq key was accepted, a short co-pilot follow-up answered from the city summary, and scene naming worked. A multi-step question reached a token-per-minute limit after calling the city tool. If the co-pilot reports a provider rate limit, wait about a minute and try a short follow-up; long histories and multiple tool rounds consume more tokens. Configuration alone does not establish that every scenario question fits the account's limits.
+
 For the hosted demo, configure the same environment variables on the hosting platform and redeploy. A local `.env.local` is not uploaded to Vercel. This walkthrough does not authorize adding keys or changing the deployment automatically.
 
 **Where:** https://genusloci-culture-simulator.vercel.app, or `pnpm dev` and http://localhost:3000.
@@ -43,7 +45,7 @@ For the hosted demo, configure the same environment variables on the hosting pla
    - Click **Start exploring**. Reload and it shouldn't show again.
 2. Open **City overview** for date ("Week 0 · Mon"), residents (2500), venues, events, scenes (0), fidelity (about 0.17). Close it to keep the map clear.
 3. **Orbit the map:** drag to pan, scroll to zoom, right-drag to rotate.
-   - *Expect:* real London streets, the Thames, parks, lit landmarks (venues) and white dots (residents at home).
+   - *Expect:* real London streets, the Thames, parks, a painted miniature city with pitched roofs and distinctive lit venues, and small pale resident markers (coloured by scene after scenes form).
 4. **Bottom right:** "Map data © OpenStreetMap contributors · Taste data: Qloo".
 
 ## 2. The city comes alive (3 min)

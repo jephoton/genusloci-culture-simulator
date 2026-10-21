@@ -14,7 +14,7 @@
 | **Taste** | What one person loves, each with a strength. Called the agent's *genome* in code. | Seeded from their neighbourhood's scenes: real Qloo place tags and artists |
 | **Affinity** | How strongly loving one entity predicts loving another ("people who love X also love Y"), from 0 to 1 | Qloo taste graph |
 | **Tag** | A named category on an entity: genre (pop, techno), cuisine, style, vibe | Qloo entity metadata |
-| **Venue** | A real place on the map that people go out to. It has a type, a capacity and health. Its body colour is its own scene (best taste match); its neon sign is tonight's dominant crowd. | Qloo place entity |
+| **Venue** | A real place on the map that people go out to. It has a type, a capacity and health. Painted architecture distinguishes kinds; subtle lighting carries its scene identity, and the neon sign shows tonight's dominant crowd. | Qloo place entity |
 | **Artist** | A musician. Appears in tastes, and as the headliner of an event. | Qloo artist entity |
 | **Tick** | One simulated day in the demo (`ticksPerWeek: 7`). Each day residents decide whether to go out, weighted towards Friday and Saturday. Venue health uses a rolling week of visits. | Simulation |
 | **Resident (agent)** | One simulated person: a home, a taste, friends. Goes out most weeks. | Simulation |
