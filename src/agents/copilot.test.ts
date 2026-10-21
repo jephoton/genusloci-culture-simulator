@@ -76,3 +76,23 @@ describe("qlooTools", () => {
     expect(copilotInstructions("Singapore")).toContain("Singapore");
   });
 });
+
+it("sends compact action definitions and a smaller answer budget without losing action support", async () => {
+  const model = scripted([[...text("OK"), finish("stop")]]);
+  const result = await copilotStream({ model, messages: userMessage("what scenes live here?"), city: "London", qloo: null });
+  await result.text;
+  const call = model.doStreamCalls[0];
+  expect(call.maxOutputTokens).toBeLessThan(1500);
+  const schemas = JSON.stringify(call.tools);
+  expect(schemas.length).toBeLessThan(6500);
+  expect(schemas).toContain("outside_artist");
+  expect(schemas).toContain("cancel_event");
+});
+
+it("forces an answer after six tool calls in one user turn", async () => {
+  const messages = [...userMessage("help"), { id: "a", role: "assistant", parts: Array.from({ length: 6 }, (_, i) => ({ type: "tool-find", toolCallId: `f${i}`, state: "output-available", input: { query: "a" }, output: { results: [] } })) } as UIMessage];
+  const model = scripted([[...text("Enough data"), finish("stop")]]);
+  const result = await copilotStream({ model, messages, city: "London", qloo: null });
+  await result.text;
+  expect(model.doStreamCalls[0].toolChoice).toEqual({ type: "none" });
+});

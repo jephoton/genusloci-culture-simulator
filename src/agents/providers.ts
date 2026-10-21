@@ -38,7 +38,13 @@ export const PROVIDERS: ProviderSpec[] = [
     keyVar: "GROQ_API_KEY",
     prefix: "GROQ",
     models: { copilot: "openai/gpt-oss-120b", small: "llama-3.1-8b-instant" },
-    create: (apiKey, id) => createGroq({ apiKey })(id),
+    create: (apiKey, id) => {
+      const model = createGroq({ apiKey })(id);
+      return id.startsWith("openai/gpt-oss-") ? wrapLanguageModel({
+        model,
+        middleware: defaultSettingsMiddleware({ settings: { providerOptions: { groq: { reasoningEffort: "low" } } } }),
+      }) : model;
+    },
   },
   {
     name: "cerebras",
@@ -118,6 +124,6 @@ export function modelFor(tier: Tier, env: Env = process.env): WrappedModel | nul
   if (chain.length === 0) return null;
   return fallbackModel(
     chain.map((c) => c.model),
-    (i, e) => console.warn(`[agents] ${chain[i].name} failed; falling back:`, e instanceof Error ? e.message : e),
+    (i) => console.warn(`[agents] ${chain[i].name} failed; trying the next configured provider.`),
   );
 }

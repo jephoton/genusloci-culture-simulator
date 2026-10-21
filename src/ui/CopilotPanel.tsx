@@ -100,6 +100,8 @@ export function CopilotPanel({
   onSend,
   onStop,
   onClose,
+  onReset,
+  cooldownUntil = 0,
 }: {
   city: string;
   messages: UIMessage[];
@@ -108,8 +110,21 @@ export function CopilotPanel({
   onSend: (text: string) => void;
   onStop: () => void;
   onClose: () => void;
+  onReset?: () => void;
+  cooldownUntil?: number;
 }) {
   const [input, setInput] = useState("");
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (cooldownUntil <= Date.now()) return;
+    const timer = setInterval(() => {
+      const time = Date.now();
+      setNow(time);
+      if (time >= cooldownUntil) clearInterval(timer);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldownUntil]);
+  const coolingDown = cooldownUntil > now;
   const end = useRef<HTMLDivElement>(null);
   const busy = status === "submitted" || status === "streaming";
   useEffect(() => {
@@ -117,7 +132,7 @@ export function CopilotPanel({
   }, [messages, status]);
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || busy) return;
+    if (!input.trim() || busy || coolingDown) return;
     onSend(input.trim());
     setInput("");
   };
@@ -132,12 +147,18 @@ export function CopilotPanel({
           ×
         </button>
       </header>
+      {onReset && messages.length > 0 && (
+        <div className="border-b border-white/10 px-3 py-2 text-xs text-zinc-400">
+          <button type="button" disabled={busy} onClick={onReset} className="text-violet-300 disabled:opacity-40">New chat</button>
+          <p>Clears chat context to reduce token use. City changes remain; provider cooldown still applies.</p>
+        </div>
+      )}
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-3">
         {messages.length === 0 && (
           <div className="space-y-2">
             <p className="text-xs text-zinc-400">Try:</p>
             {SUGGESTIONS.map((s) => (
-              <button key={s} type="button" onClick={() => onSend(s)} className="block w-full rounded-lg border border-white/10 px-3 py-2 text-left text-sm hover:bg-white/5">
+              <button key={s} type="button" disabled={coolingDown || busy} onClick={() => onSend(s)} className="block w-full rounded-lg border border-white/10 px-3 py-2 text-left text-sm hover:bg-white/5">
                 {s}
               </button>
             ))}
@@ -146,6 +167,7 @@ export function CopilotPanel({
         {messages.map((m) => (
           <Message key={m.id} message={m} />
         ))}
+        {coolingDown && <p role="status" className="text-xs text-amber-200">Provider cooldown: {Math.max(1, Math.ceil((cooldownUntil - now) / 1000))}s remaining. No automatic retry.</p>}
         {busy && <p className="text-xs text-zinc-500">Thinking…</p>}
         {error && (
           <p role="alert" className="rounded-lg border border-rose-400/30 bg-rose-950/60 px-3 py-2 text-xs text-rose-100">
@@ -165,7 +187,7 @@ export function CopilotPanel({
         {busy ? (
           <button type="button" onClick={onStop} className="rounded-md bg-white/10 px-3 text-sm">Stop</button>
         ) : (
-          <button type="submit" disabled={!input.trim()} className="rounded-md bg-violet-500/80 px-3 text-sm disabled:opacity-40">Ask</button>
+          <button type="submit" disabled={!input.trim() || coolingDown} className="rounded-md bg-violet-500/80 px-3 text-sm disabled:opacity-40">Ask</button>
         )}
       </form>
     </aside>
@@ -180,5 +202,5 @@ export function friendlyError(e: Error): string {
   } catch {
     // not JSON
   }
-  return e.message || "Something went wrong. Try again.";
+  return e.message.replace(/\s*\[retry-after:\d+\]/g, "") || "Something went wrong. Try again.";
 }

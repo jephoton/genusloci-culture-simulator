@@ -49,3 +49,19 @@ describe("co-pilot panel words", () => {
     expect(friendlyError(new Error("network down"))).toBe("network down");
   });
 });
+
+it("keeps the current user turn intact even when it exceeds the message-count cap", () => {
+  const messages: UIMessage[] = [msg(0, "user"), ...Array.from({ length: 8 }, (_, i) => msg(i + 1, "assistant"))];
+  expect(recentMessages(messages, 4)).toEqual(messages);
+});
+
+it("reuses a tool execution while its result is pending and after completion", async () => {
+  const { runToolOnce } = await import("@/ui/useCopilot");
+  const ledger = new Map<string, Promise<unknown>>();
+  let applies = 0;
+  const execute = async () => { applies++; return { applied: ["done"] }; };
+  const results = await Promise.all([runToolOnce(ledger, "apply-1", execute), runToolOnce(ledger, "apply-1", execute)]);
+  expect(results).toEqual([{ applied: ["done"] }, { applied: ["done"] }]);
+  await runToolOnce(ledger, "apply-1", execute);
+  expect(applies).toBe(1);
+});

@@ -1,11 +1,12 @@
 import { convertToModelMessages, isStepCount, streamText, tool, type UIMessage } from "ai";
 import { z } from "zod";
-import { CLIENT_TOOLS } from "@/agents/tools";
+import { MODEL_CLIENT_TOOLS } from "@/agents/tools";
+import { compactMessages } from "@/agents/copilot-context";
 import type { QlooClient } from "@/qloo/client";
 import { isInvalidSignal, QlooBudgetError } from "@/qloo/transport";
 import type { EntityType } from "@/qloo/validate";
 
-export const COPILOT_MAX_STEPS = 8;
+export const COPILOT_MAX_STEPS = 3;
 /** Qloo calls one co-pilot request may make (the monthly quota is shared with city builds). */
 export const QLOO_CALLS_PER_REQUEST = 4;
 
@@ -17,7 +18,7 @@ export function copilotInstructions(city: string): string {
     "",
     "How to work:",
     "- Start with city_summary unless you already have it. Use venues to rank venues (busiest, struggling, by kind or area) and find to turn names into ids; never guess ids.",
-    "- Be economical: a typical question needs 2–5 tool calls.",
+    "- Be economical: use the fewest tools needed. For scene overviews answer directly from city_summary; do not inspect every scene. Reuse results already present in this turn. Batch independent lookups in one response. Usually one or two tool rounds are enough.",
     "- Before claiming what a change WOULD do, run what_if (it compares against a no-change baseline). Default to 8 weeks; up to 26 for long-term questions.",
     "- Only use apply when the user clearly asks you to make the change in the live city.",
     "- Use qloo_search or qloo_taste only to explain tastes or check something about the real world.",
@@ -85,14 +86,19 @@ export async function copilotStream(opts: {
   qloo: QlooClient | null;
   abortSignal?: AbortSignal;
 }) {
+  const currentTurn = opts.messages.slice(opts.messages.findLastIndex((m) => m.role === "user"));
+  const calls = currentTurn.flatMap((m) => m.parts).filter((p) => p.type.startsWith("tool-")).length;
   return streamText({
     model: opts.model,
     instructions: copilotInstructions(opts.city),
-    messages: await convertToModelMessages(opts.messages),
-    tools: { ...CLIENT_TOOLS, ...(opts.qloo ? qlooTools(opts.qloo) : {}) },
+    messages: await convertToModelMessages(compactMessages(opts.messages)),
+    tools: { ...MODEL_CLIENT_TOOLS, ...(opts.qloo ? qlooTools(opts.qloo) : {}) },
     stopWhen: isStepCount(COPILOT_MAX_STEPS),
+    toolChoice: calls >= 6 ? "none" : "auto",
+    prepareStep: ({ stepNumber }) => stepNumber >= COPILOT_MAX_STEPS - 1 ? { toolChoice: "none" as const } : {},
     maxRetries: 0,
-    maxOutputTokens: 1500,
+    maxOutputTokens: 900,
     abortSignal: opts.abortSignal,
+    onError: () => { /* The route reports sanitized public errors. */ },
   });
 }
