@@ -3,6 +3,7 @@ import { CopilotBodySchema, copilotStream } from "@/agents/copilot";
 import { modelFor, PROVIDERS } from "@/agents/providers";
 import { liveQlooClient } from "@/agents/qloo-live";
 import { clientKey, createRateLimiter } from "@/agents/rate-limit";
+import { agentStreamError } from "@/agents/stream-error";
 
 export const maxDuration = 60;
 
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
       stream: result.stream,
       onError: (e) => {
         console.error("[copilot]", e);
-        return "The co-pilot hit a problem talking to the language model. Try again in a moment.";
+        return agentStreamError(e);
       },
     }),
   });
