@@ -122,7 +122,7 @@ Open **City tools**. **Open a place** contains venue creation; **Events and scou
 
 1. Select a venue, then **Plan a night here**.
    - *Expect:* a panel with 3 suggested acts (artists Qloo links to this venue's crowd).
-2. **Add an in-city artist:** start typing in "Add an artist"; suggestions autocomplete.
+2. **Add an in-city artist:** type in **Add an artist** to filter the app-styled suggestions. Click a result, or use **↑ / ↓** then **Enter** to fill the field, then **Add**. **Escape** closes suggestions without leaving the planner. Artists already in the lineup are excluded; no city match still allows an explicit outside-artist lookup with **Add**.
 3. **Add an outside artist** the city doesn't know, for example **Burna Boy** in London or **Fred again..** in New York.
    - *Expect:* "Asking Qloo…", then an entry with "From Qloo: their fans also like …".
    - Some artists connect thinly, and that's shown honestly.

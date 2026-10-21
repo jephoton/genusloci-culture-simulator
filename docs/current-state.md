@@ -2,6 +2,10 @@
 
 <!-- generated: maintained by agents -->
 
+## Artist picker consistency (2026-10-21)
+
+The booking planner's browser-native datalist is replaced with an app-styled editable combobox (`ArtistPicker.tsx`): dark scrollable results, violet keyboard highlights, filtered local artists, and exclusion of artists already in the lineup. Selecting a suggestion fills the field; Add retains the existing local/outside-artist path. Typing does not make Qloo calls. Arrow keys navigate, Enter selects an active suggestion, Escape dismisses only the suggestion list, and Tab/outside focus closes it. Results flow inside the drawer so they use its existing scrolling rather than an OS popup. Browser checks verified filtering, mouse/keyboard selection, adding a local artist and unmatched-name guidance without a new Qloo lookup.
+
 ## Stronger miniature-city art and live LLM check (2026-10-21)
 
 The first venue-detail pass was visually too subtle. The renderer now applies the miniature-city style across the default overview: painted low-rise background buildings with separate pitched roofs, sparse warm windows, distinct roof palettes, chunkier venue silhouettes, blue-hour lighting, quieter streets and smaller scene-coloured resident markers. Background walls and roofs remain two instanced meshes, independent of building count. Simulation placement, agent behavior and world data are unchanged.
