@@ -8,6 +8,24 @@ A hands-on tour of every feature, in an order where each section sets up the nex
 
 **Without an LLM key:** the co-pilot drawer explains its unavailability and offers the venue flow. Resident interview buttons are hidden; scenes keep numeric names. Venue comparisons, bookings, scouting and city interventions still use the simulation. Outside-artist lookup separately needs Qloo. Configure one supported provider in `.env.local` (see `.env.example`) and restart to enable AI features; a configured key does not guarantee provider health.
 
+### Enabling the LLM locally
+
+1. Obtain an API key from one supported provider: DeepSeek, Groq, Cerebras, OpenRouter or Google Gemini. A Qloo key is separate and does not enable the language model. For a concrete setup path, follow the [official Groq quickstart](https://console.groq.com/docs/quickstart).
+2. Edit the existing `.env.local` in the repository root. Preserve existing Qloo/storage settings; do not replace the file with the example. For Groq, add these lines with your own key locally (the value below is only a placeholder):
+
+   ```dotenv
+   GROQ_API_KEY=replace-with-your-own-key
+   GROQ_MODEL=openai/gpt-oss-120b
+   GROQ_SMALL_MODEL=openai/gpt-oss-20b
+   ```
+
+   The main model handles the co-pilot; the small-model setting handles scene names and interviews. These GPT-OSS IDs are listed in [Groq's supported models](https://console.groq.com/docs/models), checked 2026-10-21. Access and limits depend on your provider account. The explicit small-model override avoids relying on the repository's Llama default, which the current provider list labels Enterprise. One supported provider is enough; no new package installation is needed. Keep keys local, never in chat or committed files.
+3. Stop the development server and restart from the repository root with `npm run dev -- --port 3000`, then reload the app. If an agent is running the server, ask it to restart after you save the key.
+4. Visit `/api/copilot` on the same host. `{"configured":false}` means the running server sees no supported nonempty key; `{"configured":true}` only confirms configuration, not validity or credits. Reloading the app is necessary because its availability check runs on mount.
+5. Open **Co-pilot** and ask **What scenes live here, and where?** after playing enough for scenes to form. A successful answer verifies more than the configuration flag. Authentication errors suggest an invalid/revoked key; quota/rate-limit errors require checking provider limits; an unavailable model requires checking model permissions and the provider's current model list.
+
+For the hosted demo, configure the same environment variables on the hosting platform and redeploy. A local `.env.local` is not uploaded to Vercel. This walkthrough does not authorize adding keys or changing the deployment automatically.
+
 **Where:** https://genusloci-culture-simulator.vercel.app, or `pnpm dev` and http://localhost:3000.
 
 **Before you start:**
@@ -48,23 +66,23 @@ A hands-on tour of every feature, in an order where each section sets up the nex
      - "Into …" tags and "Listens to …" artists;
      - "Lives in …" neighbourhoods and "Out tonight at …" venues;
      - "Split from / Split into" links, if any;
-     - **Talk to someone from this scene**.
+     - **Talk to someone from this scene**, when an LLM provider is configured.
 2. Click the row again, or **Clear focus**, to unpin.
 3. **Switch the Scenes panel to Family tree.**
    - *Expect:* scenes nested under the ones they split from, with faded ancestors in grey italics.
-   - Natural splits are **rare** (London typically has 1–2 per 60 weeks), so it's often flat. Section 7 shows how to provoke one.
+   - Natural splits are **rare** (London typically has 1–2 per 60 weeks), so it's often flat. The newcomer tools in section 5 can help provoke one.
 
 ## 4. Venues (4 min)
 
 1. **Click a landmark,** for example a big one near the centre.
    - *Expect:* a venue panel with:
-     - kind and name, open or closed, and health %;
-     - visitors tonight, rolling weekly visits, effective capacity and rent multiplier;
-     - **Plan a night here** and **Close venue** buttons.
+     - kind and name, open or closed, and visitors tonight;
+     - **Venue performance**: health, rolling weekly visits, effective capacity and rent multiplier;
+     - **Plan a night here**; **Venue actions** expands to reveal **Close venue**.
 2. **Struggling venues:**
    - *Expect:* while playing, some venues pulse red with a toast such as "X is struggling: few visitors".
    - After about 8 weeks below 40% occupancy one closes. Its panel then says why, for example "Health stayed below 40% for 8.1 weeks. The last rolling week had N visits against M rent-adjusted capacity."
-3. **Close a venue yourself** with **Close venue**.
+3. **Close a venue yourself** with **Venue actions → Close venue**.
    - *Expect:* an implosion effect, the building sinks, and regulars scatter. The panel says "Closed by your intervention."
 
 ## 5. City tools (6 min)
@@ -106,7 +124,7 @@ Open **City tools**. **Open a place** contains venue creation; **Events and scou
 3. **Add an outside artist** the city doesn't know, for example **Burna Boy** in London or **Fred again..** in New York.
    - *Expect:* "Asking Qloo…", then an entry with "From Qloo: their fans also like …".
    - Some artists connect thinly, and that's shown honestly.
-4. **Dates:** set the start week and day, and either a run of **1 / 2 / 4 weeks** or **exact nights** (for example 1 night on Saturday of next week).
+4. **Dates:** expand **Schedule** and set the start week and day, and either a run of **1 / 2 / 4 weeks** or **exact nights** (for example 1 night on Saturday of next week).
    - The line below confirms it, for example "1 night starting in week 2 · Sat".
 5. **Compare.**
    - *Expect:* ranked cards with turnout, **Your usual nights** (green = the act brings extra visits to your venue, red = it takes from them), new fans ("n/a" for outside artists), neighbour loss, and the scenes drawn. The verdict leads with your venue.
@@ -115,7 +133,7 @@ Open **City tools**. **Open a place** contains venue creation; **Events and scou
 7. Close planning/venue inspection, open **Venues**, then expand **Event calendar (1 upcoming)** above the venue list.
    - *Expect:* your booking with its date and status "scheduled", and **Cancel booking**. Outside artists keep their own name.
 8. Play until the date.
-   - *Expect:* the event starts (status "started", then "ended").
+   - *Expect:* the event starts (status "started", then "completed").
 9. **Cancel** another future booking.
    - *Expect:* status "cancelled".
 
@@ -146,7 +164,7 @@ If it says no language model is configured, use the manual venue and city tools.
 
 ## 9. Meet a resident (2 min, needs the LLM)
 
-1. Click **Talk** on a scene row (or **Talk to someone from this scene** on the scene card).
+1. With a provider configured, open **Scenes** and click **Talk** on a scene row (or **Talk to someone from this scene** on the scene card). These controls are hidden without configuration.
    - *Expect:* a panel headed "<Name>, <age band> · <area>", with the scene, "Into …" tastes and their last night out.
 2. Ask **"What's a good night out for you?"**, then something outside their taste (e.g. "Do you like opera?").
    - *Expect:* answers in character, from their tastes only. Off-taste questions get "not really my thing".
@@ -195,4 +213,4 @@ If it says no language model is configured, use the manual venue and city tools.
 | 12 | Focus rings, reduced motion | — | |
 | 13 | /build-city (disabled in prod) | token, Qloo | |
 
-**Known limits to keep in mind:** natural scene splits are rare; what-ifs are 4-run averages, so small effects can read "too small to call"; co-pilot answers take 10–30 s; the events count in the top bar can lag a few days (it updates every 4th day).
+**Known limits to keep in mind:** natural scene splits are rare; what-ifs are 4-run averages, so small effects can read "too small to call"; co-pilot answers take 10–30 s; the events count in **City overview** can lag a few days (it updates every 4th day).

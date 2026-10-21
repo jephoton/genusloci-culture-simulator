@@ -87,17 +87,17 @@ For a full hands-on tour of every feature (about 30 minutes, with a checklist), 
 
 0. **Setup:** load the demo city (London, or NYC for US judges), paused at week 0, with the default camera.
 1. **Hook (20 s):** "This is London tonight. Every dot is a resident with real taste from Qloo; every lit landmark is a real venue." Press **Play** at 1 day/s (½ if the room needs it to be slower). Crowds stream out along real streets, gather at venues and walk home. *(today)*
-2. **Scenes emerge (30 s):** "Nobody told it what scenes exist. They emerge." Hover a row in the **Scenes** panel to highlight a scene's people and venues, then click to fly there. *(today; scenes get plain names a few seconds after they form)*
-3. **The proof (15 s):** point at **Fidelity** in the HUD. Residents were seeded from one set of Qloo heatmaps; fidelity checks them against *different* Qloo heatmaps, and it rises as the city runs (after 60 weeks: London about 0.22, New York 0.31, Singapore 0.11). Be honest that it's modest: it's a real, falsifiable check, which is the point. *(today)*
-4. **The shock (40 s):** select the venue at the heart of the biggest scene, then **Close venue**. You see the implosion and the regulars scattering; the venue panel says why it closed. Play a few weeks: watch the scene card's size line, struggling venues pulsing red nearby, and possibly a venue auto-opening in the gap. Don't promise a split: natural splits are rare (see current-state, "Scene dynamics"). *(today)*
-5. **The what-if (40 s):** rewind with the timeline slider, which is exact. Instead, **Open a venue** nearby: pick a kind, watch the ghost preview, place it. The scene survives. "Two futures, one decision apart." *(today)*
-6. **The promoter (40 s):** "You're a promoter. Where should this headliner play?" Open **Scout a location** and pick the headliner.
+2. **Scenes emerge (30 s):** "Nobody told it what scenes exist. They emerge." Open **Scenes**, hover a row to highlight a scene's people and venues, then click to fly there. *(today; plain names require an LLM provider)*
+3. **The check (15 s):** open **City overview** and point at **Fidelity**, then close the overview. Residents were seeded from one set of Qloo heatmaps; fidelity checks them against *different* Qloo heatmaps, and it rises as the city runs (after 60 weeks: London about 0.22, New York 0.31, Singapore 0.11). Be honest that it's modest: a limited spatial taste check, not proof of causal forecasting. *(today)*
+4. **The shock (40 s):** select the venue at the heart of the biggest scene, then **Venue actions → Close venue**. You see the implosion and the regulars scattering; the venue panel says why it closed. Play a few weeks: open **Scenes** and watch the scene card's size line, struggling venues pulsing red nearby, and possibly a venue auto-opening in the gap. Don't promise a split: natural splits are rare (see current-state, "Scene dynamics"). *(today)*
+5. **The what-if (40 s):** open **Playback → Rewind** and move the slider to before the intervention. Close Playback. Instead, **City tools → Open a place → Open a venue** nearby: pick a kind, watch the ghost preview, place it. Compare how the scene develops without promising a particular outcome. "Two futures, one decision apart." *(today)*
+6. **The promoter (40 s):** "You're a promoter. Where should this headliner play?" Open **City tools → Events and scouting → Scout a location** and pick the headliner.
    - The city pauses, an amber demand glow shows where their fans live, and pins A–C appear.
    - The tool simulates 4 weeks at each spot and ranks them on turnout, new fans, scenes reached and harm to neighbours.
    - Drop your own pin D to compare, then **Book it**: shockwave, beacon, and the crowd converges. *(today)*
 6b. **The venue owner (30 s):** select a venue, then **Plan a night here**. Add an artist the city doesn't know (for example Burna Boy in London): Qloo is asked live who their fans are. **Compare** ranks the acts by turnout and by what each does to *your own* usual nights. *(today)*
-7. **The co-pilot (30 s):** open **Ask the co-pilot** and pick *"What happens if the busiest club closes?"*. It reads the city, ranks the clubs, runs an 8-week what-if against a no-change baseline (repeated 4 times with different random seeds), and answers with real venue names, visit shifts with ranges and scene sizes, separating clear effects from ones too small to call. Then ask it to *"close it in the live city"* to watch it act. *(today)*
-8. **Meet a resident (20 s):** click **Talk** on a scene in the legend and ask *"What's a good night out for you?"*. The resident answers in character from their real simulated tastes. *(today)*
+7. **The co-pilot (30 s, requires an LLM):** open **Co-pilot** and pick *"What happens if the busiest club closes?"*. It reads the city, ranks the clubs, runs an 8-week what-if against a no-change baseline (repeated 4 times with different random seeds), and answers with real venue names, visit shifts with ranges and scene sizes, separating clear effects from ones too small to call. Then ask it to *"close it in the live city"* to watch it act. *(today)*
+8. **Meet a resident (20 s, requires an LLM):** open **Scenes**, click **Talk** on a scene and ask *"What's a good night out for you?"*. The resident answers in character from their real simulated tastes. *(today)*
 9. **Close (10 s):** "Agents with taste. Genus Loci: every city's culture is a living species."
 
 **Rehearsed on the live site (2026-10-14):**
@@ -107,4 +107,4 @@ For a full hands-on tour of every feature (about 30 minutes, with a checklist), 
 
 **Fallbacks:**
 - **If Qloo is slow:** prebuilt cities load from cached files.
-- **If the AI provider is down:** the god-game toolbar does everything by hand.
+- **If the AI provider is down:** use manual venue planning and City tools. Conversational explanations, resident interviews and scene naming remain unavailable. For setup and verification, see [Enabling the LLM locally](feature-walkthrough.md#enabling-the-llm-locally).
