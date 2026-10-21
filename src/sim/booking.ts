@@ -8,6 +8,9 @@ export type BookingDate = { startTick?: number; durationDays?: number };
 export type BookingOptions = BookingDate & { weeks: number; runs: number; reachKm: number; capacity: number; nearbyKm: number };
 
 export type BookingResult = {
+  hostBaseline?: number;
+  hostWithEvent?: number;
+  turnoutRange?: { min: number; max: number };
   /** Index into the acts that were asked for. */
   act: number;
   turnout: number;

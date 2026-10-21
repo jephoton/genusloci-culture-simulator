@@ -42,6 +42,8 @@ import { plannerSnapshot, samePlannerSnapshot, type PlannerSnapshot } from "@/ui
 import { useSimulation } from "@/ui/useSimulation";
 import { VenuePanel } from "@/ui/VenuePanel";
 import { VenueDirectory } from "@/ui/VenueDirectory";
+import { EventPlanner } from "@/ui/EventPlanner";
+import { WorkspaceNav, type WorkspacePanel } from "@/ui/WorkspaceNav";
 import { useAgentAvailability } from "@/ui/useAgentAvailability";
 import type { World } from "@/world/schema";
 import { Attribution } from "@/ui/Attribution";
@@ -229,13 +231,13 @@ function Game({
 
   const intro = useIntro();
   /** The same single-drawer navigation on every screen size. */
-  const [panel, setPanel] = useState<"venues" | "tools" | "scenes" | "copilot" | null>(null);
+  const [panel, setPanel] = useState<WorkspacePanel | null>("plan");
   const navigationRef = useRef<HTMLElement>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const closeDrawer = useCallback(() => {
     setPanel(null);
     clearFocus();
-    navigationRef.current?.querySelector<HTMLButtonElement>('button[aria-expanded="true"]')?.focus();
+    navigationRef.current?.querySelector<HTMLElement>('[data-workspace-active="true"]')?.focus();
   }, [clearFocus]);
   const [copilotDeps] = useState<ToolDeps>(() => ({
     context: (d) => {
@@ -403,6 +405,28 @@ function Game({
   const planSnapshot = useRef<PlannerSnapshot | null>(null);
   const forecast = useRef<{ snapshot: PlannerSnapshot; acts: BookingAct[]; weeks: number; date: BookingDate } | null>(null);
   const book = sim.book;
+  const compareEvent = useCallback(async (slot: number, a: BookingAct, date: BookingDate) => {
+    const before = plannerSnapshot(latest.current.frames.current.current, slot);
+    if (!before) throw new Error("That venue is no longer open. Refresh the plan.");
+    const { results } = await book(slot, [{ entity: a.entity, profile: a.profile }], 1, date);
+    if (!samePlannerSnapshot(before, latest.current.frames.current.current, slot)) throw new Error("The city changed during comparison. Refresh the plan and try again.");
+    return results[0];
+  }, [book]);
+  const previewEventVenue = useCallback((slot: number) => {
+    const f = latest.current.frames.current.current;
+    if (!f || slot >= f.nVenues) return;
+    setPinned({ kind: "venue", slot }); setSelected(null);
+    flyTo([layout.cellX[f.venueCell[slot]], layout.cellZ[f.venueCell[slot]]]);
+  }, [flyTo, layout]);
+  const schedulePlannedEvent = useCallback(async (slot: number, a: BookingAct, date: BookingDate, snapshot: string) => {
+    const f = latest.current.frames.current.current;
+    if (!f || `${f.epoch}:${f.tick}` !== snapshot || !f.venueOpen[slot] || f.venueExpires[slot] >= 0) return false;
+    const cell = f.venueCell[slot];
+    const { reachKm, capacity } = SCOUT_DEFAULTS;
+    const ok = await act({ type: "scheduleEvent", entity: a.entity, cell, hostVenue: slot, startTick: date.startTick, durationDays: date.durationDays, duration: 1, reachKm, capacity, label: a.label, ...(a.profile ? { profile: a.profile } : {}) });
+    if (ok) notify(`Scheduled ${a.label} at ${world.entities[f.venueEntity[slot]].name}`, [layout.cellX[cell], layout.cellZ[cell]]);
+    return ok;
+  }, [act, layout, notify, world]);
   const startPlan = useCallback(
     (slot: number) => {
       const snapshot = plannerSnapshot(latest.current.frames.current.current, slot);
@@ -552,7 +576,7 @@ function Game({
             announce(`${view.name} is playing tonight`, view.position);
           } else {
             const scene = homeScene(frame, frame.venueCell[c.slot]);
-            announce(scene >= 0 ? `${view.name} opened (demand from ${sceneTitle(scene)})` : `${view.name} opened`, view.position);
+            announce(scene >= 0 ? `Modeled opening: ${view.name} (demand from ${sceneTitle(scene)})` : `Modeled opening: ${view.name}`, view.position);
           }
         } else if (c.kind === "venueStruggling") {
           const view = views[c.slot];
@@ -579,7 +603,7 @@ function Game({
         setTool({ kind: "select" });
         placed.current.add(key);
         void act({ type: "openVenue", entity, cell }).then((ok) => {
-          if (ok) notify(`Opened a ${kindWord(world.entities[entity].kind ?? "other")} in ${areaName(layout, x, z, world)}`, anchor);
+          if (ok) notify(`Modeled opening: ${kindWord(world.entities[entity].kind ?? "other")} in ${areaName(layout, x, z, world)}`, anchor);
           else placed.current.delete(key);
         });
       } else if (tool.kind === "event" && tool.entity !== null) {
@@ -687,23 +711,16 @@ function Game({
         citySlug={citySlug}
         onCityChange={onCityChange}
       />
-      <nav ref={navigationRef} aria-label="Workspace" className="pointer-events-auto absolute left-2 right-2 top-[5.25rem] z-10 flex gap-1 sm:gap-2 md:left-auto md:right-4 md:top-4">
-        {([
-          ["venues", "Venues"], ["scenes", "Scenes"], ["tools", "City tools"], ["copilot", "Co-pilot"],
-        ] as const).map(([key, label]) => (
-          <button key={key} type="button" aria-expanded={panel === key} aria-controls="workspace-drawer" onClick={() => {
+      <WorkspaceNav panel={panel} navigationRef={navigationRef} onOpen={(key) => {
             const next = panel === key ? null : key;
             setInterview(null);
             if (planVenue !== null) endPlan(true);
             if (scouting) exitScout(true);
+            if (key === "plan") pause();
             setTool({ kind: "select" });
             clearFocus();
             setPanel(next);
-          }} className={`panel flex-1 whitespace-nowrap px-3 py-2.5 text-xs sm:flex-none sm:px-4 sm:text-sm ${panel === key ? "bg-violet-500/25 text-violet-100 ring-1 ring-violet-400/50" : "text-zinc-300 hover:bg-white/10"}`}>
-            {label}
-          </button>
-        ))}
-      </nav>
+      }} />
       {interview ? (
         <InterviewPanel
           key={`${interview.scene}:${interview.skip}`}
@@ -719,6 +736,8 @@ function Game({
           error={copilot.error}
           onSend={(text) => void copilot.sendMessage({ text })}
           onStop={() => void copilot.stop()}
+          onReset={copilot.resetChat}
+          cooldownUntil={copilot.cooldownUntil}
           onClose={closeDrawer}
         />
       ) : null}
@@ -729,7 +748,7 @@ function Game({
         } flex-col overflow-hidden sm:left-auto sm:right-4 sm:w-80 md:top-24`}
       >
         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
-          <h2 className="text-sm font-medium">{scout ? "Scout a location" : planVenue !== null ? "Plan a night" : selected !== null ? "Your venue" : panel === "venues" ? "Plan a night" : panel === "scenes" ? "Discover scenes" : panel === "tools" ? "City tools" : "Co-pilot"}</h2>
+          <h2 className="text-sm font-medium">{scout ? "Scout a location" : planVenue !== null ? "Plan a night" : panel === "plan" ? "Plan an event" : selected !== null ? "Your venue" : panel === "venues" ? "Your venues" : panel === "scenes" ? "Discover scenes" : panel === "tools" ? "City sandbox" : "Co-pilot"}</h2>
           <button data-drawer-close type="button" aria-label="Close workspace" className="rounded px-2 py-1 text-zinc-400 hover:bg-white/10" onClick={() => {
             if (planVenue !== null) endPlan(true);
             if (scouting) exitScout(true);
@@ -769,10 +788,11 @@ function Game({
           />
         ) : (
           <>
+            {panel === "plan" && (sim.frame ? <EventPlanner world={world} city={citySlug} frame={sim.frame} sceneTitle={sceneTitle} compare={compareEvent} schedule={schedulePlannedEvent} onPreview={previewEventVenue} onCalendar={() => { clearFocus(); setPanel("venues"); }} /> : <p role="status" className="text-sm text-zinc-400">Preparing the city for event planning…</p>)}
             {panel === "copilot" && <div className="space-y-3 text-sm text-zinc-300">
               <p>{aiConfigured === false ? "The co-pilot is unavailable because no language model is configured." : "AI availability could not yet be confirmed. You can continue with the venue tools."}</p>
               <p className="text-zinc-400">You can compare acts, scout locations and book nights without the co-pilot.</p>
-              <button type="button" className="rounded-lg bg-violet-500/25 px-3 py-2 text-violet-100" onClick={() => setPanel("venues")}>Choose a venue</button>
+              <button type="button" className="rounded-lg bg-violet-500/25 px-3 py-2 text-violet-100" onClick={() => { setPaused(true); setPanel("plan"); }}>Plan an event</button>
               {aiConfigured === false && <details><summary className="cursor-pointer text-xs text-zinc-400">Local setup</summary><p className="mt-2 text-xs text-zinc-400">Configure a supported provider key in .env.local and restart the server. See .env.example. Scene naming and resident interviews also need a provider.</p></details>}
             </div>}
             {panel === "tools" && <Toolbar world={world} digest={sim.digest} tool={tool} sceneTitle={sceneTitle} onTool={(t) => {
@@ -824,7 +844,7 @@ function Game({
         </div>
       </div>
       {!panel && !scout && planVenue === null && !interview && !isPlacing(tool) && <div className="pointer-events-none absolute bottom-28 left-4 right-4 flex justify-center">
-        <button type="button" onClick={() => setPanel("venues")} className="panel pointer-events-auto px-5 py-3 text-sm text-violet-100 hover:bg-white/10">Plan a night <span aria-hidden className="ml-3">↗</span></button>
+        <button type="button" onClick={() => { pause(); setPanel("plan"); }} className="panel pointer-events-auto px-5 py-3 text-sm text-violet-100 hover:bg-white/10">Plan an event <span aria-hidden className="ml-3">↗</span></button>
       </div>}
       {isPlacing(tool) && !scout && <div role="status" className="panel pointer-events-auto absolute bottom-28 left-1/2 flex w-[min(28rem,calc(100%-2rem))] -translate-x-1/2 items-center justify-between gap-4 px-4 py-3 text-sm">
         <span>Click the map to {tool.kind === "open" ? "open this venue" : tool.kind === "event" ? "place this event" : tool.kind === "migrate" ? "bring in newcomers" : "raise rents here"}.</span>

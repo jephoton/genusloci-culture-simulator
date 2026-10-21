@@ -11,6 +11,17 @@ const fresh = () => initState(makeTinyWorld(), { ...DEFAULT_CONFIG, nAgents: 400
 const options = { weeks: 4, duration: 3, reachKm: 25, capacity: 3000, nearbyKm: 1, runs: 1 };
 const candidate = { entity: 5, cell: 0 };
 
+it("reports paired location totals and turnout range without changing the live state", () => {
+  const s = fresh();
+  const tick = s.tick;
+  const [r] = runEventCandidates(s, [candidate], { ...options, hostVenue: 0, runs: 3 });
+  expect(r.hostWithEvent).toBeCloseTo(r.hostBaseline! + r.hostChange + r.turnout);
+  expect(r.turnoutRange!.min).toBeLessThanOrEqual(r.turnout);
+  expect(r.turnoutRange!.max).toBeGreaterThanOrEqual(r.turnout);
+  expect(s.tick).toBe(tick);
+  expect(s.scheduledEvents).toHaveLength(0);
+});
+
 it("preserves earlier bookings' priority when a dated candidate competes for the last event slot", () => {
   const s = fresh();
   const startTick = s.tick + 2;

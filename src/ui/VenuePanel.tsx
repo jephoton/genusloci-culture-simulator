@@ -47,6 +47,7 @@ export function VenuePanel({
         <dd className="font-mono tabular-nums">{rent.toFixed(2)}×</dd>
       </dl>
       </details>
+      <details className="text-xs text-zinc-500"><summary className="cursor-pointer py-1">About modeled openings</summary><p className="mt-2">Automatic openings fill underserved scenes using the closest taste profile in the city&apos;s place catalogue. Its name and type are reused as a model template. This does not mean that real business is opening at the simulated location.</p></details>
       {closure && <p className="text-sm text-zinc-300">{closureExplanation(closure)}</p>}
       {open && !isEvent && onPlan && (
         <button

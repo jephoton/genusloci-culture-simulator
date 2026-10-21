@@ -3,7 +3,8 @@
 import { useEffect, useId, useRef, useState } from "react";
 
 /** Editable combobox: suggestions stay local; only the parent's Add action queries Qloo. */
-export function ArtistPicker({ value, onChange, artists, disabled, placeholder }: {
+export function ArtistPicker({ value, onChange, artists, disabled, placeholder, outsideHint = "No city match. Use Add to look up this artist in Qloo." }: {
+  outsideHint?: string;
   value: string;
   onChange: (value: string) => void;
   artists: readonly { i: number; name: string }[];
@@ -58,7 +59,7 @@ export function ArtistPicker({ value, onChange, artists, disabled, placeholder }
               onMouseDown={(e) => e.preventDefault()} onClick={() => select(a.name)}
               className={`block w-full px-3 py-2 text-left text-xs transition ${active === a.i ? "bg-violet-500/25 text-violet-100" : "text-zinc-300 hover:bg-white/10 hover:text-zinc-50"}`}>{a.name}</button></li>)}
           </ul>
-          {!matches.length && <p className="px-3 pb-3 text-xs text-zinc-400">No city match. Use Add to look up this artist in Qloo.</p>}
+          {!matches.length && <p className="px-3 pb-3 text-xs text-zinc-400">{outsideHint}</p>}
         </div>
       )}
     </div>

@@ -25,7 +25,7 @@ export function Intro({ city, open, onClose }: { city: string; open: boolean; on
         <header className="space-y-1">
           <h2 id="intro-title" className="text-lg font-medium text-zinc-50">Genus Loci</h2>
           <p className="text-zinc-300">
-            Understand your crowd and plan a night in {city}. Explore real venues and tastes from Qloo, compare possible acts, and see how each night plays out in a simulated city.
+            Find a venue for your artist in {city}. Choose an artist and simulation date, shortlist venues using Qloo taste data, then compare the event with the same nights without it.
           </p>
         </header>
         <details className="space-y-1.5">
@@ -39,9 +39,9 @@ export function Intro({ city, open, onClose }: { city: string; open: boolean; on
         <div className="space-y-1.5">
           <h3 className="text-xs uppercase tracking-wide text-zinc-400">Try this</h3>
           <ol className="list-decimal space-y-1 pl-5">
-            <li>Open <span className="text-zinc-50">Venues</span> and choose a place, or click one on the map.</li>
-            <li>Select <span className="text-zinc-50">Plan a night here</span> to compare acts and book a night.</li>
-            <li>Press <span className="text-zinc-50">Play</span> to watch the crowd. Explore shared tastes in <span className="text-zinc-50">Scenes</span>.</li>
+            <li>Start in <span className="text-zinc-50">Plan event</span>: choose the artist and date.</li>
+            <li>Find matching venues, then <span className="text-zinc-50">Compare impact</span> to see the no-event baseline beside each option.</li>
+            <li>Review one venue and schedule in the simulation. <span className="text-zinc-50">Explore city</span> contains the secondary sandbox tools.</li>
           </ol>
         </div>
         <div className="flex justify-end">

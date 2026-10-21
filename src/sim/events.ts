@@ -35,6 +35,10 @@ export type EventRunOptions = {
 };
 
 export type EventOutcome = {
+  /** Location visits over the exact event window, including the event in the with-event total. */
+  hostBaseline?: number;
+  hostWithEvent?: number;
+  turnoutRange?: { min: number; max: number };
   /** Total visits to the event across the simulated weeks. */
   turnout: number;
   /** Residents who gained the candidate's entity as a taste (0 for profile events). */
@@ -123,7 +127,8 @@ function onePair(live: SimState, candidates: EventCandidate[], o: EventRunOption
     }
     const hostChange = o.hostVenue !== undefined && o.hostVenue < baseline.nVenues ? visits[o.hostVenue] - baseVisits[o.hostVenue] : 0;
     const scenes = [...sceneCounts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]).map(([id]) => id);
-    return { turnout, newFans, scenes, neighbourLoss, hostChange };
+    const hostBaseline = o.hostVenue === undefined ? 0 : baseVisits[o.hostVenue];
+    return { turnout, newFans, scenes, neighbourLoss, hostChange, hostBaseline, hostWithEvent: hostBaseline + hostChange + turnout };
   });
 }
 
@@ -137,6 +142,9 @@ export function runEventCandidates(live: SimState, candidates: EventCandidate[],
     const votes = new Map<number, number>();
     per.forEach((r) => r.scenes.forEach((id, rank) => votes.set(id, (votes.get(id) ?? 0) + (r.scenes.length - rank))));
     return {
+      hostBaseline: avg((r) => r.hostBaseline ?? 0),
+      hostWithEvent: avg((r) => r.hostWithEvent ?? 0),
+      turnoutRange: { min: Math.min(...per.map((r) => r.turnout)), max: Math.max(...per.map((r) => r.turnout)) },
       turnout: avg((r) => r.turnout),
       newFans: avg((r) => r.newFans),
       scenes: [...votes].sort((a, b) => b[1] - a[1] || a[0] - b[0]).map(([id]) => id),

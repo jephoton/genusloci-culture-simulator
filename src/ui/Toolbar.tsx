@@ -152,6 +152,7 @@ export function Toolbar({
       <p className="text-sm text-zinc-400">Explore changes to the city. For an existing venue, use Venues → Plan a night.</p>
       <details className="rounded-lg border border-white/10 p-2">
       <summary className="cursor-pointer px-1 py-2 text-sm">Open a place</summary>
+      <p className="px-3 py-2 text-xs text-zinc-400">Hypothetical openings use an existing Qloo place&apos;s name, kind and taste profile matched to this area. They do not predict that the real business will open here.</p>
       <ToolButton
         active={tool.kind === "open"}
         label="Open a venue"
