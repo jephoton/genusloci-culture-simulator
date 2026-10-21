@@ -79,6 +79,10 @@ For a shorter, optional three-minute judge walkthrough: introduce the Qloo-backe
 
 For a full hands-on tour of every feature (about 30 minutes, with a checklist), see [feature-walkthrough.md](feature-walkthrough.md).
 
+**Focused interface:** open one workspace at a time: **Venues**, **Scenes**, **City tools**, **Co-pilot**. Statistics/fidelity are in **City overview**. Speed/rewind are in **Playback**. **City tools → Events and scouting** contains Scout; **Open a place** contains venue creation. In a selected venue, **Venue actions** contains closure. The planner's **Schedule** disclosure contains dates/duration; the event calendar is above the **Venues** directory when no venue is selected.
+
+**No LLM key:** rehearse the manual path: **Venues → choose venue → Plan a night here → Compare → Book**, then Play and explore Scenes. Existing-world artist comparisons need no LLM; outside artists separately need Qloo. Skip the co-pilot, scene naming and resident interview steps until a supported provider is configured and the server restarted. The offline drawer explains this; it does not simulate an AI answer. The agentic submission still needs a working provider for its conversational demonstration.
+
 *(today)* marks what works now.
 
 0. **Setup:** load the demo city (London, or NYC for US judges), paused at week 0, with the default camera.

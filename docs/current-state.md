@@ -2,6 +2,20 @@
 
 <!-- generated: maintained by agents -->
 
+## Focused venue interface (2026-10-21)
+
+The main story is venue selection, act comparison and booking. Desktop and mobile now share one workspace drawer: **Venues**, **Scenes**, **City tools**, **Co-pilot**. The default map has no expanded sidebars. A searchable venue directory supports keyboard selection; temporary events and closed venues are excluded from its booking list. The existing map inspection path remains available.
+
+Secondary information is progressively revealed: **City overview** has metrics/fidelity; **Playback** has speed/rewind; venue inspection has **Venue performance** and **Venue actions**; planning has **Schedule**. **City tools** groups place creation, events/scouting and neighbourhood changes. Placement clears the drawer and shows an explicit Cancel instruction. Navigation exits planning/scouting with the existing resume policy; stale comparisons still use snapshot guards. Escape closes the workspace or cancels placement, while an open playback/overview disclosure handles Escape locally.
+
+`GET /api/copilot` returns only whether a supported provider key is configured, with no-store caching and no provider requests. Without configuration, the co-pilot drawer explains setup and points to manual booking. Background scene naming and interview entry points wait for known configuration. Configuration is not a provider health check; a valid key and successful live-provider rehearsal are still needed for the agentic demo. No credentials were added or changed.
+
+A bounded procedural model pass gives clubs entrances/canopies, pubs roofs/windows/signs, cafes awnings/shopfronts, and music venues marquees/doors. Existing footprint limits, ghost previews, scene-colour signals and closure animation remain in use. Background buildings remain instanced; this is not a full scenery overhaul. Dining and fashion expansion remains deferred to preserve the focused story.
+
+Plan: [focused interface](superpowers/plans/2026-10-21-focused-interface.md). Navigation instructions are maintained in the [runbook](pitch-and-demo.md) and [walkthrough](feature-walkthrough.md).
+
+Verification: 456 tests across 91 files, lint, production build and `git diff --check` passed. Browser checks covered 375/768/1280px layouts, venue search/selection, existing-world act comparison, booking and calendar visibility, missing-key messaging, placement instructions, playback above a drawer, and Escape returning focus to navigation. The responsive fixture was temporary and removed. Independent review caught playback popover stacking and configured-chat focus/controlled-ID issues; both were fixed. No successful live-provider answer, new Qloo lookup, world rebuild, merge, push or deployment was performed in this pass.
+
 ## Submission and demo check (2026-10-21)
 
 The [demo runbook](pitch-and-demo.md) now records the official submission requirements, schedule and scope assessment. A publicly hosted working app is required; a video is optional. No separate tracks or scheduled live pitch requirement were found in public organizer pages. The extended runbook needs about 5–6 minutes; an optional three-minute judge path is included. This check did not repeat a full browser rehearsal or implement new taste domains. Dining already has venue/tag support; brand ingestion and a dedicated fashion flow remain absent.

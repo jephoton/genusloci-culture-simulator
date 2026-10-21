@@ -1,13 +1,19 @@
 # Feature walkthrough
 
-A hands-on tour of every feature, in an order where each section sets up the next. It takes about 25–35 minutes. For the 3-minute demo-day script, see [pitch-and-demo.md](pitch-and-demo.md#demo-runbook-about-3-minutes-as-intended-for-demo-day).
+A hands-on tour of every feature, in an order where each section sets up the next. It takes about 25–35 minutes. For the extended demo and an optional three-minute judge path, see [pitch-and-demo.md](pitch-and-demo.md#demo-runbook-allow-56-minutes).
+
+<!-- generated: navigation updated for the focused interface -->
+
+**Navigation:** the main screen shows the city, four workspace buttons and compact playback controls. **Venues**, **Scenes**, **City tools** and **Co-pilot** open one drawer at a time on desktop and phones. Start with **Venues → choose a venue → Plan a night here → Compare → Book**. The map is also clickable. **City overview** contains statistics and fidelity; **Playback** contains speed and rewind. In a venue, **Venue performance** contains detailed numbers and **Venue actions** contains **Close venue**. In the planner, expand **Schedule** for dates and duration.
+
+**Without an LLM key:** the co-pilot drawer explains its unavailability and offers the venue flow. Resident interview buttons are hidden; scenes keep numeric names. Venue comparisons, bookings, scouting and city interventions still use the simulation. Outside-artist lookup separately needs Qloo. Configure one supported provider in `.env.local` (see `.env.example`) and restart to enable AI features; a configured key does not guarantee provider health.
 
 **Where:** https://genusloci-culture-simulator.vercel.app, or `pnpm dev` and http://localhost:3000.
 
 **Before you start:**
 - Keep the tab **visible and focused**. A background tab stops drawing the 3D city (the simulation keeps running), so dots look frozen and white.
 - To see the intro again: in the browser console, run `localStorage.removeItem("genusloci.intro.v1")` and reload, or press **?** (bottom right).
-- **Esc** cancels any placing tool. The timeline slider rewinds exactly, so you can undo experiments.
+- **Esc** cancels placement and closes the workspace. **Playback → Rewind** returns to an earlier simulated date.
 - Each section notes whether it needs live services: the LLM (DeepSeek) or Qloo.
 
 ---
@@ -16,8 +22,8 @@ A hands-on tour of every feature, in an order where each section sets up the nex
 
 1. **Open the site.**
    - *Expect:* the intro card ("Genus Loci … Reading the map … Try this").
-   - Click **Explore London**. Reload and it shouldn't show again.
-2. **Read the top bar:** city, date ("Week 0 · Mon"), residents (2500), venues, events, scenes (0), fidelity (about 0.17).
+   - Click **Start exploring**. Reload and it shouldn't show again.
+2. Open **City overview** for date ("Week 0 · Mon"), residents (2500), venues, events, scenes (0), fidelity (about 0.17). Close it to keep the map clear.
 3. **Orbit the map:** drag to pan, scroll to zoom, right-drag to rotate.
    - *Expect:* real London streets, the Thames, parks, lit landmarks (venues) and white dots (residents at home).
 4. **Bottom right:** "Map data © OpenStreetMap contributors · Taste data: Qloo".
@@ -26,9 +32,9 @@ A hands-on tour of every feature, in an order where each section sets up the nex
 
 1. Press **Play** at 1 day/s.
    - *Expect:* each day, residents walk out along the streets to venues and back home; the date ticks.
-2. Try the speeds **½ / 1 / 2 / 4** day/s, then **Pause**.
+2. Open **Playback** and try the speeds **½ / 1 / 2 / 4** day/s, then **Pause**.
    - *Expect:* pause freezes everything mid-step; Play continues from there.
-3. **After about week 1, watch the Scenes panel (right):**
+3. **After about week 1, open Scenes:**
    - *Expect:* 6–8 scenes appear with sizes and top tastes. A few seconds later they get plain names, such as "Historic theatre crowd" or "Grime friend groups". **Names need the LLM**; without it they stay "Scene N".
    - *Expect:* dots take on their scene's colour.
 4. **Hover** a scene row to highlight its people and venues; move away to clear.
@@ -61,7 +67,9 @@ A hands-on tour of every feature, in an order where each section sets up the nex
 3. **Close a venue yourself** with **Close venue**.
    - *Expect:* an implosion effect, the building sinks, and regulars scatter. The panel says "Closed by your intervention."
 
-## 5. God-game tools (left toolbar) (6 min)
+## 5. City tools (6 min)
+
+Open **City tools**. **Open a place** contains venue creation; **Events and scouting** contains events and location scouting; **Neighbourhood changes** contains newcomers and rent. Selecting something to place closes the drawer and shows a map instruction with **Cancel**. Switching workspace sections also cancels the active tool.
 
 1. **Open a venue:**
    - pick a kind (some are greyed out if the city has none), then move over the map;
@@ -77,12 +85,12 @@ A hands-on tour of every feature, in an order where each section sets up the nex
 4. **Raise the rent:**
    - pick **+25% / +50% / +100%**, then click the map;
    - *expect* a toast "Rents up 50% around <area>". Venues there now need bigger crowds; watch for red pulses over the next weeks.
-5. **Rewind:** drag the timeline slider back before your changes.
+5. **Rewind:** open **Playback** and drag the rewind slider back before your changes.
    - *Expect:* the city returns exactly to that day; your changes are gone.
 
 ## 6. Scout a location (3 min)
 
-1. Click **Scout a location** and pick a headliner.
+1. Open **City tools → Events and scouting → Scout a location** and pick a headliner.
    - *Expect:* the city pauses, an amber glow shows where their fans live, and pins **A–C** appear.
    - A results panel ranks the spots on turnout, new fans, "Neighbours lose", and the scenes reached, with a one-line verdict. It runs 3 seeded runs per spot.
 2. **Click the map** to add your own spot **D**.
@@ -104,7 +112,7 @@ A hands-on tour of every feature, in an order where each section sets up the nex
    - *Expect:* ranked cards with turnout, **Your usual nights** (green = the act brings extra visits to your venue, red = it takes from them), new fans ("n/a" for outside artists), neighbour loss, and the scenes drawn. The verdict leads with your venue.
 6. **Book** the best act.
    - *Expect:* a toast "Booked <act> at <venue> for 1 night, week 2".
-7. **Event calendar** (right column, collapsed "Event calendar (1 upcoming)"): open it.
+7. Close planning/venue inspection, open **Venues**, then expand **Event calendar (1 upcoming)** above the venue list.
    - *Expect:* your booking with its date and status "scheduled", and **Cancel booking**. Outside artists keep their own name.
 8. Play until the date.
    - *Expect:* the event starts (status "started", then "ended").
@@ -115,7 +123,7 @@ To try for a scene split: bring in 200 newcomers of the smallest scene in two di
 
 ## 8. Co-pilot (6 min, needs the LLM; some answers use Qloo)
 
-Open **Ask the co-pilot** (bottom left; on phones, the **Co-pilot** tab). Each answer takes 10–30 s; the steps it takes show as ticked lines.
+Open **Co-pilot** in the workspace navigation. With a configured LLM, each answer takes 10–30 s; the steps it takes show as ticked lines. With no configured provider, the drawer explains setup and offers **Choose a venue** instead of a chat box.
 
 1. **"What scenes live here, and where?"**
    - *Expect:* scenes with sizes, tastes and home neighbourhoods.
@@ -134,7 +142,7 @@ Open **Ask the co-pilot** (bottom left; on phones, the **Co-pilot** tab). Each a
 7. **"What kind of crowd likes Ghetts?"**
    - *Expect:* a live Qloo taste lookup ("Asked Qloo what … fans like"). At most 4 Qloo calls per question.
 
-If it says it's offline, the LLM key isn't configured. The toolbar still does everything by hand.
+If it says no language model is configured, use the manual venue and city tools. Conversational explanations and interviews require a provider.
 
 ## 9. Meet a resident (2 min, needs the LLM)
 
@@ -153,7 +161,7 @@ If it says it's offline, the LLM key isn't configured. The toolbar still does ev
 ## 11. Phone layout (2 min)
 
 1. Narrow the window below about 640 px, or use device mode in DevTools.
-   - *Expect:* the top bar shows city, date and fidelity; a **Tools · Scenes · Co-pilot** tab row opens one full-width panel at a time.
+   - *Expect:* the top bar shows city and **City overview**; **Venues · Scenes · City tools · Co-pilot** opens one drawer at a time. Date remains in playback; fidelity is in **City overview**.
 2. Pick a placing tool.
    - *Expect:* the tools panel closes so you can tap the map.
 

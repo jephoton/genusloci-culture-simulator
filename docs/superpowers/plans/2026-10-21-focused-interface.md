@@ -14,15 +14,17 @@ The user approved the venue-owner story, clearer workflow, and a bounded archite
 
 ## Tasks
 
-- [ ] Add regression coverage for drawer transitions, venue discovery and the missing-provider response. Run the new tests and confirm their initial failure.
-- [ ] Implement `src/ui/panels.ts` as the shared navigation transition policy. Switching sections dismisses transient selection and safely exits planning/scouting; closing a placement drawer preserves the explicit map task until Cancel/Escape.
-- [ ] Add `src/ui/VenueDirectory.tsx`: searchable real venues, inspection callback, event calendar submenu. Introduce it through `src/ui/GameShell.tsx` with one drawer at a time and explicit Close/Back controls. Preserve calendar cancellation, scouting, scene inspection and booking.
-- [ ] Simplify `Hud.tsx`, `TimelineBar.tsx`, `Toolbar.tsx`, `VenuePanel.tsx` and `Intro.tsx`: city metrics, playback options, event tools, city interventions and advanced venue operations go into labeled disclosures. Keep the main booking action visible when a venue is selected.
-- [ ] Add a GET capability response to the existing co-pilot route, with a client availability hook; explain unconfigured AI in its drawer and remove unavailable interview entry points. Disable background naming until configuration is known. Test configured/unconfigured behavior without network provider calls.
-- [ ] Refine `Landmarks.tsx` for club, bar, cafe and music venue with street-facing doors, windows, roofs, awnings and marquees. Preserve footprint bounds, scene/state colours, closure effects and shared materials. Keep scenery instanced.
-- [ ] Run targeted tests, full tests, lint and production build. Rehearse desktop/mobile drawer navigation, venue selection/comparison, placement cancel, AI-offline state and Escape behavior in the browser. Inspect screenshots and fix overlaps.
-- [ ] Update current-state, runbook and walkthrough with the actual navigation, key requirements and verified limitations. Commit logical changes separately; do not merge/push without a new request.
+- [x] Add regression coverage for venue discovery and the missing-provider response. Confirm initial failures, then passing tests. Exercise drawer transitions in the browser.
+- [x] Use one shared navigation state in the existing `GameShell.tsx`, avoiding a separate transition module that would duplicate its planner/scout lifecycle. Switching sections dismisses transient selection and safely exits planning/scouting; committing a placement selection hides the drawer and preserves the map task until placement/Cancel/Escape.
+- [x] Add `src/ui/VenueDirectory.tsx`: searchable real venues, inspection callback, event calendar submenu. Introduce it through `src/ui/GameShell.tsx` with one drawer at a time and explicit Close/Back controls. Preserve calendar cancellation, scouting, scene inspection and booking.
+- [x] Simplify `Hud.tsx`, `TimelineBar.tsx`, `Toolbar.tsx`, `VenuePanel.tsx` and `Intro.tsx`: city metrics, playback options, event tools, city interventions and advanced venue operations go into labeled disclosures. Keep the main booking action visible when a venue is selected.
+- [x] Add a GET capability response to the existing co-pilot route, with a client availability hook; explain unconfigured AI in its drawer and remove unavailable interview entry points. Disable background naming until configuration is known. Test configured/unconfigured behavior without network provider calls.
+- [x] Refine `Landmarks.tsx` for club, bar, cafe and music venue with street-facing doors, windows, roofs, awnings and marquees. Preserve footprint bounds, scene/state colours, closure effects and shared materials. Keep scenery instanced.
+- [x] Run targeted tests, full tests, lint and production build. Inspect 375/768/1280px layouts through a temporary local iframe fixture. Rehearse search, venue selection/comparison/booking and calendar, offline AI, tool-to-placement, and playback above an open drawer. Fix review findings for popover stacking and chat focus/controlled IDs.
+- [x] Update current-state, runbook and walkthrough with the actual navigation, key requirements and verified limitations. Commit logical changes separately; do not merge/push without a new request.
 
 ## Verification boundaries
 
 No live Qloo world rebuild or paid provider call is needed. A configured key is not proof that a provider will accept requests: capability means configuration only. Browser comparisons can use artists already present in the World. Measure readability at overview and close range; more model detail alone is not success.
+
+Verification: 456 tests across 91 files, lint, production build and diff whitespace checks passed. Read-only independent code review identified two UI accessibility/stacking issues; both were fixed. No successful live LLM answer or new outside-artist request was tested. The temporary responsive fixture is removed after checks. These changes remain on the local feature branch.
