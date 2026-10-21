@@ -21,6 +21,7 @@ import type { CityLayout } from "@/render/layout";
 import { SceneAuras } from "@/render/SceneAuras";
 import { type ScoutPin, ScoutPins } from "@/render/ScoutPins";
 import { Streets } from "@/render/Streets";
+import { StreetLabels } from "@/render/StreetLabels";
 import type { ClosureRules } from "@/render/venues";
 import type { Frame } from "@/sim/frame";
 import type { World } from "@/world/schema";
@@ -90,6 +91,7 @@ export function CityCanvas(props: CityCanvasProps) {
         <directionalLight position={[x + size, size, z + size * 0.4]} intensity={1.8} color="#ffe1bc" />
         <Ground layout={layout} onGroundClick={props.onGroundClick} pointerRef={pointerRef} />
         <Streets layout={layout} />
+        <StreetLabels world={props.world} layout={layout} />
         <Buildings frames={props.frames} layout={layout} />
         <SceneAuras world={props.world} layout={layout} frames={props.frames} frame={props.frame} focus={props.focus} dimmed={!!props.scout} />
         {props.scout?.demand && <DemandGlow frames={props.frames} layout={layout} demand={props.scout.demand} />}
