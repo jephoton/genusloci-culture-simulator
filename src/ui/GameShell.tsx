@@ -792,7 +792,7 @@ function Game({
             {panel === "copilot" && <div className="space-y-3 text-sm text-zinc-300">
               <p>{aiConfigured === false ? "The co-pilot is unavailable because no language model is configured." : "AI availability could not yet be confirmed. You can continue with the venue tools."}</p>
               <p className="text-zinc-400">You can compare acts, scout locations and book nights without the co-pilot.</p>
-              <button type="button" className="rounded-lg bg-violet-500/25 px-3 py-2 text-violet-100" onClick={() => { setPaused(true); setPanel("plan"); }}>Plan an event</button>
+              <button type="button" className="rounded-lg bg-violet-500/25 px-3 py-2 text-violet-100" onClick={() => { pause(); setPanel("plan"); }}>Plan an event</button>
               {aiConfigured === false && <details><summary className="cursor-pointer text-xs text-zinc-400">Local setup</summary><p className="mt-2 text-xs text-zinc-400">Configure a supported provider key in .env.local and restart the server. See .env.example. Scene naming and resident interviews also need a provider.</p></details>}
             </div>}
             {panel === "tools" && <Toolbar world={world} digest={sim.digest} tool={tool} sceneTitle={sceneTitle} onTool={(t) => {
