@@ -16,7 +16,9 @@ Verification: 482 tests across 98 files, TypeScript, lint and a production build
 
 ## Artist picker consistency (2026-10-21)
 
-The booking planner's browser-native datalist is replaced with an app-styled editable combobox (`ArtistPicker.tsx`): dark scrollable results, violet keyboard highlights, filtered local artists, and exclusion of artists already in the lineup. Selecting a suggestion fills the field; Add retains the existing local/outside-artist path. Typing does not make Qloo calls. Arrow keys navigate, Enter selects an active suggestion, Escape dismisses only the suggestion list, and Tab/outside focus closes it. Results flow inside the drawer so they use its existing scrolling rather than an OS popup. Browser checks verified filtering, mouse/keyboard selection, adding a local artist and unmatched-name guidance without a new Qloo lookup.
+Follow-up: suggestions now use an absolutely positioned overlay anchored below the input, with a bounded scrollable list. They no longer add form height or move the date/Add controls. Browser measurements kept the start-week control at the same position with the list open and closed; Arrow/Enter selection and Escape dismissal were rechecked.
+
+The booking planner's browser-native datalist is replaced with an app-styled editable combobox (`ArtistPicker.tsx`): dark scrollable results, violet keyboard highlights, filtered local artists, and exclusion of artists already in the lineup. Selecting a suggestion fills the field; Add retains the existing local/outside-artist path. Typing does not make Qloo calls. Arrow keys navigate, Enter selects an active suggestion, Escape dismisses only the suggestion list, and Tab/outside focus closes it. Results use an app-styled overlay anchored to the input, with their own bounded scrolling. Browser checks verified filtering, mouse/keyboard selection, adding a local artist and unmatched-name guidance without a new Qloo lookup.
 
 ## Stronger miniature-city art and live LLM check (2026-10-21)
 
