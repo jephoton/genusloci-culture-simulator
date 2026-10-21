@@ -1,6 +1,6 @@
 import { createUIMessageStreamResponse, toUIMessageStream, type UIMessage } from "ai";
 import { CopilotBodySchema, copilotStream } from "@/agents/copilot";
-import { modelFor } from "@/agents/providers";
+import { modelFor, PROVIDERS } from "@/agents/providers";
 import { liveQlooClient } from "@/agents/qloo-live";
 import { clientKey, createRateLimiter } from "@/agents/rate-limit";
 
@@ -8,6 +8,11 @@ export const maxDuration = 60;
 
 /** 10 questions in a burst, then 4 a minute, per visitor. */
 const limiter = createRateLimiter(10, 4);
+
+/** Configuration only: no credentials, model construction or provider request. */
+export async function GET() {
+  return Response.json({ configured: PROVIDERS.some((p) => !!process.env[p.keyVar]?.trim()) }, { headers: { "Cache-Control": "no-store" } });
+}
 
 export async function POST(req: Request) {
   const model = modelFor("copilot");

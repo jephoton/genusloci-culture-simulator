@@ -171,7 +171,9 @@ export function BookingPanel({
         </button>
       </form>
 
-      <div className="flex items-center gap-2 text-xs" role="group" aria-label="Run length">
+      <details className="rounded-lg border border-white/10 p-2">
+      <summary className="cursor-pointer text-xs text-zinc-400">Schedule · {durationDays !== undefined ? plural(durationDays, "night") : plural(weeks, "week")} from week {Math.floor(startTick / ticksPerWeek)}</summary>
+      <div className="mt-3 flex items-center gap-2 text-xs" role="group" aria-label="Run length">
         <span className="text-zinc-400">Run for</span>
         {BOOKING_WEEKS.map((w) => (
           <button
@@ -197,6 +199,7 @@ export function BookingPanel({
         </>}
       </div>
       <p className="text-xs text-zinc-400">Dates use the simulation calendar. {durationDays !== undefined ? plural(durationDays, "night") : plural(weeks, "week")} starting in week {Math.floor(startTick / ticksPerWeek)}{ticksPerWeek === 7 ? ` · ${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][startTick % 7]}` : ""}. Past dates are rejected.</p>
+      </details>
 
       <button
         type="button"

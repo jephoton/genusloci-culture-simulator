@@ -122,13 +122,13 @@ export function CopilotPanel({
     setInput("");
   };
   return (
-    <aside aria-label="Co-pilot" className="panel pointer-events-auto absolute left-2 right-2 top-28 bottom-[4.75rem] sm:bottom-24 sm:left-4 sm:right-auto sm:top-24 sm:w-80 flex flex-col">
+    <aside id="workspace-drawer" aria-label="Co-pilot" className="panel pointer-events-auto absolute left-2 right-2 top-36 bottom-24 z-[5] sm:left-auto sm:right-4 sm:w-80 md:top-24 flex flex-col">
       <header className="flex items-center justify-between border-b border-white/10 px-3 py-2">
         <div>
           <h2 className="text-sm font-medium">Co-pilot</h2>
           <p className="text-xs text-zinc-400">Ask about {city}, or test a change before you make it.</p>
         </div>
-        <button type="button" onClick={onClose} aria-label="Close the co-pilot" className="rounded px-1.5 text-zinc-400 hover:bg-white/5 hover:text-zinc-100">
+        <button data-drawer-close type="button" onClick={onClose} aria-label="Close the co-pilot" className="rounded px-1.5 text-zinc-400 hover:bg-white/5 hover:text-zinc-100">
           ×
         </button>
       </header>

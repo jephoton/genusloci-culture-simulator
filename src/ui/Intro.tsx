@@ -25,29 +25,28 @@ export function Intro({ city, open, onClose }: { city: string; open: boolean; on
         <header className="space-y-1">
           <h2 id="intro-title" className="text-lg font-medium text-zinc-50">Genus Loci</h2>
           <p className="text-zinc-300">
-            A living model of {city}&apos;s culture, built from Qloo&apos;s taste data. Thousands of residents with real tastes go out to real venues, influence
-            each other, and form scenes that grow, split and fade. Test a decision before you make it.
+            Understand your crowd and plan a night in {city}. Explore real venues and tastes from Qloo, compare possible acts, and see how each night plays out in a simulated city.
           </p>
         </header>
-        <div className="space-y-1.5">
-          <h3 className="text-xs uppercase tracking-wide text-zinc-400">Reading the map</h3>
+        <details className="space-y-1.5">
+          <summary className="cursor-pointer text-xs uppercase tracking-wide text-zinc-400">Reading the map</summary>
           <ul className="space-y-1">
             <li><span className="text-zinc-50">Dots</span> are residents, coloured by the scene they belong to. Each day they head out for the night and walk home.</li>
             <li><span className="text-zinc-50">Lit landmarks</span> are real venues from Qloo. The sign shows tonight&apos;s crowd; a red pulse means a venue is struggling.</li>
             <li><span className="text-zinc-50">Fidelity</span> checks the simulated city against Qloo heatmaps it was never fitted to.</li>
           </ul>
-        </div>
+        </details>
         <div className="space-y-1.5">
           <h3 className="text-xs uppercase tracking-wide text-zinc-400">Try this</h3>
           <ol className="list-decimal space-y-1 pl-5">
-            <li>Press <span className="text-zinc-50">Play</span> and watch scenes form in the Scenes list.</li>
-            <li>Open <span className="text-zinc-50">Ask the co-pilot</span>: <em>&ldquo;What happens if the busiest club closes?&rdquo;</em></li>
-            <li>Click <span className="text-zinc-50">Talk</span> on a scene to interview one of its residents.</li>
+            <li>Open <span className="text-zinc-50">Venues</span> and choose a place, or click one on the map.</li>
+            <li>Select <span className="text-zinc-50">Plan a night here</span> to compare acts and book a night.</li>
+            <li>Press <span className="text-zinc-50">Play</span> to watch the crowd. Explore shared tastes in <span className="text-zinc-50">Scenes</span>.</li>
           </ol>
         </div>
         <div className="flex justify-end">
           <button type="button" onClick={onClose} autoFocus className="rounded-md bg-violet-500/80 px-4 py-1.5 text-sm text-white hover:bg-violet-500">
-            Explore {city}
+            Start exploring
           </button>
         </div>
       </section>

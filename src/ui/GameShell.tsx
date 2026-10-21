@@ -41,6 +41,8 @@ import { useSceneNames } from "@/ui/useSceneNames";
 import { plannerSnapshot, samePlannerSnapshot, type PlannerSnapshot } from "@/ui/timeline-state";
 import { useSimulation } from "@/ui/useSimulation";
 import { VenuePanel } from "@/ui/VenuePanel";
+import { VenueDirectory } from "@/ui/VenueDirectory";
+import { useAgentAvailability } from "@/ui/useAgentAvailability";
 import type { World } from "@/world/schema";
 import { Attribution } from "@/ui/Attribution";
 import { useCityWorld } from "@/ui/useCityWorld";
@@ -152,6 +154,7 @@ function Game({
   onCityChange: (slug: string) => void;
 }) {
   const sim = useSimulation(world, DEMO_SEED, DEMO_CONFIG);
+  const aiConfigured = useAgentAvailability();
   const { act, frames, play, pause, playing, demand: fetchDemand, scout: simulateScout, latestDigest, whatIf } = sim;
   const liveDigest = sim.digest;
   const [tool, setTool] = useState<Tool>({ kind: "select" });
@@ -199,7 +202,7 @@ function Game({
     if ("error" in info) return null;
     return { id, tastes: info.tastes.map((t) => t.name), homes: info.homes, parentId: info.splitFrom };
   });
-  const sceneNames = useSceneNames(world.city.name, liveDigest, describeScene, sim.frame, frames);
+  const sceneNames = useSceneNames(world.city.name, liveDigest, describeScene, sim.frame, frames, aiConfigured === true);
   const sceneNamesRef = useRef(sceneNames);
   useEffect(() => {
     sceneNamesRef.current = sceneNames;
@@ -225,9 +228,15 @@ function Game({
   );
 
   const intro = useIntro();
-  /** Phones show one panel at a time, picked from a tab row under the HUD (ignored from the sm breakpoint). */
-  const [mobileTab, setMobileTab] = useState<"tools" | "scenes" | null>(null);
-  const [copilotOpen, setCopilotOpen] = useState(false);
+  /** The same single-drawer navigation on every screen size. */
+  const [panel, setPanel] = useState<"venues" | "tools" | "scenes" | "copilot" | null>(null);
+  const navigationRef = useRef<HTMLElement>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const closeDrawer = useCallback(() => {
+    setPanel(null);
+    clearFocus();
+    navigationRef.current?.querySelector<HTMLButtonElement>('button[aria-expanded="true"]')?.focus();
+  }, [clearFocus]);
   const [copilotDeps] = useState<ToolDeps>(() => ({
     context: (d) => {
       const L = latest.current;
@@ -403,7 +412,7 @@ function Game({
       planWasPlaying.current = playing;
       if (playing) pause();
       setPlanVenue(slot);
-      setMobileTab(null);
+      setPanel("venues");
     },
     [pause, playing],
   );
@@ -417,6 +426,19 @@ function Game({
     },
     [play],
   );
+  useEffect(() => {
+    const escape = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      endPlan(true);
+      setInterview(null);
+      closeDrawer();
+    };
+    window.addEventListener("keydown", escape);
+    return () => window.removeEventListener("keydown", escape);
+  }, [closeDrawer, endPlan]);
+  useEffect(() => {
+    workspaceRef.current?.querySelector<HTMLButtonElement>("#workspace-drawer button[data-drawer-close]")?.focus();
+  }, [panel, selected, planVenue, scouting, aiConfigured, interview]);
   const comparePlan = useCallback(
     async (acts: BookingAct[], weeks: number, date: BookingDate) => {
       const snapshot = planSnapshot.current;
@@ -478,10 +500,13 @@ function Game({
         if (frame && slot < frame.nVenues) tryOwnSpot(frame.venueCell[slot]);
         return;
       }
+      if (planVenue !== null) endPlan(true);
       setSelected(slot);
       setPinned({ kind: "venue", slot });
+      setPanel("venues");
+      setInterview(null);
     },
-    [scouting, tryOwnSpot],
+    [endPlan, planVenue, scouting, tryOwnSpot],
   );
 
   const onPinScene = useCallback(
@@ -633,7 +658,7 @@ function Game({
   const scoutStale = !!scout && scout.tick !== null && !scout.loading && sim.frame !== null && sim.frame.tick !== scout.tick;
 
   return (
-    <div className="relative h-dvh w-full overflow-hidden bg-[#07080b] text-zinc-100">
+    <div ref={workspaceRef} className="relative h-dvh w-full overflow-hidden bg-[#07080b] text-zinc-100">
       <CityCanvas
         world={world}
         layout={layout}
@@ -662,6 +687,23 @@ function Game({
         citySlug={citySlug}
         onCityChange={onCityChange}
       />
+      <nav ref={navigationRef} aria-label="Workspace" className="pointer-events-auto absolute left-2 right-2 top-[5.25rem] z-10 flex gap-1 sm:gap-2 md:left-auto md:right-4 md:top-4">
+        {([
+          ["venues", "Venues"], ["scenes", "Scenes"], ["tools", "City tools"], ["copilot", "Co-pilot"],
+        ] as const).map(([key, label]) => (
+          <button key={key} type="button" aria-expanded={panel === key} aria-controls="workspace-drawer" onClick={() => {
+            const next = panel === key ? null : key;
+            setInterview(null);
+            if (planVenue !== null) endPlan(true);
+            if (scouting) exitScout(true);
+            setTool({ kind: "select" });
+            clearFocus();
+            setPanel(next);
+          }} className={`panel flex-1 whitespace-nowrap px-3 py-2.5 text-xs sm:flex-none sm:px-4 sm:text-sm ${panel === key ? "bg-violet-500/25 text-violet-100 ring-1 ring-violet-400/50" : "text-zinc-300 hover:bg-white/10"}`}>
+            {label}
+          </button>
+        ))}
+      </nav>
       {interview ? (
         <InterviewPanel
           key={`${interview.scene}:${interview.skip}`}
@@ -669,7 +711,7 @@ function Game({
           onAnother={() => talkTo(interview.scene, interview.skip + 1)}
           onClose={() => setInterview(null)}
         />
-      ) : copilotOpen ? (
+      ) : panel === "copilot" && aiConfigured === true ? (
         <CopilotPanel
           city={world.city.name}
           messages={copilot.messages}
@@ -677,68 +719,25 @@ function Game({
           error={copilot.error}
           onSend={(text) => void copilot.sendMessage({ text })}
           onStop={() => void copilot.stop()}
-          onClose={() => setCopilotOpen(false)}
+          onClose={closeDrawer}
         />
-      ) : (
-        <>
-          <Toolbar
-            world={world}
-            digest={sim.digest}
-            tool={tool}
-            onTool={(t) => {
-              onTool(t);
-              // On phones, get the panel out of the way once there's something to place on the map.
-              if (isPlacing(t)) setMobileTab(null);
-            }}
-            sceneTitle={sceneTitle}
-            mobileOpen={mobileTab === "tools"}
-          />
-          <button
-            type="button"
-            onClick={() => setCopilotOpen(true)}
-            className="panel pointer-events-auto absolute bottom-24 left-4 hidden w-64 px-3 py-2 text-left text-sm hover:bg-white/5 sm:block"
-          >
-            <span className="block">Ask the co-pilot</span>
-            <span className="block text-xs text-zinc-400">“What happens if this club closes?”</span>
-          </button>
-        </>
-      )}
-      <nav aria-label="Panels" className="pointer-events-auto absolute left-2 right-2 top-[4.6rem] flex gap-2 sm:hidden">
-        {(
-          [
-            ["tools", "Tools"],
-            ["scenes", "Scenes"],
-            ["copilot", "Co-pilot"],
-          ] as const
-        ).map(([key, label]) => {
-          const active = key === "copilot" ? copilotOpen && !interview : mobileTab === key && !copilotOpen && !interview;
-          return (
-            <button
-              key={key}
-              type="button"
-              aria-pressed={active}
-              onClick={() => {
-                setInterview(null);
-                if (key === "copilot") {
-                  setCopilotOpen(!active);
-                  setMobileTab(null);
-                } else {
-                  setCopilotOpen(false);
-                  setMobileTab(active ? null : key);
-                }
-              }}
-              className={`panel flex-1 py-1.5 text-sm ${active ? "bg-violet-500/25 text-violet-100 ring-1 ring-violet-400/50" : "text-zinc-200"}`}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </nav>
+      ) : null}
       <div
-        className={`pointer-events-none absolute left-2 right-2 top-28 ${
-          scout || selected !== null || planVenue !== null || (mobileTab === "scenes" && !copilotOpen && !interview) ? "flex" : "hidden"
-        } max-h-[calc(100dvh-13rem)] flex-col gap-3 sm:left-auto sm:right-4 sm:top-24 sm:flex sm:max-h-[calc(100dvh-12rem)] ${scout ? "sm:w-80" : "sm:w-72"}`}
+        id={interview || (panel === "copilot" && aiConfigured === true) ? undefined : "workspace-drawer"}
+        className={`panel pointer-events-auto absolute left-2 right-2 top-36 bottom-24 z-[5] ${
+          !interview && (scout || planVenue !== null || (panel && !(panel === "copilot" && aiConfigured === true))) ? "flex" : "hidden"
+        } flex-col overflow-hidden sm:left-auto sm:right-4 sm:w-80 md:top-24`}
       >
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
+          <h2 className="text-sm font-medium">{scout ? "Scout a location" : planVenue !== null ? "Plan a night" : selected !== null ? "Your venue" : panel === "venues" ? "Plan a night" : panel === "scenes" ? "Discover scenes" : panel === "tools" ? "City tools" : "Co-pilot"}</h2>
+          <button data-drawer-close type="button" aria-label="Close workspace" className="rounded px-2 py-1 text-zinc-400 hover:bg-white/10" onClick={() => {
+            if (planVenue !== null) endPlan(true);
+            if (scouting) exitScout(true);
+            setTool({ kind: "select" });
+            closeDrawer();
+          }}>×</button>
+        </div>
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
         {scout ? (
           <ScoutPanel
             headliner={world.entities[scout.entity].name}
@@ -770,8 +769,25 @@ function Game({
           />
         ) : (
           <>
-            {sim.frame && <EventCalendar frame={sim.frame} world={world} onCancel={(event) => void act({ type: "cancelEvent", event })} />}
-            {pinnedScene && selected === null && sim.frame && (
+            {panel === "copilot" && <div className="space-y-3 text-sm text-zinc-300">
+              <p>{aiConfigured === false ? "The co-pilot is unavailable because no language model is configured." : "AI availability could not yet be confirmed. You can continue with the venue tools."}</p>
+              <p className="text-zinc-400">You can compare acts, scout locations and book nights without the co-pilot.</p>
+              <button type="button" className="rounded-lg bg-violet-500/25 px-3 py-2 text-violet-100" onClick={() => setPanel("venues")}>Choose a venue</button>
+              {aiConfigured === false && <details><summary className="cursor-pointer text-xs text-zinc-400">Local setup</summary><p className="mt-2 text-xs text-zinc-400">Configure a supported provider key in .env.local and restart the server. See .env.example. Scene naming and resident interviews also need a provider.</p></details>}
+            </div>}
+            {panel === "tools" && <Toolbar world={world} digest={sim.digest} tool={tool} sceneTitle={sceneTitle} onTool={(t) => {
+              onTool(t);
+              if (isPlacing(t)) setPanel(null);
+            }} />}
+            {panel === "venues" && selected === null && <>
+              {sim.frame && <EventCalendar frame={sim.frame} world={world} onCancel={(event) => void act({ type: "cancelEvent", event })} />}
+              <VenueDirectory world={world} frame={sim.frame} onSelect={(slot) => {
+                onVenueClick(slot);
+                if (sim.frame) flyTo([layout.cellX[sim.frame.venueCell[slot]], layout.cellZ[sim.frame.venueCell[slot]]]);
+              }} />
+            </>}
+            {selected !== null && panel === "venues" && <button type="button" className="rounded px-2 py-1 text-xs text-violet-200 hover:bg-white/10" onClick={clearFocus}>← All venues</button>}
+            {panel === "scenes" && pinnedScene && selected === null && sim.frame && (
               <SceneCard
                 key={pinnedScene.scene}
                 info={pinnedScene}
@@ -781,37 +797,39 @@ function Game({
                 colour={rgbCss(sceneRgb(sceneHuesOf(sim.frame.lineageParents), pinnedScene.scene))}
                 ticksPerWeek={sim.frame.ticksPerWeek}
                 onPin={onPinScene}
-                onTalk={(scene) => {
-                  setMobileTab(null);
-                  talkTo(scene);
-                }}
+                onTalk={aiConfigured === true ? (scene) => talkTo(scene) : undefined}
               />
             )}
-            <VenuePanel
+            {panel === "venues" && <VenuePanel
               world={world}
               frame={sim.frame}
               slot={selected}
               onCloseVenue={onCloseVenue}
               onDismiss={clearFocus}
               onPlan={startPlan}
-            />
-            <SceneLegend
+            />}
+            {panel === "scenes" && <SceneLegend
               digest={sim.digest}
               names={sceneNames}
-              onTalk={(scene) => {
-                setMobileTab(null);
-                talkTo(scene);
-              }}
+              onTalk={aiConfigured === true ? (scene) => talkTo(scene) : undefined}
               frame={sim.frame}
               pinned={pinnedLive?.kind === "scene" ? pinnedLive.id : null}
               focused={focus !== null}
               onHover={setHovered}
               onPin={onPinScene}
               onClear={clearFocus}
-            />
+            />}
           </>
         )}
+        </div>
       </div>
+      {!panel && !scout && planVenue === null && !interview && !isPlacing(tool) && <div className="pointer-events-none absolute bottom-28 left-4 right-4 flex justify-center">
+        <button type="button" onClick={() => setPanel("venues")} className="panel pointer-events-auto px-5 py-3 text-sm text-violet-100 hover:bg-white/10">Plan a night <span aria-hidden className="ml-3">↗</span></button>
+      </div>}
+      {isPlacing(tool) && !scout && <div role="status" className="panel pointer-events-auto absolute bottom-28 left-1/2 flex w-[min(28rem,calc(100%-2rem))] -translate-x-1/2 items-center justify-between gap-4 px-4 py-3 text-sm">
+        <span>Click the map to {tool.kind === "open" ? "open this venue" : tool.kind === "event" ? "place this event" : tool.kind === "migrate" ? "bring in newcomers" : "raise rents here"}.</span>
+        <button type="button" onClick={() => setTool({ kind: "select" })} className="rounded px-2 py-1 text-violet-200 hover:bg-white/10">Cancel</button>
+      </div>}
       <TimelineBar
         tick={sim.frame?.tick ?? 0}
         ticksPerWeek={sim.frame?.ticksPerWeek ?? 1}

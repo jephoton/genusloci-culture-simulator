@@ -25,7 +25,7 @@ export function Hud({
   onCityChange: (slug: string) => void;
 }) {
   return (
-    <header className="panel pointer-events-none absolute left-2 right-2 top-2 flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2 sm:left-4 sm:right-auto sm:top-4 sm:gap-5 sm:px-4">
+    <header className="panel pointer-events-auto absolute left-2 right-2 top-2 z-20 flex items-center justify-between gap-3 px-3 py-2 sm:left-4 sm:right-auto sm:top-4 sm:min-w-72 sm:gap-5 sm:px-4">
       <div>
         <p className="text-[11px] uppercase tracking-[0.3em] text-violet-300">Genus Loci</p>
         {cities.length > 1 ? (
@@ -45,12 +45,25 @@ export function Hud({
           <p className="text-lg font-medium">{city}</p>
         )}
       </div>
-      <Stat label="Date" value={dayLabel(tick, ticksPerWeek)} />
-      <Stat wide label="Residents" value={digest?.agents ?? "—"} />
-      <Stat wide label="Venues" value={digest ? `${digest.venues.open} open · ${digest.venues.closed} closed` : "—"} />
-      <Stat wide label="Events" value={digest?.venues.events ?? "—"} />
-      <Stat wide label="Scenes" value={digest?.scenes.length ?? "—"} />
-      <Stat label="Fidelity" value={digest ? digest.fidelity.toFixed(2) : "—"} />
+      <details className="relative self-center" onKeyDown={(e) => {
+        if (e.key === "Escape" && e.currentTarget.open) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.currentTarget.open = false;
+          e.currentTarget.querySelector("summary")?.focus();
+        }
+      }}>
+        <summary className="cursor-pointer rounded-md px-2 py-2 text-xs text-zinc-300 hover:bg-white/10">City overview</summary>
+        <div className="panel absolute right-0 top-full mt-3 grid w-64 grid-cols-2 gap-4 p-4">
+          <Stat label="Date" value={dayLabel(tick, ticksPerWeek)} />
+          <Stat label="Residents" value={digest?.agents ?? "—"} />
+          <Stat label="Venues" value={digest ? `${digest.venues.open} open · ${digest.venues.closed} closed` : "—"} />
+          <Stat label="Events" value={digest?.venues.events ?? "—"} />
+          <Stat label="Scenes" value={digest?.scenes.length ?? "—"} />
+          <Stat label="Fidelity" value={digest ? digest.fidelity.toFixed(2) : "—"} />
+          <p className="col-span-2 text-xs text-zinc-500">Fidelity checks spatial tastes against held-out Qloo data. Simulated outcomes are not business forecasts.</p>
+        </div>
+      </details>
     </header>
   );
 }

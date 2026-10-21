@@ -33,7 +33,7 @@ export function TimelineBar({
     setScrub(null);
   };
   return (
-    <footer className="panel pointer-events-auto absolute bottom-5 left-1/2 flex w-[min(760px,calc(100%-1rem))] -translate-x-1/2 items-center gap-2 p-2 sm:bottom-4 sm:w-[min(760px,calc(100%-2rem))] sm:gap-3 sm:p-3">
+    <footer className="panel pointer-events-auto absolute bottom-5 left-1/2 z-[15] flex w-max max-w-[calc(100%-1rem)] -translate-x-1/2 items-center gap-2 p-2 sm:bottom-4 sm:gap-3 sm:p-3">
       <button
         type="button"
         onClick={playing ? onPause : onPlay}
@@ -41,6 +41,17 @@ export function TimelineBar({
       >
         {playing ? "Pause" : "Play"}
       </button>
+      <details className="relative" onKeyDown={(e) => {
+        if (e.key === "Escape" && e.currentTarget.open) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.currentTarget.open = false;
+          e.currentTarget.querySelector("summary")?.focus();
+        }
+      }}>
+      <summary className="cursor-pointer whitespace-nowrap rounded-md px-2 py-2 text-xs text-zinc-400 hover:bg-white/10">Playback</summary>
+      <div className="panel absolute bottom-full left-0 mb-5 w-56 space-y-3 p-3">
+      <p className="text-xs text-zinc-400">Speed · {unit}s per second</p>
       <div className="flex items-center gap-1" role="group" aria-label={`Speed in ${unit}s per second`}>
         {SPEEDS.map((s) => (
           <button
@@ -56,10 +67,11 @@ export function TimelineBar({
         ))}
         <span className="ml-1 hidden text-[10px] text-zinc-500 sm:inline">{unit === "day" ? "day/s" : "wk/s"}</span>
       </div>
+      <label className="block space-y-2 text-xs text-zinc-400">Rewind
       <input
         type="range"
         aria-label={`Rewind to ${unit}`}
-        className="min-w-0 flex-1 accent-violet-400"
+        className="block w-full accent-violet-400"
         min={earliest}
         max={Math.max(tick, earliest)}
         value={value}
@@ -67,6 +79,9 @@ export function TimelineBar({
         onPointerUp={commit}
         onKeyUp={commit}
       />
+      </label>
+      </div>
+      </details>
       <span className="w-[5.5rem] shrink-0 whitespace-nowrap text-right font-mono text-xs tabular-nums sm:w-28 sm:text-sm">{dayLabel(value, ticksPerWeek)}</span>
     </footer>
   );
