@@ -58,40 +58,48 @@ type Anim = {
 };
 
 /** Per-landmark materials, recoloured every animation frame. */
-export type Materials = { neon: THREE.MeshBasicMaterial; body: THREE.MeshStandardMaterial; band: THREE.MeshBasicMaterial };
+export type Materials = { neon: THREE.MeshBasicMaterial; body: THREE.MeshStandardMaterial; band: THREE.MeshBasicMaterial; roof?: THREE.MeshStandardMaterial; window?: THREE.MeshBasicMaterial };
 
 /**
  * The neon parts share one material per landmark (`neon`), so the sign colour and its dying flicker
  * are set in one place. The body glows faintly (`body`), and a thin lit band runs just under the
  * roofline (`band`), both in the venue's identity colour (see Landmark).
  */
-export function Body({ kind, mats: { neon, body, band } }: { kind: VenueKind; mats: Materials }): ReactNode {
+export function Body({ kind, mats: { neon, body, band, roof = body, window = band } }: { kind: VenueKind; mats: Materials }): ReactNode {
   switch (kind) {
     case "club":
       return (
         <>
-          <mesh position-y={1.2} material={body}><boxGeometry args={[3.2, 2.4, 3.2]} /></mesh>
-          <mesh position-y={2.15} material={band}><boxGeometry args={[3.24, 0.1, 3.24]} /></mesh>
-          <mesh position={[0, 2.0, 1.62]} material={neon}><boxGeometry args={[2.6, 0.3, 0.05]} /></mesh>
-          <mesh position-y={2.45} material={neon}><boxGeometry args={[3.3, 0.08, 3.3]} /></mesh>
+          <mesh position-y={1.2} material={body}><boxGeometry args={[3, 2.4, 2.8]} /></mesh>
+          <mesh position-y={2.46} material={roof}><boxGeometry args={[3.2, 0.16, 3]} /></mesh>
+          <mesh position={[0.65, 2.66, -0.5]} material={roof}><boxGeometry args={[0.9, 0.28, 0.8]} /></mesh>
+          <mesh position={[0, 0.65, 1.42]} material={roof}><boxGeometry args={[0.85, 1.3, 0.06]} /></mesh>
+          <mesh position={[0, 1.65, 1.6]} material={neon}><boxGeometry args={[1.65, 0.26, 0.12]} /></mesh>
+          <mesh position={[0, 1.4, 1.58]} material={roof}><boxGeometry args={[1.85, 0.16, 0.4]} /></mesh>
+          {[-1.05, 1.05].map((x) => <mesh key={x} position={[x, 0.8, 1.43]} material={band}><boxGeometry args={[0.1, 1.25, 0.05]} /></mesh>)}
         </>
       );
     case "bar":
       return (
         <>
-          <mesh position-y={0.8} material={body}><boxGeometry args={[2.6, 1.6, 2.4]} /></mesh>
-          <mesh position-y={1.52} material={band}><boxGeometry args={[2.64, 0.08, 2.44]} /></mesh>
-          <mesh position={[0, 1.25, 1.45]}><boxGeometry args={[2.8, 0.1, 0.8]} /><meshStandardMaterial color="#3a1f2b" /></mesh>
-          <mesh position={[0, 1.45, 1.23]} material={neon}><boxGeometry args={[1.6, 0.28, 0.05]} /></mesh>
+          <mesh position-y={1.05} material={body}><boxGeometry args={[2.6, 2.1, 2.1]} /></mesh>
+          <mesh position-y={2.5} rotation-y={Math.PI / 4} scale-z={0.85} material={roof}><coneGeometry args={[2.08, 0.8, 4]} /></mesh>
+          <mesh position={[0.9, 2.7, -0.4]} material={body}><boxGeometry args={[0.28, 0.8, 0.32]} /></mesh>
+          <mesh position={[0, 0.55, 1.07]} material={roof}><boxGeometry args={[0.5, 1.1, 0.08]} /></mesh>
+          {[-0.82, 0.82].map((x) => <mesh key={x} position={[x, 0.7, 1.08]} material={window}><boxGeometry args={[0.7, 0.8, 0.05]} /></mesh>)}
+          <mesh position={[0, 1.35, 1.11]} material={band}><boxGeometry args={[2.65, 0.18, 0.12]} /></mesh>
+          <mesh position={[0.9, 1.85, 1.35]} material={neon}><boxGeometry args={[0.5, 0.48, 0.12]} /></mesh>
         </>
       );
     case "cafe":
       return (
         <>
-          <mesh position-y={0.65} material={body}><cylinderGeometry args={[1.4, 1.4, 1.3, 20]} /></mesh>
-          <mesh position-y={1.75} material={body}><coneGeometry args={[1.7, 0.9, 20]} /></mesh>
-          <mesh position-y={1.12} material={band}><cylinderGeometry args={[1.42, 1.42, 0.08, 20, 1, true]} /></mesh>
-          <mesh position-y={1.3} rotation-x={Math.PI / 2} material={neon}><torusGeometry args={[1.45, 0.06, 8, 32]} /></mesh>
+          <mesh position-y={0.85} material={body}><boxGeometry args={[1.8, 1.7, 1.8]} /></mesh>
+          <mesh position-y={1.78} material={roof}><boxGeometry args={[2.1, 0.16, 2.1]} /></mesh>
+          <mesh position={[-0.3, 0.75, 0.92]} material={window}><boxGeometry args={[0.8, 0.9, 0.04]} /></mesh>
+          <mesh position={[0.5, 0.6, 0.92]} material={roof}><boxGeometry args={[0.42, 1.2, 0.05]} /></mesh>
+          <mesh position={[0, 1.3, 1.06]} rotation-x={0.2} material={band}><boxGeometry args={[2.1, 0.1, 0.5]} /></mesh>
+          <mesh position={[0, 1.55, 0.94]} material={neon}><boxGeometry args={[1.05, 0.17, 0.05]} /></mesh>
         </>
       );
     case "restaurant":
@@ -114,9 +122,14 @@ export function Body({ kind, mats: { neon, body, band } }: { kind: VenueKind; ma
     case "music_venue":
       return (
         <>
-          <mesh rotation-z={Math.PI / 2} material={body}><cylinderGeometry args={[2, 2, 5, 20]} /></mesh>
-          <mesh position-y={1.99} material={band}><boxGeometry args={[5.02, 0.06, 0.3]} /></mesh>
-          <mesh position={[0, 1.1, 2.02]} material={neon}><boxGeometry args={[3, 0.5, 0.05]} /></mesh>
+          <mesh position-y={1.35} material={body}><boxGeometry args={[4.6, 2.7, 3.4]} /></mesh>
+          <mesh position-y={2.83} material={roof}><boxGeometry args={[4.8, 0.25, 3.6]} /></mesh>
+          <mesh position={[0, 3.08, 1.3]} material={body}><boxGeometry args={[2.6, 0.3, 0.65]} /></mesh>
+          {[-1.85, 1.85].map((x) => <mesh key={x} position={[x, 1.35, 1.76]} material={body}><boxGeometry args={[0.28, 2.7, 0.3]} /></mesh>)}
+          {[-0.6, 0.6].map((x) => <mesh key={x} position={[x, 0.65, 1.72]} material={window}><boxGeometry args={[0.85, 1.3, 0.05]} /></mesh>)}
+          <mesh position={[0, 1.65, 1.95]} material={roof}><boxGeometry args={[3.4, 0.35, 0.7]} /></mesh>
+          <mesh position={[0, 1.7, 2.32]} material={neon}><boxGeometry args={[2.9, 0.23, 0.05]} /></mesh>
+          {[-1.3, -0.65, 0, 0.65, 1.3].map((x) => <mesh key={x} position={[x, 1.45, 2.22]} material={band}><sphereGeometry args={[0.055, 6, 4]} /></mesh>)}
         </>
       );
     case "shop":
@@ -178,6 +191,8 @@ function Landmark({
       neon: new THREE.MeshBasicMaterial({ toneMapped: false }),
       body: new THREE.MeshStandardMaterial({ color: gallery ? GALLERY_BODY : BODY, roughness: gallery ? 0.6 : 0.8, emissiveIntensity: 1 }),
       band: new THREE.MeshBasicMaterial({ toneMapped: false }),
+      roof: new THREE.MeshStandardMaterial({ color: "#353139", roughness: 0.95 }),
+      window: new THREE.MeshBasicMaterial({ color: "#d7a66b", toneMapped: false }),
     }),
     [gallery],
   );
@@ -194,6 +209,8 @@ function Landmark({
       mats.neon.dispose();
       mats.body.dispose();
       mats.band.dispose();
+      mats.roof?.dispose();
+      mats.window?.dispose();
     },
     [mats],
   );
@@ -277,6 +294,7 @@ function Landmark({
     const glowBody = BODY_EMISSIVE * a.lit * a.focus;
     mats.body.emissive.setRGB(identity[0] * glowBody, identity[1] * glowBody, identity[2] * glowBody);
     const glowBand = BAND * a.lit * a.flicker * a.focus;
+    mats.window?.color.setRGB(0.65 * a.lit * a.focus, 0.43 * a.lit * a.focus, 0.23 * a.lit * a.focus);
     mats.band.color.setRGB(
       (identity[0] + (WARNING_RGB[0] - identity[0]) * red) * glowBand,
       (identity[1] + (WARNING_RGB[1] - identity[1]) * red) * glowBand,
