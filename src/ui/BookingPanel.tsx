@@ -8,6 +8,7 @@ import { bookingVerdict, suggestActs } from "@/ui/booking-words";
 import { plural } from "@/ui/words";
 import { fetchOutsideAct } from "@/ui/outside-act-client";
 import type { World } from "@/world/schema";
+import { ArtistPicker } from "@/ui/ArtistPicker";
 
 export type BookingAct = {
   key: string;
@@ -151,22 +152,15 @@ export function BookingPanel({
         {acts.length === 0 && <li className="text-xs text-zinc-500">Add an act to compare.</li>}
       </ul>
 
-      <form onSubmit={addByName} className="flex gap-2">
-        <input
-          list="booking-artists"
+      <form onSubmit={addByName} className="flex items-start gap-2">
+        <ArtistPicker
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={setQuery}
+          artists={artists.filter((a) => !acts.some((act) => act.key === `in:${a.i}`))}
           disabled={full || lookingUp}
           placeholder={full ? `Up to ${MAX_BOOKING_ACTS} acts` : "Add an artist (any artist)"}
-          aria-label="Add an artist"
-          className="min-w-0 flex-1 rounded-md bg-white/5 px-2 py-1.5 outline-none ring-violet-400/50 focus:ring-1 disabled:opacity-50"
         />
-        <datalist id="booking-artists">
-          {artists.map((a) => (
-            <option key={a.i} value={a.name} />
-          ))}
-        </datalist>
-        <button type="submit" disabled={!query.trim() || full || lookingUp} className="rounded-md bg-white/10 px-3 disabled:opacity-40">
+        <button type="submit" disabled={!query.trim() || full || lookingUp} className="shrink-0 rounded-md bg-white/10 px-3 py-2 text-xs disabled:opacity-40">
           {lookingUp ? "Asking Qloo…" : "Add"}
         </button>
       </form>
