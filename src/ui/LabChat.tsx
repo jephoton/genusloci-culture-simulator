@@ -40,8 +40,8 @@ export function LabChat({ city, citySlug, cities, onCityChange, deps, ai, config
   const latest = messages.findLast((m) => m.role === "assistant");
   const aiStart = (latest?.metadata as { labAIStart?: number } | undefined)?.labAIStart;
   const latestReply = aiStart === undefined ? latest : ai.messages.slice(aiStart).findLast((m) => m.role === "assistant");
-  const prompts = recommendedPrompts(latest ? latestReply?.parts.filter((p) => p.type === "text").map((p) => p.type === "text" ? p.text : "").join("\n") ?? "" : welcome);
-  const suggestedPrompt = !locked ? promptCompletion(input, prompts, input.length, input.length) : undefined;
+  const replyText = latestReply?.parts.filter((p) => p.type === "text").map((p) => p.type === "text" ? p.text : "").join("\n") ?? "";
+  const placeholderPrompt = recommendedPrompts(replyText)[0] ?? "What if the busiest club closes?";
   const fillPrompt = (prompt: string) => {
     setInput(prompt);
     inputRef.current?.focus();
@@ -121,10 +121,9 @@ export function LabChat({ city, citySlug, cities, onCityChange, deps, ai, config
         {!messages.length && <div className="flex flex-wrap gap-2">{suggestions.map((s) => <button type="button" disabled={locked} key={s} onClick={() => void send(s)} className="rounded-lg border border-white/10 px-2 py-1.5 text-xs text-violet-200 disabled:opacity-40">{s}</button>)}</div>}
         <form onSubmit={submit} className="flex gap-2"><label className="sr-only" htmlFor="lab-question">Ask the lab</label><input ref={inputRef} id="lab-question" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => {
           if (e.key !== "ArrowRight" || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.nativeEvent.isComposing) return;
-          const completion = promptCompletion(input, prompts, e.currentTarget.selectionStart, e.currentTarget.selectionEnd);
+          const completion = promptCompletion(input, [e.currentTarget.placeholder], e.currentTarget.selectionStart, e.currentTarget.selectionEnd);
           if (completion && !locked) { e.preventDefault(); fillPrompt(completion); }
-        }} aria-describedby={suggestedPrompt ? "lab-prompt-suggestion" : undefined} disabled={locked} autoComplete="off" placeholder="What if the busiest club closes?" className="min-w-0 flex-1 rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm outline-none focus:border-violet-400" /><button disabled={locked || !input.trim()} className="rounded-lg bg-violet-500/70 px-3 py-2 text-sm disabled:opacity-40">Send</button></form>
-        {suggestedPrompt && <button id="lab-prompt-suggestion" type="button" onClick={() => fillPrompt(suggestedPrompt)} className="block max-w-full truncate text-left text-[11px] text-violet-200/80" title={suggestedPrompt}><span aria-hidden>→ </span>{suggestedPrompt}<span className="ml-2 text-zinc-500">Right Arrow to fill</span></button>}
+        }} title="Press Right Arrow to fill the example prompt." disabled={locked} autoComplete="off" placeholder={placeholderPrompt} className="min-w-0 flex-1 rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm outline-none focus:border-violet-400" /><button disabled={locked || !input.trim()} className="rounded-lg bg-violet-500/70 px-3 py-2 text-sm disabled:opacity-40">Send</button></form>
         <details className="text-[11px] text-zinc-400"><summary className="cursor-pointer">Chat options and limits</summary><div className="mt-2 space-y-2"><p>Questions try Gemini, then Groq, then the bounded local parser. Local mode asks for clarification rather than inventing an action. Say “help”, “play”, “pause”, or “rewind to day 0”.</p><label className="flex gap-2"><input type="checkbox" checked={allowAI} disabled={!configured || aiBusy} onChange={(e) => setAllowAI(e.target.checked)} />Use AI guide{!configured && " (no provider configured)"}</label><p>AI can inspect and compare. Live changes and playback use explicit local commands. Provider retries stop once answer or tool output begins.</p><button type="button" disabled={locked} onClick={() => { generation.current++; context.current = {}; ai.resetChat(); setMessages([]); }} className="text-violet-200">Clear conversation</button></div></details>
       </div>
     </section>}
