@@ -2,6 +2,12 @@
 
 <!-- generated: maintained by agents -->
 
+## Walkthrough feedback review (2026-10-22)
+
+Read-only implementation audit completed for numeric editing, venue camera focus, event completion, interview history, scene/background focus, rewind, capacity/fidelity semantics, scouting and AI request coordination. The user confirmed existing venues first with optional custom locations. Proposed direction: one Scout locations → compare → visual test → outcomes → schedule journey, with advanced ecosystem interventions secondary. The current architecture document's god-game goal is historical and conflicts with that proposed planner positioning; update it when the new direction is approved/implemented.
+
+Concrete findings and acceptance criteria are in [planner visual tests design](superpowers/specs/2026-10-22-planner-visual-tests-design.md). This is a proposed design awaiting review, not a completed feature batch. Numeric empty-value coercion, pan-only camera targeting and the absent completion report/history are confirmed code-level causes. No application code, credentials, deployment or provider plan was changed in this review.
+
 ## Artist-first event planning, street names and provider limits (2026-10-21)
 
 The primary workspace is now **Plan event**: artist and simulation date → Qloo-evidence venue shortlist → paired venue impact → explicit simulated scheduling. **Explore city** holds Venue directory, Scenes & crowds and City sandbox. Existing venue-first booking remains available. The shortlist includes open permanent music venues/clubs/bars/performance spaces with directed artist affinity; outside artists use their returned fan profile, without an invented proxy fallback. No evidence produces an empty result rather than arbitrary recommendations.
