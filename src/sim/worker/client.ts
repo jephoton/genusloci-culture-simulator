@@ -100,8 +100,8 @@ export class SimClient {
     this.caseListeners.add(listener);
     return () => { this.caseListeners.delete(listener); };
   }
-  startCase(timeline: string, spec: CaseSpec, ticksPerSecond: number) {
-    return this.request<"startCase">({ type: "startCase", timeline, spec, ticksPerSecond });
+  startCase(timeline: string, spec: CaseSpec, ticksPerSecond: number, autoplay = true) {
+    return this.request<"startCase">({ type: "startCase", timeline, spec, ticksPerSecond, autoplay });
   }
   finishCase(timeline: string) {
     return this.request<"finishCase">({ type: "finishCase", timeline });

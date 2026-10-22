@@ -1,3 +1,14 @@
+/** Playback requests describe manual controls without operating them. */
+export function playbackGuidance(text: string, caseComplete: boolean): string | null {
+  const command = text.trim().replace(/^please\s+/i, "").replace(/[.!?]+$/, "");
+  if (/^(?:play|start|resume)(?: (?:the )?(?:simulation|city))?$/i.test(command)) return caseComplete
+    ? "This case is complete. Click Exit case/view, then click Play in the bottom playback controls to continue the city."
+    : "Click Play in the bottom playback controls when you are ready. You control when playback starts.";
+  if (/^(?:pause|stop)(?: (?:the )?(?:simulation|city))?$/i.test(command)) return "Click Pause in the bottom playback controls when you want to stop. This message does not change playback.";
+  if (/^(?:finish|end|exit) (?:the )?(?:case|view)$/i.test(command)) return "Click Exit case/view to leave the highlight and pause the city. Applied changes remain; use Change history to rewind them.";
+  return null;
+}
+
 /** Explicit writes stay local; asking about a change is an AI-first question. */
 export function isComparisonQuestion(text: string): boolean {
   return /\b(?:what (?:happens )?if|simulate|compare|comparison)\b/i.test(text) || /^(?:please\s+)?(?:close|open|raise rent)\b.*\?[?.!]*$/i.test(text.trim());

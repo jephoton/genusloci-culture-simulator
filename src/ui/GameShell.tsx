@@ -560,11 +560,10 @@ function Game({
       if (pinnedLive?.kind === "venue" && pinnedLive.epoch !== undefined && pinnedLive.epoch !== sim.frame?.epoch) return null;
     return hovered !== null ? { kind: "scene", id: hovered } : pinnedLive;
   }, [hovered, pinnedLive, sim.frame]);
-  const finishCase = async (resume: boolean) => {
+  const finishCase = async () => {
     await sim.finishCase();
     clearFocus();
     clearComparison(copilotDeps);
-    if (resume) play();
   };
   const caseComplete = !!sim.activeCase && sim.caseReports.some((item) => item.report.id === sim.activeCase?.id);
   const caseMessages = useMemo(() => sim.caseReports.map(({ report, at }) => ({ id: report.id, at, text: caseSummary(report, sim.caseChanges.find((change) => change.id === report.id)?.label ?? "Applied change", world) })), [sim.caseReports, sim.caseChanges, world]);
@@ -760,11 +759,11 @@ function Game({
       />
       <LabChat city={world.city.name} citySlug={citySlug} cities={CITY_OPTIONS} onCityChange={onCityChange}
         deps={copilotDeps} ai={copilot} configured={aiConfigured === true} frame={sim.frame}
-        onPlay={play} onPause={pause} onRewind={sim.rewind} onFocusVenue={previewEventVenue} onFinishCase={finishCase} caseMessages={caseMessages} caseStatus={sim.activeCase ? caseComplete ? "complete" : "running" : null} />
+        onPause={pause} onRewind={sim.rewind} onFocusVenue={previewEventVenue} caseMessages={caseMessages} caseStatus={sim.activeCase ? caseComplete ? "complete" : "running" : null} />
       {selected !== null && sim.frame && canInspectVenue(focus, selected) && <VenueInspection world={world} frame={sim.frame} slot={selected} onClose={() => setSelected(null)} />}
       <TimelineBar tick={sim.frame?.tick ?? 0} ticksPerWeek={sim.frame?.ticksPerWeek ?? 1} earliest={sim.frame?.earliestTick ?? 0} playing={sim.playing} speed={sim.speed} onPlay={play} onPause={pause} onSpeed={sim.setSpeed} onRewind={(tick) => void sim.rewind(tick)} caseComplete={caseComplete} changes={sim.caseChanges} />
-      {focus?.kind === "experiment" && <div className="panel absolute left-3 top-24 z-10 max-w-64 space-y-1 px-3 py-2 text-xs text-zinc-300"><p>{sim.activeCase ? caseComplete ? "Case complete · paused" : sim.playing ? "Case playing" : "Case paused" : "Case prepared"} · {focus.agents.size} observed visitors.</p>{sim.activeCase && <progress aria-label="Case playback progress" max={sim.activeCase.maxTicks} value={Math.max(0, (sim.frame?.tick ?? sim.activeCase.startTick) - sim.activeCase.startTick)} className="h-1 w-full accent-cyan-300" />}<p className="text-[10px] text-zinc-400">Target beacons follow the closest taste scene; signs follow the current crowd. A new change starts another case. Say “finish case” or “resume” to leave.</p><button type="button" onClick={() => void finishCase(false)} className="mt-1 rounded border border-white/20 px-3 py-1 text-xs hover:bg-white/10">Exit case/view</button></div>}
-      {focus && focus.kind !== "experiment" && <button type="button" onClick={() => void finishCase(false)} className="panel absolute left-3 top-24 z-10 px-3 py-2 text-xs hover:bg-white/10">Exit case/view</button>}{attribution && <Attribution qloo={world.meta?.source === "qloo"} />}
+      {focus?.kind === "experiment" && <div className="panel absolute left-3 top-24 z-10 max-w-64 space-y-1 px-3 py-2 text-xs text-zinc-300"><p>{sim.activeCase ? caseComplete ? "Case complete · paused" : sim.playing ? "Case playing" : "Case paused" : "Case prepared"} · {focus.agents.size} observed visitors.</p>{sim.activeCase && <progress aria-label="Case playback progress" max={sim.activeCase.maxTicks} value={Math.max(0, (sim.frame?.tick ?? sim.activeCase.startTick) - sim.activeCase.startTick)} className="h-1 w-full accent-cyan-300" />}<p className="text-[10px] text-zinc-400">Target beacons follow the closest taste scene; signs follow the current crowd. Click Play/Pause below to control playback. Exit case/view leaves this highlight.</p><button type="button" onClick={() => void finishCase()} className="mt-1 rounded border border-white/20 px-3 py-1 text-xs hover:bg-white/10">Exit case/view</button></div>}
+      {focus && focus.kind !== "experiment" && <button type="button" onClick={() => void finishCase()} className="panel absolute left-3 top-24 z-10 px-3 py-2 text-xs hover:bg-white/10">Exit case/view</button>}{attribution && <Attribution qloo={world.meta?.source === "qloo"} />}
       {/* Keep the existing workspaces available for future chat result cards;
           experiment chat is the only visible command entry point. */}
       <div hidden>

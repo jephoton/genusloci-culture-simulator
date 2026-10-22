@@ -206,13 +206,15 @@ export class SimHost {
       }
       case "startCase": {
         this.checkSpeed(cmd.ticksPerSecond);
+        if (cmd.autoplay !== undefined && typeof cmd.autoplay !== "boolean") throw new Error("invalid case autoplay");
         const t = this.timeline(cmd.timeline);
         const monitor = new CaseMonitor(t.state, cmd.spec);
         this.completeCase("interrupted");
+        this.stopPlaying();
         this.activeCase = { timeline: cmd.timeline, monitor };
         const completion = monitor.completion(t.state);
         if (completion) this.completeCase(completion);
-        else this.startPlaying(cmd.timeline, cmd.ticksPerSecond);
+        else if (cmd.autoplay !== false) this.startPlaying(cmd.timeline, cmd.ticksPerSecond);
         return { started: true };
       }
       case "finishCase": {

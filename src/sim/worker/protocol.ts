@@ -38,7 +38,7 @@ export type WorkerCommand =
   | { type: "digest"; timeline: string }
   | { type: "dispose"; timeline: string }
   | { type: "play"; timeline: string; ticksPerSecond: number }
-  | { type: "startCase"; timeline: string; spec: CaseSpec; ticksPerSecond: number }
+  | { type: "startCase"; timeline: string; spec: CaseSpec; ticksPerSecond: number; autoplay?: boolean }
   | { type: "finishCase"; timeline: string }
   | { type: "pause" }
   | { type: "frame"; timeline: string }

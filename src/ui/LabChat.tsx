@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { UIMessage } from "ai";
 import { runOfflineChat } from "@/agents/offline-chat";
-import { isComparisonQuestion, isDirectLocalCommand, runQuestionWithFallback } from "@/agents/lab-routing";
+import { isComparisonQuestion, isDirectLocalCommand, runQuestionWithFallback, playbackGuidance } from "@/agents/lab-routing";
 import type { CopilotAction } from "@/agents/tools";
 import { clearComparison, type ToolDeps } from "@/agents/run-tool";
 import type { Frame } from "@/sim/frame";
@@ -12,17 +12,16 @@ import type { useCopilot } from "@/ui/useCopilot";
 import { promptCompletion, recommendedPrompts } from "@/ui/prompt-completion";
 
 type LocalContext = { lastAction?: CopilotAction; lastVenue?: number };
-const suggestions = ["What can I do?", "Show the busiest venues", "What if the busiest club closes?", "Play"];
+const suggestions = ["What can I do?", "Show the busiest venues", "What if the busiest club closes?", "How do tastes evolve?"];
 const message = (role: "user" | "assistant", text: string, at = Date.now()): UIMessage => ({ id: crypto.randomUUID(), role, parts: [{ type: "text", text }], metadata: { labAt: at } });
 const cooldownExpired = (until: number) => Date.now() >= until;
 const submissionTime = () => Date.now();
 const welcome = "Welcome to the cultural ecology lab. Ask a question, inspect the model, then compare a change against a no-change future. Try ‘Show the busiest venues’ or ‘What if the busiest club closes?’\n\nLocal commands work without an LLM. These are experiments in an artificial society, not forecasts about real businesses.";
 
-export function LabChat({ city, citySlug, cities, onCityChange, deps, ai, configured, frame, onPlay, onPause, onRewind, onFocusVenue, onFinishCase, caseMessages = [], caseStatus = null }: {
+export function LabChat({ city, citySlug, cities, onCityChange, deps, ai, configured, frame, onPause, onRewind, onFocusVenue, caseMessages = [], caseStatus = null }: {
   city: string; citySlug: string; cities: { slug: string; name: string }[]; onCityChange: (city: string) => void;
   deps: ToolDeps; ai: ReturnType<typeof useCopilot>; configured: boolean; frame: Frame | null;
-  onPlay: () => void; onPause: () => void; onRewind: (tick: number) => Promise<boolean>; onFocusVenue: (slot: number) => void;
-  onFinishCase?: (resume: boolean) => Promise<void>;
+  onPause: () => void; onRewind: (tick: number) => Promise<boolean>; onFocusVenue: (slot: number) => void;
   caseMessages?: { id: string; text: string; at: number }[];
   caseStatus?: "running" | "complete" | null;
 }) {
@@ -67,14 +66,8 @@ export function LabChat({ city, citySlug, cities, onCityChange, deps, ai, config
     if (isComparisonQuestion(text)) { clearComparison(deps); context.current.lastAction = undefined; }
     try {
       // Playback is a small exact grammar: unsupported modifiers never trigger it.
-      let reply: string | undefined;
-      if (/^(?:resume|resume the city|finish (?:the )?case|end (?:the )?case)[.!]?$/i.test(text) && onFinishCase) {
-        const resume = /^resume\b/i.test(text); await onFinishCase(resume); context.current = {};
-        reply = resume ? "Case view released. The live city is continuing; you can rewind through Change history." : "Case finished and view released. The city is paused; your changes remain in its history.";
-      }
-      else if (/^(?:play|start the simulation)[.!]?$/i.test(text)) { onPlay(); reply = caseStatus === "complete" ? "This case is complete. Say ‘resume’ to leave it and continue the city." : "Playing the model. Say ‘pause’ to stop and inspect it."; }
-      else if (/^(?:pause|stop|pause the simulation)[.!]?$/i.test(text)) { onPause(); reply = "Paused. Ask about a venue or compare a hypothetical change."; }
-      else if (/^rewind to (?:checkpoint|step|day|tick) \d+[.!]?$/i.test(text)) {
+      let reply: string | null = playbackGuidance(text, caseStatus === "complete");
+      if (!reply && /^rewind to (?:checkpoint|step|day|tick) \d+[.!]?$/i.test(text)) {
         const tick = Number(text.match(/\d+/)![0]);
         if (!frame || tick < (frame.earliestTick ?? 0) || tick > frame.tick) reply = "Choose an available checkpoint in History & speed.";
         else { onPause(); const ok = await onRewind(tick); context.current = {}; ai.resetChat(); reply = ok ? "Restored the checkpoint. The later future was discarded; previous experiment references and AI context are cleared." : "Rewind did not complete. Check the simulation error before continuing."; }
@@ -98,7 +91,7 @@ export function LabChat({ city, citySlug, cities, onCityChange, deps, ai, config
         const result = outcome.result;
         context.current = result.supported ? result.context : {};
         if (result.context.lastVenue !== undefined && !deps.comparison?.current && /^Venue (?:details|matches)\n/.test(result.text)) onFocusVenue(result.context.lastVenue);
-        const playingReply = /^Live change result/.test(result.text) && /done/.test(result.text) ? `${result.text}\n\nPlaying the simulation so you can watch the change. Say ‘pause’ to inspect it.` : result.text;
+        const playingReply = /^Live change result/.test(result.text) && /done/.test(result.text) ? `${result.text}\n\nThe change is applied and playback is paused. Click Play in the bottom controls when you are ready to watch, and Pause whenever you want to inspect.` : result.text;
         const localReply = useAI ? `AI is unavailable; using the local parser.\n\n${playingReply}` : playingReply;
         setMessages((m) => [...m, ...(!useAI ? [message("user", text, sentAt)] : []), message("assistant", localReply)]);
       }
@@ -136,7 +129,7 @@ export function LabChat({ city, citySlug, cities, onCityChange, deps, ai, config
           const completion = promptCompletion(input, [e.currentTarget.placeholder], e.currentTarget.selectionStart, e.currentTarget.selectionEnd);
           if (completion && !locked) { e.preventDefault(); fillPrompt(completion); }
         }} title="Press Right Arrow to fill the example prompt." disabled={locked} autoComplete="off" placeholder={placeholderPrompt} className="min-w-0 flex-1 rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm outline-none focus:border-violet-400" /><button disabled={locked || !input.trim()} className="rounded-lg bg-violet-500/70 px-3 py-2 text-sm disabled:opacity-40">Send</button></form>
-        <details className="text-[11px] text-zinc-400"><summary className="cursor-pointer">Chat options and limits</summary><div className="mt-2 space-y-2"><p>Questions try Gemini, then Groq, then the bounded local parser. Say “play”, “pause”, “finish case”, or “resume”. Rewind through History & speed.</p><label className="flex gap-2"><input type="checkbox" checked={allowAI} disabled={!configured || aiBusy} onChange={(e) => setAllowAI(e.target.checked)} />Use AI guide{!configured && " (no provider configured)"}</label><p>AI can inspect and prepare a case. Apply explicitly to watch it; outcomes appear after playback stops. Provider retries stop once answer or tool output begins.</p><button type="button" disabled={locked} onClick={() => { generation.current++; context.current = {}; clearComparison(deps); ai.resetChat(); setMessages([]); setClearedAt(Date.now()); }} className="text-violet-200">Clear conversation</button></div></details>
+        <details className="text-[11px] text-zinc-400"><summary className="cursor-pointer">Chat options and limits</summary><div className="mt-2 space-y-2"><p>Questions try Gemini, then Groq, then the bounded local parser. Use the bottom Play/Pause buttons and Exit case/view. Rewind through History & speed.</p><label className="flex gap-2"><input type="checkbox" checked={allowAI} disabled={!configured || aiBusy} onChange={(e) => setAllowAI(e.target.checked)} />Use AI guide{!configured && " (no provider configured)"}</label><p>AI can inspect and prepare a case. Apply explicitly, then click Play when ready; outcomes appear after playback stops. Provider retries stop once answer or tool output begins.</p><button type="button" disabled={locked} onClick={() => { generation.current++; context.current = {}; clearComparison(deps); ai.resetChat(); setMessages([]); setClearedAt(Date.now()); }} className="text-violet-200">Clear conversation</button></div></details>
       </div>
     </section>}
   </>;

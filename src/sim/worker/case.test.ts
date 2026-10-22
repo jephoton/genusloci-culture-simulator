@@ -19,6 +19,16 @@ function setup() {
 }
 
 describe("worker live cases", () => {
+  it("can arm a case paused until the visitor explicitly plays it", () => {
+    const h = setup();
+    h.send({ type: "play", timeline: "main", ticksPerSecond: 10 });
+    expect(h.send({ type: "startCase", timeline: "main", spec: { id: "manual", startTick: 0, maxTicks: 4, venueSlots: [0], agentSlots: [] }, ticksPerSecond: 10, autoplay: false }).ok).toBe(true);
+    expect(h.callbacks.size).toBe(0);
+    h.tick(); expect(h.reports()).toHaveLength(0);
+    h.send({ type: "play", timeline: "main", ticksPerSecond: 10 });
+    for (let i = 0; i < 4; i++) h.tick();
+    expect(h.reports()[0]).toMatchObject({ report: { observedTicks: 4, endTick: 4 } });
+  });
   it("caps exactly, emits once, and leaves no scheduled tick", () => {
     const h = setup();
     expect(h.start().ok).toBe(true);

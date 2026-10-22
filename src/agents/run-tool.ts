@@ -165,7 +165,7 @@ export async function runCityTool(name: string, input: unknown, deps: ToolDeps):
           };
           deps.onCompared?.(mapped.actions, ctx);
         } else if (deps.comparison) deps.comparison.current = null;
-        if (deps.deferComparisonSummary && result.actions.every((r) => r.ok)) return { comparisonReady: true, changes: p.actions, message: "Case prepared. Say apply that to play the highlighted live change. Observed outcomes appear after playback stops. Do not give an outcome summary yet." };
+        if (deps.deferComparisonSummary && result.actions.every((r) => r.ok)) return { comparisonReady: true, changes: p.actions, message: "Case prepared. Say apply that to apply the highlighted change, then click Play in the bottom controls. Observed outcomes appear after playback stops. Do not give an outcome summary yet." };
         return outside.size > 0 ? { ...described, outsideArtists: outsideNotes(outside) } : described;
       }
       case "apply": {

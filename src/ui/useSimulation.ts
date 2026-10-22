@@ -255,9 +255,9 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
     if (!client) throw new Error("The city is still loading.");
     presentation.current.cancel();
     activeCaseRef.current = spec; setActiveCase(spec);
-    setCaseChanges((items) => [...items, { id: spec.id, label, tick: spec.startTick, status: "Playing" }].slice(-30));
-    playingRef.current = true; clock.setPlaying(true, performance.now()); setPlaying(true);
-    try { await client.startCase(MAIN_TIMELINE, spec, speedRef.current); }
+    setCaseChanges((items) => [...items, { id: spec.id, label, tick: spec.startTick, status: "Applied · ready to play" }].slice(-30));
+    playingRef.current = false; clock.setPlaying(false, performance.now()); setPlaying(false);
+    try { await client.startCase(MAIN_TIMELINE, spec, speedRef.current, false); }
     catch (error) {
       activeCaseRef.current = null; setActiveCase(null);
       playingRef.current = false; clock.setPlaying(false, performance.now()); setPlaying(false);

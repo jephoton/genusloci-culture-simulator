@@ -7,7 +7,7 @@ const sceneLine = (r: Row) => `- ${value(r.name)}: ${value(r.size)} residents${r
 /** Deterministic presentation of recorded tool evidence, with no inferred causes. */
 export function formatEvidence(result: unknown): string {
   const r = object(result);
-  if (r.comparisonReady) return "Case prepared. Say ‘apply that’ to play the highlighted change in the live city. The outcome summary appears when playback finishes. You can rewind from Change history.";
+  if (r.comparisonReady) return "Case prepared. Say ‘apply that’ to apply the highlighted change, then click Play in the bottom controls when ready. The outcome summary appears when playback finishes. You can rewind from Change history.";
   if (Array.isArray(r.actionsApplied)) {
     const effect = (row: Row) => `- ${value(row.venue)}: ${value(row.withoutChange)} → ${value(row.withChange)} modeled visits; change ${value(row.change)}; ${value(row.verdict)}.`;
     const gains = rows(r.biggestGainers).slice(0, 3);

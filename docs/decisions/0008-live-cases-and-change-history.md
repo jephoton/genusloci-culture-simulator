@@ -4,6 +4,8 @@
 
 **Status:** Accepted; user selected live-city playback after explicit apply, with rewind for recovery.
 
+**Playback policy amendment:** User starts/stops playback with the bottom Play/Pause buttons. Applying an intervention arms the monitor paused; chat start/stop/resume/finish requests provide control directions. Exit case/view remains an explicit button. Cases still stop automatically at their observation endpoint. This supersedes automatic start on apply and chat-operated finish/resume described below. Placeholder background buildings are omitted to distinguish actual venue landmarks clearly.
+
 The cultural ecology lab is an ongoing simulation. Numbered weeks and calendar labels distract from the current intervention. Main chat and playback therefore describe changes, cases and checkpoints. Engine activity cycles and existing scheduling/tool units remain internal; this is not an engine time-model rewrite.
 
 An explicit live change pauses the worker, applies its action step, then starts bounded monitored playback. The worker owns stopping and emits one actual observation report. Pause/resume and speed retain the monitor. Rewind interrupts it. Automatic completion waits for the final visible outing before pausing the animation clock and showing results. Explicit finish can stop early. Completed cases retain their focus until finish/resume/rewind; unrelated venue selection, ground clicks and Escape cannot discard it. Inspecting a relevant venue preserves the cohort and displays its name/model health.

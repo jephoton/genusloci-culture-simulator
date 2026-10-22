@@ -1,5 +1,7 @@
 # Genus Loci — Glossary, Pitch and Demo Runbook
 
+> **Latest rehearsal adjustment:** only venue landmarks remain; placeholder background buildings are removed. After applying a change, click bottom **Play** yourself. Chat playback requests provide guidance, and **Pause** stops playback. The case still auto-pauses at completion; click **Exit case/view**, then **Play** to continue the city.
+
 > **Current rehearsal:** use [Chat-first lab walkthrough](chat-lab-walkthrough.md). The promise is an inspectable cultural ecology learning lab, not validated promoter forecasts. Demonstrate lookup (including recorded recent visitors) → prepared comparison → explicit apply → focused live playback → automatic pause and observed outcomes → named checkpoint rewind or resume. Keep bottom playback visible; inspect a highlighted venue's name/model health. Beacon/body hues show the closest live taste scene; signs show the current crowd. Venue tastes stay fixed. **Exit case/view** releases focus and pauses; a valid new intervention can replace an observation while retaining earlier applied changes. There are no main-surface numbered weeks. Questions try Gemini Flash-Lite → Groq → deterministic parsing; explicit changes/playback stay local. Include local mode with AI disabled. The older timed venue-planner/sandbox sequence below is historical reference.
 
 <!-- generated: maintained by agents; keep in sync as plans land -->

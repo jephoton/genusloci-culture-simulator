@@ -2,6 +2,8 @@
 
 <!-- generated: maintained by agents; keep in sync with the spec -->
 
+Current rendering/playback policy: `CityCanvas` omits placeholder background buildings while retaining actual venue landmarks, roads and labels. Applied cases are armed paused through worker `startCase.autoplay=false`; the bottom Play button starts observation and Pause retains it. Chat playback/exit requests produce button guidance rather than calling controls. Case endpoint stopping and operational pauses for inspection/application/rewind remain. See the current walkthrough.
+
 ## Simulation scheduling and world builds
 
 The visible interface now uses live applied cases and named change checkpoints instead of numbered weeks. `sim/case.ts` monitors bounded actual playback in the worker, preserving pause/resume/speed and emitting one completion report. `useSimulation` delays automatic completion presentation until the final crowd outing has animated, then pauses and publishes observed outcomes. `GameShell` preserves a relevant-only experiment focus during inspection; `LabChat` releases it explicitly through finish/resume. Bottom playback and `TimelineBar` expose session-local change history and snapshot rewind. Internal cycle cadence, scheduling and legacy tool units remain engine details. See [decision 0008](decisions/0008-live-cases-and-change-history.md).

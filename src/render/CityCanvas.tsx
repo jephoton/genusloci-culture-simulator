@@ -4,7 +4,6 @@ import { MapControls } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
 import { type RefObject, useMemo, useRef } from "react";
-import { Buildings } from "@/render/Buildings";
 import { CameraDirector, type FlyTo } from "@/render/CameraDirector";
 import { Crowd } from "@/render/Crowd";
 import { DemandGlow } from "@/render/DemandGlow";
@@ -92,7 +91,6 @@ export function CityCanvas(props: CityCanvasProps) {
         <Ground layout={layout} onGroundClick={props.onGroundClick} pointerRef={pointerRef} />
         <Streets layout={layout} />
         <StreetLabels world={props.world} layout={layout} />
-        <Buildings frames={props.frames} layout={layout} dimmed={props.focus !== null} />
         <SceneAuras world={props.world} layout={layout} frames={props.frames} frame={props.frame} focus={props.focus} dimmed={!!props.scout} />
         {props.scout?.demand && <DemandGlow frames={props.frames} layout={layout} demand={props.scout.demand} />}
         {props.scout && <ScoutPins frames={props.frames} layout={layout} pins={props.scout.pins} highlighted={props.scout.highlighted} best={props.scout.best} />}

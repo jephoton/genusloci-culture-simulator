@@ -1,5 +1,13 @@
 import { expect, it, vi } from "vitest";
-import { isDirectLocalCommand, runQuestionWithFallback } from "./lab-routing";
+import { isDirectLocalCommand, runQuestionWithFallback, playbackGuidance } from "./lab-routing";
+
+it("directs playback requests to manual controls instead of executing them", () => {
+  for (const text of ["play", "start", "start the simulation", "resume"]) expect(playbackGuidance(text, false)).toContain("Click Play");
+  for (const text of ["stop", "pause", "stop the simulation"]) expect(playbackGuidance(text, false)).toContain("Click Pause");
+  expect(playbackGuidance("resume", true)).toContain("Exit case/view");
+  expect(playbackGuidance("finish case", false)).toContain("Exit case/view");
+  expect(playbackGuidance("play and close a venue", false)).toBeNull();
+});
 
 it("tries AI before invoking the deterministic parser", async () => {
   const local = vi.fn(async () => "local");

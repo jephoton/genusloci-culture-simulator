@@ -2,6 +2,14 @@
 
 <!-- generated: maintained by agents -->
 
+## Manual playback and venue-only buildings (2026-10-22)
+
+The user requested removing placeholder building presence and giving visitors direct playback control. `CityCanvas` no longer renders background `Buildings`; actual venue landmarks, residents, streets and labels remain. The building renderer remains in source for possible future reuse but is not mounted.
+
+Applied cases now register a paused worker monitor (`startCase.autoplay=false`) and leave the animation clock paused. The visitor clicks bottom Play to start watching and Pause to stop; observation survives pause/resume. Chat start/play/stop/pause/resume/finish requests only provide button directions. The chat no longer receives play or finish callbacks; rewind retains its required pause. Exit case/view remains a button, and completed cases still automatically stop before their observed summary. Comparisons/application/rewind can still pause for a stable operation. This supersedes automatic playback and chat-operated finish/resume in earlier entries.
+
+Verification: 632 tests across 108 files, lint, TypeScript and production build passed. New worker regression arms a case while already playing and verifies no scheduled advance until explicit Play; guidance tests cover play/start/resume, pause/stop, completed cases and exit instructions. Browser rehearsal verified chat start stays paused, apply stays paused, manual Play starts the case, chat stop leaves it running with Pause instructions, manual Pause stops it and chat resume leaves it paused. A screenshot inspection confirmed placeholder buildings are absent and venue landmarks remain. No provider requests were needed for these explicit local commands. No merge, push, deployment or credentials changed.
+
 ## Case replacement, recent visitor focus and exit control (2026-10-22)
 
 A valid new intervention now finishes the previous observation, refreshes/revalidates its target and prepares or plays the replacement case against the current changed city. Earlier applied changes remain until rewind. Invalid/unresolved targets keep the current observation; stale timelines/slot identities are rejected. **Exit case/view** is available for cases and ordinary focused views: it releases the highlight and pauses, retaining changes. Rejected local commands no longer restore a previously exited venue through stale local context.
