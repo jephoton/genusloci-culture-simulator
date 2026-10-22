@@ -7,14 +7,21 @@ import type { Action } from "@/sim/actions/schema";
 import type { SimConfig } from "@/sim/config";
 import type { SimDigest } from "@/sim/digest";
 import type { Frame } from "@/sim/frame";
+import type { CaseSpec, CaseReport } from "@/sim/case";
 import { SimClient } from "@/sim/worker/client";
 import { type CommandResults, MAIN_TIMELINE } from "@/sim/worker/protocol";
 import { recordSizes, type SceneHistory } from "@/ui/scene-history";
+import { CasePresentation } from "@/ui/case-presentation";
 import type { World } from "@/world/schema";
 
 export type SimStatus = "loading" | "ready" | "error";
 
 export type Simulation = {
+  activeCase: CaseSpec | null;
+  caseReports: { report: CaseReport; at: number }[];
+  caseChanges: { id: string; label: string; tick: number; status: string }[];
+  startCase(spec: CaseSpec, label: string): Promise<void>;
+  finishCase(): Promise<void>;
   status: SimStatus;
   error: string | null;
   playing: boolean;
@@ -67,7 +74,21 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
   const [status, setStatus] = useState<SimStatus>("loading");
   const [error, setError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [activeCase, setActiveCase] = useState<CaseSpec | null>(null);
+  const activeCaseRef = useRef<CaseSpec | null>(null);
+  const completedCases = useRef(new Set<string>());
+  const presentation = useRef(new CasePresentation());
+  const releasingCase = useRef(false);
+  const [caseReports, setCaseReports] = useState<{ report: CaseReport; at: number }[]>([]);
+  const [caseChanges, setCaseChanges] = useState<{ id: string; label: string; tick: number; status: string }[]>([]);
   const [speed, setSpeedState] = useState(DEFAULT_SPEED);
+
+  const publishCase = useCallback((result: CaseReport) => {
+    playingRef.current = false;
+    clock.setPlaying(false, performance.now()); setPlaying(false);
+    setCaseReports((items) => [...items, { report: result, at: Date.now() }].slice(-30));
+    setCaseChanges((items) => items.map((entry) => entry.id === result.id ? { ...entry, status: result.reason === "settled" ? "Settled (model heuristic)" : result.reason === "limit" ? "Observation complete" : result.reason } : entry));
+  }, [clock]);
 
   const accept = useCallback((f: Frame) => {
     const store = frames.current;
@@ -80,6 +101,7 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
 
   useEffect(() => {
     const client = SimClient.spawn();
+    const presentationController = presentation.current;
     clientRef.current = client;
     const off = client.onFrame(accept);
     const offStopped = client.onStopped(({ error: reason }) => {
@@ -87,6 +109,21 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
       clock.setPlaying(false, performance.now());
       setPlaying(false);
       setError(reason);
+    });
+    let presentationFrame = 0;
+    const drainPresentation = () => {
+      const current = frames.current.current;
+      const visual = frames.current.visualComplete;
+      const result = presentation.current.take(clock.now(), !!current && visual?.epoch === current.epoch && visual.tick === current.tick);
+      if (result) publishCase(result);
+      else if (presentation.current.pending) presentationFrame = requestAnimationFrame(drainPresentation);
+    };
+    const offCase = client.onCaseComplete(({ report: result }) => {
+      if (completedCases.current.has(result.id)) return;
+      completedCases.current.add(result.id);
+      const immediate = releasingCase.current ? result : presentation.current.begin(result, clock.now(), 1000 / speedRef.current);
+      if (immediate) publishCase(immediate);
+      else presentationFrame = requestAnimationFrame(drainPresentation);
     });
     let cancelled = false;
     void (async () => {
@@ -108,12 +145,14 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
       cancelled = true;
       off();
       offStopped();
+      offCase();
+      cancelAnimationFrame(presentationFrame); presentationController.cancel();
       client.terminate();
       clientRef.current = null;
       playingRef.current = false;
       clock.setPlaying(false, performance.now());
     };
-  }, [world, seed, config, accept, clock, setDigest]);
+  }, [world, seed, config, accept, clock, setDigest, publishCase]);
 
   const report = useCallback((e: unknown) => setError(message(e)), []);
 
@@ -127,9 +166,11 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
   const play = useCallback(() => {
     const client = clientRef.current;
     if (!client) return;
+    if (activeCaseRef.current && completedCases.current.has(activeCaseRef.current.id) && !presentation.current.pending) return;
     playingRef.current = true;
     clock.setPlaying(true, performance.now());
     setPlaying(true);
+    if (presentation.current.pending) return;
     client.play(MAIN_TIMELINE, speedRef.current).catch((e: unknown) => {
       playingRef.current = false;
       clock.setPlaying(false, performance.now());
@@ -150,11 +191,12 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
 
   const setSpeed = useCallback(
     (ticksPerSecond: number) => {
+      presentation.current.rescale(clock.now(), speedRef.current / ticksPerSecond);
       speedRef.current = ticksPerSecond;
       setSpeedState(ticksPerSecond);
-      if (playingRef.current) clientRef.current?.play(MAIN_TIMELINE, ticksPerSecond).catch(report);
+      if (playingRef.current && !presentation.current.pending) clientRef.current?.play(MAIN_TIMELINE, ticksPerSecond).catch(report);
     },
-    [report],
+    [report, clock],
   );
 
   const act = useCallback(
@@ -185,17 +227,59 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
       const client = clientRef.current;
       if (!client) return false;
       try {
+        releasingCase.current = true;
+        presentation.current.cancel();
+        const interruptedId = activeCaseRef.current?.id;
+        if (interruptedId) setCaseChanges((items) => items.map((entry) => entry.id === interruptedId ? { ...entry, status: "Interrupted by rewind" } : entry));
+        playingRef.current = false;
+        clock.setPlaying(false, performance.now()); setPlaying(false);
+        await client.pause();
         const result = await client.rewind(MAIN_TIMELINE, tick);
+        presentation.current.cancel();
+        activeCaseRef.current = null; setActiveCase(null);
         setDigest(result.digest);
         await refresh();
         return true;
       } catch (e) {
         report(e);
         return false;
+      } finally {
+        releasingCase.current = false;
       }
     },
-    [refresh, report, setDigest],
+    [refresh, report, setDigest, clock],
   );
+
+  const startCase = useCallback(async (spec: CaseSpec, label: string) => {
+    const client = clientRef.current;
+    if (!client) throw new Error("The city is still loading.");
+    presentation.current.cancel();
+    activeCaseRef.current = spec; setActiveCase(spec);
+    setCaseChanges((items) => [...items, { id: spec.id, label, tick: spec.startTick, status: "Playing" }].slice(-30));
+    playingRef.current = true; clock.setPlaying(true, performance.now()); setPlaying(true);
+    try { await client.startCase(MAIN_TIMELINE, spec, speedRef.current); }
+    catch (error) {
+      activeCaseRef.current = null; setActiveCase(null);
+      playingRef.current = false; clock.setPlaying(false, performance.now()); setPlaying(false);
+      setError(`The change was applied, but case playback could not start: ${message(error)}`);
+      setCaseChanges((items) => items.map((entry) => entry.id === spec.id ? { ...entry, status: "Playback failed; change applied" } : entry));
+    }
+  }, [clock]);
+
+  const finishCase = useCallback(async () => {
+    const client = clientRef.current;
+    if (!client) return;
+    releasingCase.current = true;
+    try {
+      const pending = presentation.current.flush();
+      if (pending) publishCase(pending);
+      await client.finishCase(MAIN_TIMELINE);
+      presentation.current.cancel();
+      await client.pause();
+      activeCaseRef.current = null; setActiveCase(null);
+      playingRef.current = false; clock.setPlaying(false, performance.now()); setPlaying(false);
+    } finally { releasingCase.current = false; }
+  }, [clock, publishCase]);
 
   const demand = useCallback((entity: number) => {
     const client = clientRef.current;
@@ -233,6 +317,7 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
   const dismissError = useCallback(() => setError(null), []);
 
   return {
+    activeCase, caseReports, caseChanges, startCase, finishCase,
     status, error, playing, speed, frame, digest, frames, sceneHistory, play, pause, setSpeed, act, rewind, demand, scout, whatIf, book, resident, latestDigest, dismissError,
   };
 }

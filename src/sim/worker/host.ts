@@ -1,4 +1,5 @@
 import { validateAction } from "@/sim/actions/apply";
+import { CaseMonitor, type CaseReport } from "@/sim/case";
 import { parseAction } from "@/sim/actions/schema";
 import { DEFAULT_CONFIG, parseConfigOverrides } from "@/sim/config";
 import { digest } from "@/sim/digest";
@@ -12,6 +13,7 @@ import { Timeline } from "@/sim/timeline";
 import {
   BOOKING_WEEKS,
   type CommandResult,
+  type CaseCompleteMessage,
   DIGEST_EVERY,
   type FrameMessage,
   MAIN_TIMELINE,
@@ -60,7 +62,7 @@ function medianNearestCellKm(s: SimState): number {
 
 /** Side effects the host needs for streaming; injected so tests can drive the loop by hand. */
 export type HostIO = {
-  emit(message: FrameMessage | StoppedMessage, transfer: ArrayBuffer[]): void;
+  emit(message: FrameMessage | StoppedMessage | CaseCompleteMessage, transfer: ArrayBuffer[]): void;
   schedule(fn: () => void, ms: number): unknown;
   cancel(handle: unknown): void;
 };
@@ -75,12 +77,34 @@ export class SimHost {
   private forks = 0;
   private epoch = 0;
   private player: Player | null = null;
+  private activeCase: { timeline: string; monitor: CaseMonitor } | null = null;
 
   constructor(private readonly io: HostIO = NO_IO) {}
 
   private stopPlaying(): void {
     if (this.player) this.io.cancel(this.player.handle);
     this.player = null;
+  }
+
+  private completeCase(reason: CaseReport["reason"]): void {
+    const active = this.activeCase;
+    if (!active) return;
+    this.activeCase = null;
+    this.stopPlaying();
+    this.io.emit({ kind: "case-complete", timeline: active.timeline, report: active.monitor.report(this.timeline(active.timeline).state, reason) }, []);
+  }
+
+  private startPlaying(timeline: string, ticksPerSecond: number): void {
+    this.stopPlaying();
+    const player: Player = { timeline, intervalMs: 1000 / ticksPerSecond, handle: null, count: 0 };
+    this.player = player;
+    player.handle = this.io.schedule(() => this.loop(player), player.intervalMs);
+  }
+
+  private checkSpeed(speed: number): void {
+    if (!(speed >= MIN_TICKS_PER_SECOND && speed <= MAX_TICKS_PER_SECOND)) {
+      throw new Error(`ticksPerSecond must be in [${MIN_TICKS_PER_SECOND}, ${MAX_TICKS_PER_SECOND}]`);
+    }
   }
 
   /** One play-loop tick for `p`; a callback left over from a stopped or replaced player does nothing. */
@@ -92,11 +116,17 @@ export class SimHost {
       return;
     }
     try {
+      const active = this.activeCase?.timeline === p.timeline ? this.activeCase : null;
+      const before = active?.monitor.completion(t.state);
+      if (before) { this.completeCase(before); return; }
       t.advance(1);
+      const completion = active?.monitor.observe(t.state);
       p.count++;
       const { frame, transfer } = buildFrame(t.state, p.timeline, t.earliest(), p.count % DIGEST_EVERY === 0, this.epoch);
       this.io.emit({ kind: "frame", frame }, transfer);
+      if (completion) { this.completeCase(completion); return; }
     } catch (e) {
+      this.completeCase("interrupted");
       this.stopPlaying();
       this.io.emit({ kind: "stopped", timeline: p.timeline, error: e instanceof Error ? e.message : String(e) }, []);
       return;
@@ -122,6 +152,7 @@ export class SimHost {
     switch (cmd.type) {
       case "init": {
         const t = Timeline.create(parseWorld(cmd.world), { ...DEFAULT_CONFIG, ...parseConfigOverrides(cmd.config ?? {}) }, cmd.seed);
+        this.completeCase("interrupted");
         this.stopPlaying();
         this.timelines.clear();
         this.forks = 0;
@@ -130,7 +161,13 @@ export class SimHost {
         return { timeline: MAIN_TIMELINE, digest: digest(t.state) };
       }
       case "act": {
-        const error = this.timeline(cmd.timeline).queue(parseAction(cmd.action));
+        const t = this.timeline(cmd.timeline);
+        const action = parseAction(cmd.action);
+        const validation = validateAction(t.state, action);
+        if (validation) throw new Error(validation);
+        // A new mutation explicitly ends observation before it can interleave.
+        if (this.activeCase?.timeline === cmd.timeline) this.completeCase("interrupted");
+        const error = t.queue(action);
         if (error) throw new Error(error);
         return { queued: true };
       }
@@ -139,11 +176,14 @@ export class SimHost {
           throw new Error(`ticks must be an integer in [1, ${MAX_TICKS_PER_RUN}]`);
         }
         const t = this.timeline(cmd.timeline);
+        if (this.activeCase?.timeline === cmd.timeline) this.completeCase("interrupted");
         const results = t.advance(cmd.ticks);
         return { digest: digest(t.state), results };
       }
       case "rewind": {
         const t = this.timeline(cmd.timeline);
+        if (this.activeCase?.timeline === cmd.timeline) this.completeCase("interrupted");
+        if (this.player?.timeline === cmd.timeline) this.stopPlaying();
         t.rewind(cmd.tick);
         this.epoch++;
         return { digest: digest(t.state) };
@@ -159,19 +199,32 @@ export class SimHost {
       case "dispose": {
         if (cmd.timeline === MAIN_TIMELINE) throw new Error("cannot dispose the main timeline");
         this.timeline(cmd.timeline);
+        if (this.activeCase?.timeline === cmd.timeline) this.completeCase("interrupted");
         if (this.player?.timeline === cmd.timeline) this.stopPlaying();
         this.timelines.delete(cmd.timeline);
         return { disposed: true };
       }
-      case "play": {
-        if (!(cmd.ticksPerSecond >= MIN_TICKS_PER_SECOND && cmd.ticksPerSecond <= MAX_TICKS_PER_SECOND)) {
-          throw new Error(`ticksPerSecond must be in [${MIN_TICKS_PER_SECOND}, ${MAX_TICKS_PER_SECOND}]`);
-        }
+      case "startCase": {
+        this.checkSpeed(cmd.ticksPerSecond);
+        const t = this.timeline(cmd.timeline);
+        const monitor = new CaseMonitor(t.state, cmd.spec);
+        this.completeCase("interrupted");
+        this.activeCase = { timeline: cmd.timeline, monitor };
+        const completion = monitor.completion(t.state);
+        if (completion) this.completeCase(completion);
+        else this.startPlaying(cmd.timeline, cmd.ticksPerSecond);
+        return { started: true };
+      }
+      case "finishCase": {
         this.timeline(cmd.timeline);
-        this.stopPlaying();
-        const player: Player = { timeline: cmd.timeline, intervalMs: 1000 / cmd.ticksPerSecond, handle: null, count: 0 };
-        this.player = player;
-        player.handle = this.io.schedule(() => this.loop(player), player.intervalMs);
+        if (this.activeCase?.timeline === cmd.timeline) this.completeCase("finished");
+        return { finished: true };
+      }
+      case "play": {
+        this.checkSpeed(cmd.ticksPerSecond);
+        this.timeline(cmd.timeline);
+        if (this.activeCase && this.activeCase.timeline !== cmd.timeline) this.completeCase("interrupted");
+        this.startPlaying(cmd.timeline, cmd.ticksPerSecond);
         return { playing: true };
       }
       case "pause":

@@ -26,9 +26,10 @@ export function experimentFocus(frame: Frame, actions: Action[]): ExperimentFocu
 export function followExperiment(focus: ExperimentFocus, frame: Frame): ExperimentFocus | null {
   if (focus.epoch !== frame.epoch) return null;
   const venues = new Set(focus.targets);
-  for (let v = 0; v < frame.nVenues; v++) if (focus.cells.has(frame.venueCell[v])) venues.add(v);
+  const targets = new Set(focus.targets);
+  for (let v = 0; v < frame.nVenues; v++) if (focus.cells.has(frame.venueCell[v])) { venues.add(v); targets.add(v); }
   for (const i of focus.agents) if (frame.alive[i] && frame.attendance[i] >= 0) venues.add(frame.attendance[i]);
-  return { ...focus, venues };
+  return { ...focus, venues, targets };
 }
 
 /** Whether an agent belongs to the focus: a member of the focused scene, or out at the focused venue. */

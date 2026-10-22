@@ -9,6 +9,9 @@ import type { WhatIfResult } from "@/sim/whatif";
 export interface ToolDeps {
   /** Shared by model comparisons and local explicit apply, never inferred from prose. */
   comparison?: { current: ComparedPlan | null };
+  /** Main case flow stores predictions but shows observed results only after playback. */
+  deferComparisonSummary?: boolean;
+  isCaseActive?(): boolean;
   /** The city as of now (latest frame); `digest` is refreshed first. */
   context(digest: SimDigest | null): CityContext | null;
   latestDigest(): Promise<SimDigest>;
@@ -17,19 +20,19 @@ export interface ToolDeps {
   /** Looks an artist the city doesn't know up in Qloo (via /api/outside-act). */
   outsideAct?(name: string): Promise<OutsideAct | { error: string }>;
   /** Called after the co-pilot changes the live city (for toasts and camera). */
-  onApplied?(actions: Action[], before: CityContext): void;
+  onApplied?(actions: Action[], before: CityContext, plan?: ComparedPlan): void | Promise<void>;
   onCompared?(actions: Action[], before: CityContext): void;
   onComparisonCleared?(): void;
 }
 
-export type ComparedPlan = { actions: Action[]; epoch: number; timeline: string; venues: { slot: number; entity: number; cell: number }[] };
+export type ComparedPlan = { actions: Action[]; weeks: number; epoch: number; timeline: string; venues: { slot: number; entity: number; cell: number }[] };
 
 export function clearComparison(deps: ToolDeps): void {
   if (deps.comparison) deps.comparison.current = null;
   deps.onComparisonCleared?.();
 }
 
-async function applyActions(actions: Action[], deps: ToolDeps, ctx: CityContext): Promise<unknown> {
+async function applyActions(actions: Action[], deps: ToolDeps, ctx: CityContext, plan?: ComparedPlan): Promise<unknown> {
   if (deps.comparison) deps.comparison.current = null;
   const accepted: Action[] = [];
   const results: string[] = [];
@@ -38,12 +41,13 @@ async function applyActions(actions: Action[], deps: ToolDeps, ctx: CityContext)
     results.push(ok ? "done" : "rejected by the simulation");
     if (ok) accepted.push(action);
   }
-  if (accepted.length) deps.onApplied?.(accepted, ctx);
+  if (accepted.length) await deps.onApplied?.(accepted, ctx, plan);
   return { applied: results };
 }
 
 /** Apply only a successfully executed comparison, with timeline and slot identity guards. */
 export async function applyLastComparison(deps: ToolDeps): Promise<unknown> {
+  if (deps.isCaseActive?.()) return { error: "Finish the current case or resume the city before applying another change." };
   const plan = deps.comparison?.current;
   if (!plan) return { error: "There is no previous comparison to apply. Describe one change first." };
   deps.comparison!.current = null; // Consume before awaiting: double delivery cannot apply twice.
@@ -52,7 +56,7 @@ export async function applyLastComparison(deps: ToolDeps): Promise<unknown> {
     if (!ctx || ctx.frame.epoch !== plan.epoch || ctx.frame.timeline !== plan.timeline || plan.venues.some((v) => ctx.frame.venueEntity[v.slot] !== v.entity || ctx.frame.venueCell[v.slot] !== v.cell || !ctx.frame.venueOpen[v.slot])) {
       return { error: "The city changed or this comparison belongs to a discarded timeline. Compare again before applying." };
     }
-    return await applyActions(plan.actions, deps, ctx);
+    return await applyActions(plan.actions, deps, ctx, plan);
   } catch { return { error: "The comparison could not be applied. Check the city before trying again." }; }
 }
 
@@ -83,6 +87,7 @@ const outsideNotes = (m: Map<string, OutsideAct>) =>
 
 /** Runs one co-pilot city tool. Never throws: problems come back as `{ error }` for the model to read. */
 export async function runCityTool(name: string, input: unknown, deps: ToolDeps): Promise<unknown> {
+  if ((name === "what_if" || name === "apply") && deps.isCaseActive?.()) return { error: "Finish the current case or resume the city before preparing another change." };
   if (name === "what_if") clearComparison(deps);
   if (!isClientTool(name)) return { error: `Unknown tool ${name}` };
   const parsed = CLIENT_TOOLS[name].inputSchema.safeParse(input ?? {});
@@ -94,8 +99,11 @@ export async function runCityTool(name: string, input: unknown, deps: ToolDeps):
     switch (name) {
       case "event_calendar":
         return { tick: ctx.frame.tick, ticksPerWeek: ctx.frame.ticksPerWeek, events: (ctx.frame.scheduledEvents ?? []).map((e) => ({ id: e.id, artist: e.action.label ?? ctx.world.entities[e.action.entity]?.name, startTick: e.startTick, durationDays: e.action.durationDays, durationWeeks: e.action.duration, status: e.status, error: e.error })) };
-      case "city_summary":
-        return citySummary(ctx);
+      case "city_summary": {
+        const summary = citySummary(ctx);
+        if (!deps.deferComparisonSummary) return summary;
+        return { ...summary, week: undefined, ticksPerWeek: undefined, recentActions: summary.recentActions.map((a) => ({ change: a.action })), note: "An ongoing live simulation; describe current state and case changes, not calendar weeks." };
+      }
       case "find": {
         const p = parsed.data as { query: string; kind?: Parameters<typeof find>[2] };
         return find(ctx, p.query, p.kind);
@@ -118,11 +126,12 @@ export async function runCityTool(name: string, input: unknown, deps: ToolDeps):
         if (!current || current.frame.epoch !== ctx.frame.epoch || current.frame.timeline !== ctx.frame.timeline) return { error: "The timeline changed during comparison. Compare again." };
         if (result.actions.every((r) => r.ok)) {
           if (deps.comparison) deps.comparison.current = {
-            actions: structuredClone(mapped.actions), epoch: ctx.frame.epoch, timeline: ctx.frame.timeline,
+            actions: structuredClone(mapped.actions), weeks: p.weeks ?? 8, epoch: ctx.frame.epoch, timeline: ctx.frame.timeline,
             venues: mapped.actions.filter((a) => a.type === "closeVenue").map((a) => ({ slot: a.venue, entity: ctx.frame.venueEntity[a.venue], cell: ctx.frame.venueCell[a.venue] })),
           };
           deps.onCompared?.(mapped.actions, ctx);
         } else if (deps.comparison) deps.comparison.current = null;
+        if (deps.deferComparisonSummary && result.actions.every((r) => r.ok)) return { comparisonReady: true, changes: p.actions, message: "Case prepared. Say apply that to play the highlighted live change. Observed outcomes appear after playback stops. Do not give an outcome summary yet." };
         return outside.size > 0 ? { ...described, outsideArtists: outsideNotes(outside) } : described;
       }
       case "apply": {

@@ -37,7 +37,7 @@ describe("offline chat deterministic phrase fixture (bounded grammar, not an LLM
     ["scenes", "Current scenes"],
     ["find venue Alpha", "Alpha Club"],
     ["tell me about Alpha Club", "Venue details"],
-    ["venue info for Alpha Club", "weekly visits"],
+    ["venue info for Alpha Club", "recent activity cycle"],
     ["busiest venues", "busiest"],
     ["struggling venues in Test Quarter", "struggling"],
     ["what is this lab?", "city culture simulation lab"],
@@ -69,7 +69,7 @@ describe("offline chat deterministic phrase fixture (bounded grammar, not an LLM
     const f = fixture();
     const result = await runOfflineChat(phrase, f.deps);
     expect(result.supported).toBe(true);
-    expect(result.text).toContain("Comparison over 8 weeks");
+    expect(result.text).toContain("Case prepared");
     expect(result.context.lastAction).toBeDefined();
     expect(f.compare).toHaveBeenCalledOnce();
     expect(f.compare.mock.calls[0][1]).toBe(8);
@@ -131,7 +131,7 @@ describe("offline chat deterministic phrase fixture (bounded grammar, not an LLM
     const f = fixture();
     f.context.frame.venueWeekVisits![0] = 1000;
     const result = await runOfflineChat("What if the busiest club closes?", f.deps);
-    expect(result.text).toContain("Comparison over 8 weeks");
+    expect(result.text).toContain("Case prepared");
     expect(result.context.lastAction).toEqual({ do: "close_venue", venue: 0 });
     expect(f.act).not.toHaveBeenCalled();
   });

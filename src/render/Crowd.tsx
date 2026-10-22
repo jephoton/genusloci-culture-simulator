@@ -4,7 +4,7 @@ import { useFrame } from "@react-three/fiber";
 import { type RefObject, useEffect, useLayoutEffect, useRef } from "react";
 import * as THREE from "three";
 import { agentInFocus, type Focus } from "@/render/focus";
-import type { FrameStore } from "@/render/frame-store";
+import { markVisualComplete, type FrameStore } from "@/render/frame-store";
 import { agentHomePosition, type CityLayout, hash01, LANDMARK_RADIUS } from "@/render/layout";
 import { outingPhase, staggerOf } from "@/render/outing-path";
 import { sceneHuesOf, sceneRgb } from "@/render/palette";
@@ -337,6 +337,7 @@ export function Crowd({
     }
     mesh.instanceMatrix.needsUpdate = true;
     if (col) col.needsUpdate = true;
+    if (t >= 1) markVisualComplete(frames.current, frame);
   });
 
   return (

@@ -1,6 +1,6 @@
 # Feature walkthrough
 
-> **Current entry point:** the application opens in experiment chat. Questions try Gemini Flash-Lite, then Groq, then deterministic local parsing. Explicit live changes and playback stay local. Follow [Chat-first lab walkthrough](chat-lab-walkthrough.md) for current setup/commands, comparisons, explicit apply and LLM-free operation. The earlier workspace/button tour below is retained as a legacy feature reference; those menus are no longer visible entry points.
+> **Current entry point:** experiment chat, with bottom playback and named change history. Questions try Gemini Flash-Lite, then Groq, then deterministic parsing. Prepare a case → explicitly apply → watch focused live playback → automatic pause and observed summary → rewind or resume. Only highlighted venues are selectable within a case; inspection shows name/model health without releasing focus. Main chat/playback use checkpoints, not numbered weeks. Follow [Chat-first lab walkthrough](chat-lab-walkthrough.md) for the current rehearsal and model limits. The workspace/button tour below is a legacy feature reference; those menus are no longer visible entry points.
 
 A hands-on tour of every feature, in an order where each section sets up the next. It takes about 25–35 minutes. For the extended demo and an optional three-minute judge path, see [pitch-and-demo.md](pitch-and-demo.md#demo-runbook-allow-56-minutes).
 

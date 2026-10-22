@@ -51,7 +51,7 @@ describe("toolCallsThisTurn", () => {
 
 describe("co-pilot panel words", () => {
   it("labels tool steps in plain English", () => {
-    expect(toolLabel({ type: "tool-what_if", state: "output-available", input: { weeks: 12 } })).toBe("Simulated 12 weeks, with and without the change");
+    expect(toolLabel({ type: "tool-what_if", state: "output-available", input: { weeks: 12 } })).toBe("Prepared a case against an unchanged future");
     expect(toolLabel({ type: "tool-find", input: { query: "Fabric" } })).toBe("Looked up “Fabric”");
     expect(toolLabel({ type: "tool-qloo_taste", input: { name: "Ghetts" } })).toBe("Asked Qloo what “Ghetts” fans like");
   });

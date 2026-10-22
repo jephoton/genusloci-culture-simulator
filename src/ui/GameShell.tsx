@@ -7,6 +7,7 @@ import { CityCanvas, type ScoutOverlay } from "@/render/CityCanvas";
 import type { FrameChange } from "@/render/effects/diff";
 import type { Origin } from "@/render/effects/director";
 import { experimentFocus, followExperiment, type Focus } from "@/render/focus";
+import { canInspectVenue } from "@/render/case-view";
 import type { GhostSpec } from "@/render/Ghost";
 import { type CityLayout, nearestCell, type XZ } from "@/render/layout";
 import { chooseVenueEntity } from "@/render/placement";
@@ -25,7 +26,7 @@ import { pinLetter } from "@/ui/scout-words";
 import { TimelineBar } from "@/ui/TimelineBar";
 import { type Toast, Toasts } from "@/ui/Toasts";
 import { isPlacing, type Tool, Toolbar } from "@/ui/Toolbar";
-import type { ToolDeps } from "@/agents/run-tool";
+import { clearComparison, type ToolDeps } from "@/agents/run-tool";
 import { CopilotPanel } from "@/ui/CopilotPanel";
 import { personaOf, sceneInfo } from "@/agents/city";
 import type { Persona } from "@/agents/interview";
@@ -46,6 +47,8 @@ import { EventPlanner } from "@/ui/EventPlanner";
 import { WorkspaceNav, type WorkspacePanel } from "@/ui/WorkspaceNav";
 import { useAgentAvailability } from "@/ui/useAgentAvailability";
 import { LabChat } from "@/ui/LabChat";
+import { VenueInspection } from "@/ui/VenueInspection";
+import { caseLabel, caseSummary } from "@/ui/case-summary";
 import type { World } from "@/world/schema";
 import { Attribution } from "@/ui/Attribution";
 import { useCityWorld } from "@/ui/useCityWorld";
@@ -193,9 +196,9 @@ function Game({
 
   // The co-pilot and scene namer call back into the city at arbitrary times; they read the latest
   // values through this ref, so their callbacks can be created once.
-  const latest = useRef({ world, layout, act, latestDigest, whatIf, flyTo, liveDigest, frames, citySlug, play, pause });
+  const latest = useRef({ world, layout, act, latestDigest, whatIf, flyTo, liveDigest, frames, citySlug, play, pause, startCase: sim.startCase, activeCase: sim.activeCase });
   useEffect(() => {
-    latest.current = { world, layout, act, latestDigest, whatIf, flyTo, liveDigest, frames, citySlug, play, pause };
+    latest.current = { world, layout, act, latestDigest, whatIf, flyTo, liveDigest, frames, citySlug, play, pause, startCase: sim.startCase, activeCase: sim.activeCase };
   });
   const [describeScene] = useState(() => (id: number) => {
     const L = latest.current;
@@ -237,12 +240,15 @@ function Game({
   const workspaceRef = useRef<HTMLDivElement>(null);
   const closeDrawer = useCallback(() => {
     setPanel(null);
+    if (pinned?.kind === "experiment") { setSelected(null); return; }
     clearFocus();
     navigationRef.current?.querySelector<HTMLElement>('[data-workspace-active="true"]')?.focus();
-  }, [clearFocus]);
+  }, [clearFocus, pinned]);
   const [copilotDeps] = useState<ToolDeps>(() => ({
     comparison: { current: null },
-    onComparisonCleared: clearFocus,
+    deferComparisonSummary: true,
+    isCaseActive: () => latest.current.activeCase !== null,
+    onComparisonCleared: () => { if (!latest.current.activeCase) clearFocus(); },
     context: (d) => {
       const L = latest.current;
       const f = L.frames.current.current;
@@ -252,7 +258,7 @@ function Game({
     },
     latestDigest: () => latest.current.latestDigest(),
     whatIf: (actions, weeks) => { latest.current.pause(); return latest.current.whatIf(actions, weeks); },
-    act: (action) => latest.current.act(action),
+    act: (action) => { latest.current.pause(); return latest.current.act(action); },
     outsideAct: (name) => fetchOutsideAct(latest.current.citySlug, name, latest.current.world),
     onCompared: (actions, before) => {
       setHovered(null); setSelected(null);
@@ -261,15 +267,16 @@ function Game({
       const cell = first.type === "closeVenue" ? before.frame.venueCell[first.venue] : "cell" in first ? first.cell : "cells" in first ? first.cells[0] : undefined;
       if (cell !== undefined) latest.current.flyTo([latest.current.layout.cellX[cell], latest.current.layout.cellZ[cell]]);
     },
-    onApplied: (actions, before) => {
+    onApplied: async (actions, before, plan) => {
       const L = latest.current;
       const f = before.frame;
       setHovered(null); setSelected(null);
-      setPinned(experimentFocus(f, actions));
+      const experiment = experimentFocus(f, actions);
+      setPinned(experiment);
       const a = actions[0];
       const cell = a.type === "closeVenue" ? f?.venueCell[a.venue] : "cell" in a ? a.cell : "cells" in a ? a.cells[0] : undefined;
       if (cell !== undefined) L.flyTo([L.layout.cellX[cell], L.layout.cellZ[cell]]);
-      L.play();
+      await L.startCase({ id: crypto.randomUUID(), startTick: f.tick, maxTicks: (plan?.weeks ?? 8) * f.ticksPerWeek, venueSlots: [...experiment.targets], agentSlots: [...experiment.agents], locations: actions.flatMap((action) => action.type === "openVenue" || action.type === "scheduleEvent" ? [{ entity: action.entity, cell: action.cell }] : []) }, caseLabel(actions, f, L.world));
     },
   }));
   // The local command layer owns explicit mutations. AI interpretation may inspect
@@ -378,11 +385,11 @@ function Game({
       if (e.key !== "Escape") return;
       if (scouting) exitScout(true);
       setTool({ kind: "select" });
-      clearFocus();
+      if (pinned?.kind !== "experiment") clearFocus();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [clearFocus, exitScout, scouting]);
+  }, [clearFocus, exitScout, scouting, pinned]);
 
   const onScoutHover = useCallback(
     (cell: number | null) => {
@@ -430,9 +437,16 @@ function Game({
   const previewEventVenue = useCallback((slot: number) => {
     const f = latest.current.frames.current.current;
     if (!f || slot >= f.nVenues) return;
+    if (pinned?.kind === "experiment") {
+      const current = followExperiment(pinned, f);
+      if (!current || !canInspectVenue(current, slot)) return;
+      setSelected(slot);
+      flyTo([layout.cellX[f.venueCell[slot]], layout.cellZ[f.venueCell[slot]]]);
+      return;
+    }
     setPinned({ kind: "venue", slot }); setSelected(null);
     flyTo([layout.cellX[f.venueCell[slot]], layout.cellZ[f.venueCell[slot]]]);
-  }, [flyTo, layout]);
+  }, [flyTo, layout, pinned]);
   const schedulePlannedEvent = useCallback(async (slot: number, a: BookingAct, date: BookingDate, snapshot: string) => {
     const f = latest.current.frames.current.current;
     if (!f || `${f.epoch}:${f.tick}` !== snapshot || !f.venueOpen[slot] || f.venueExpires[slot] >= 0) return false;
@@ -533,9 +547,19 @@ function Game({
     if (pinnedLive?.kind === "experiment") return sim.frame ? followExperiment(pinnedLive, sim.frame) : null;
     return hovered !== null ? { kind: "scene", id: hovered } : pinnedLive;
   }, [hovered, pinnedLive, sim.frame]);
+  const finishCase = async (resume: boolean) => {
+    await sim.finishCase();
+    clearFocus();
+    clearComparison(copilotDeps);
+    if (resume) play();
+  };
+  const caseComplete = !!sim.activeCase && sim.caseReports.some((item) => item.report.id === sim.activeCase?.id);
+  const caseMessages = useMemo(() => sim.caseReports.map(({ report, at }) => ({ id: report.id, at, text: caseSummary(report, sim.caseChanges.find((change) => change.id === report.id)?.label ?? "Applied change", world) })), [sim.caseReports, sim.caseChanges, world]);
 
   const onVenueClick = useCallback(
     (slot: number) => {
+      if (!canInspectVenue(focus, slot)) return;
+      if (focus?.kind === "experiment") { setSelected(slot); return; }
       // Scouting, a venue is just a place on the map: try the spot it stands on.
       if (scouting) {
         const frame = latest.current.frames.current.current;
@@ -548,7 +572,7 @@ function Game({
       setPanel("venues");
       setInterview(null);
     },
-    [endPlan, planVenue, scouting, tryOwnSpot],
+    [endPlan, planVenue, scouting, tryOwnSpot, focus],
   );
 
   const onPinScene = useCallback(
@@ -650,11 +674,11 @@ function Game({
         });
       } else if (tool.kind === "scout") {
         tryOwnSpot(cell);
-      } else if (tool.kind === "select") {
+      } else if (tool.kind === "select" && pinned?.kind !== "experiment") {
         clearFocus();
       }
     },
-    [act, clearFocus, layout, liveDigest, notify, sceneTitle, tool, tryOwnSpot, world],
+    [act, clearFocus, layout, liveDigest, notify, sceneTitle, tool, tryOwnSpot, world, pinned],
   );
 
   const shownFrame = sim.frame;
@@ -722,8 +746,10 @@ function Game({
       />
       <LabChat city={world.city.name} citySlug={citySlug} cities={CITY_OPTIONS} onCityChange={onCityChange}
         deps={copilotDeps} ai={copilot} configured={aiConfigured === true} frame={sim.frame}
-        onPlay={play} onPause={pause} onRewind={sim.rewind} onFocusVenue={previewEventVenue} />
-      {focus?.kind === "experiment" && <div className="panel absolute left-3 top-24 z-10 max-w-64 space-y-1 px-3 py-2 text-xs text-zinc-300"><p>Following {focus.agents.size} observed visitors, the target venues and their current destinations.</p><p className="text-[10px] text-zinc-400">An observed group, not every person causally affected.</p><button type="button" onClick={clearFocus} className="text-violet-200">Clear highlights</button></div>}
+        onPlay={play} onPause={pause} onRewind={sim.rewind} onFocusVenue={previewEventVenue} onFinishCase={finishCase} caseMessages={caseMessages} caseStatus={sim.activeCase ? caseComplete ? "complete" : "running" : null} />
+      {selected !== null && sim.frame && canInspectVenue(focus, selected) && <VenueInspection world={world} frame={sim.frame} slot={selected} onClose={() => setSelected(null)} />}
+      <TimelineBar tick={sim.frame?.tick ?? 0} ticksPerWeek={sim.frame?.ticksPerWeek ?? 1} earliest={sim.frame?.earliestTick ?? 0} playing={sim.playing} speed={sim.speed} onPlay={play} onPause={pause} onSpeed={sim.setSpeed} onRewind={(tick) => void sim.rewind(tick)} caseComplete={caseComplete} changes={sim.caseChanges} />
+      {focus?.kind === "experiment" && <div className="panel absolute left-3 top-24 z-10 max-w-64 space-y-1 px-3 py-2 text-xs text-zinc-300"><p>{sim.activeCase ? caseComplete ? "Case complete · paused" : sim.playing ? "Case playing" : "Case paused" : "Case prepared"} · {focus.agents.size} observed visitors.</p>{sim.activeCase && <progress aria-label="Case playback progress" max={sim.activeCase.maxTicks} value={Math.max(0, (sim.frame?.tick ?? sim.activeCase.startTick) - sim.activeCase.startTick)} className="h-1 w-full accent-cyan-300" />}<p className="text-[10px] text-zinc-400">Cyan beacon: case target. Other venue colours describe crowds, not changing venue tastes. Say “finish case” or “resume” to leave.</p></div>}
       {attribution && <Attribution qloo={world.meta?.source === "qloo"} />}
       {/* Keep the existing workspaces available for future chat result cards;
           experiment chat is the only visible command entry point. */}
@@ -876,17 +902,6 @@ function Game({
         <span>Click the map to {tool.kind === "open" ? "open this venue" : tool.kind === "event" ? "place this event" : tool.kind === "migrate" ? "bring in newcomers" : "raise rents here"}.</span>
         <button type="button" onClick={() => setTool({ kind: "select" })} className="rounded px-2 py-1 text-violet-200 hover:bg-white/10">Cancel</button>
       </div>}
-      <TimelineBar
-        tick={sim.frame?.tick ?? 0}
-        ticksPerWeek={sim.frame?.ticksPerWeek ?? 1}
-        earliest={sim.frame?.earliestTick ?? 0}
-        playing={sim.playing}
-        speed={sim.speed}
-        onPlay={sim.play}
-        onPause={sim.pause}
-        onSpeed={sim.setSpeed}
-        onRewind={(t) => void sim.rewind(t)}
-      />
       <Toasts toasts={toasts} onSelect={(t) => t.anchor && flyTo(t.anchor)} />
       <button
         type="button"

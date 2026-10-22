@@ -6,6 +6,7 @@ import type { ScoutResult } from "@/sim/scout";
 import type { BookingResult } from "@/sim/booking";
 import type { ResidentProfile } from "@/sim/resident";
 import type { WhatIfResult } from "@/sim/whatif";
+import type { CaseReport, CaseSpec } from "@/sim/case";
 
 export const MAIN_TIMELINE = "main";
 export const MAX_TICKS_PER_RUN = 520;
@@ -37,6 +38,8 @@ export type WorkerCommand =
   | { type: "digest"; timeline: string }
   | { type: "dispose"; timeline: string }
   | { type: "play"; timeline: string; ticksPerSecond: number }
+  | { type: "startCase"; timeline: string; spec: CaseSpec; ticksPerSecond: number }
+  | { type: "finishCase"; timeline: string }
   | { type: "pause" }
   | { type: "frame"; timeline: string }
   | { type: "demand"; timeline: string; entity: number }
@@ -59,6 +62,8 @@ export type CommandResults = {
   digest: { digest: SimDigest };
   dispose: { disposed: true };
   play: { playing: true };
+  startCase: { started: true };
+  finishCase: { finished: true };
   pause: { playing: false };
   frame: { frame: Frame };
   demand: { demand: number[]; candidates: number[] };
@@ -78,4 +83,5 @@ export type WorkerResponse =
 export type FrameMessage = { kind: "frame"; frame: Frame };
 /** Pushed once when the play loop stops on its own because a tick failed. */
 export type StoppedMessage = { kind: "stopped"; timeline: string; error: string };
-export type WorkerMessage = WorkerResponse | FrameMessage | StoppedMessage;
+export type CaseCompleteMessage = { kind: "case-complete"; timeline: string; report: CaseReport };
+export type WorkerMessage = WorkerResponse | FrameMessage | StoppedMessage | CaseCompleteMessage;

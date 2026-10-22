@@ -11,6 +11,7 @@ import { type ClosureRules, isStruggling, type VenueView, venueViewsOf } from "@
 import type { Frame } from "@/sim/frame";
 import type { VenueKind, World } from "@/world/schema";
 import { gableGeometry } from "@/render/architecture";
+import { caseBeaconColour, canInspectVenue } from "@/render/case-view";
 
 const PAINT: Record<VenueKind, string> = { club: "#599ba1", bar: "#bc796a", cafe: "#dbbc7d", restaurant: "#c98e73", gallery: "#d2c9b1", music_venue: "#b78497", shop: "#76a79a", stadium: "#96abb3", other: "#bda48b" };
 const ROOFS: Record<VenueKind, string> = { club: "#375b72", bar: "#725165", cafe: "#a85b47", restaurant: "#934f48", gallery: "#62868b", music_venue: "#624b6d", shop: "#496d78", stadium: "#536c7e", other: "#705966" };
@@ -359,7 +360,7 @@ function Landmark({
               <cylinderGeometry args={[0.9, 0.9, pillar, 16, 1, true]} />
               <meshBasicMaterial
                 ref={pillarRef}
-                color={sign}
+                color={caseBeaconColour(emphasized, sign)}
                 toneMapped={false}
                 transparent
                 opacity={0.3}
@@ -372,7 +373,7 @@ function Landmark({
               <ringGeometry args={[0.85, 1, 48]} />
               <meshBasicMaterial
                 ref={waveMatRef}
-                color={sign}
+                color={caseBeaconColour(emphasized, sign)}
                 toneMapped={false}
                 transparent
                 depthWrite={false}
@@ -423,7 +424,7 @@ export function Landmarks({
   return (
     <group>
       {views.map((v) => (
-        <Landmark key={v.slot} frames={frames} epoch={frame?.epoch ?? -1} view={v} hues={hues} selected={selected === v.slot} emphasized={focus?.kind === "experiment" && focus.targets.has(v.slot)} inFocus={venueInFocus(focus, v)} struggling={venueInFocus(focus, v) && !!frame && isStruggling(frame, v.slot, rules)} onSelect={onSelect} />
+        <Landmark key={v.slot} frames={frames} epoch={frame?.epoch ?? -1} view={v} hues={hues} selected={selected === v.slot} emphasized={focus?.kind === "experiment" && focus.targets.has(v.slot)} inFocus={venueInFocus(focus, v)} struggling={venueInFocus(focus, v) && !!frame && isStruggling(frame, v.slot, rules)} onSelect={(slot) => { if (canInspectVenue(focus, slot)) onSelect(slot); }} />
       ))}
     </group>
   );

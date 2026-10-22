@@ -7,7 +7,7 @@ import { formatEvidence } from "@/agents/format-evidence";
 export type OfflineChatContext = { lastAction?: CopilotAction; lastVenue?: number };
 export type OfflineChatResult = { text: string; context: OfflineChatContext; supported: boolean };
 
-const HELP = "Offline city chat supports: summary; scenes; find venue <name>; tell me about <venue>; busiest venues; struggling venues; what if <venue> closes; what if we open a cafe in <area>; raise rent by 20% in <area>. Comparisons default to 8 weeks (1–26). Explicit commands such as close <venue> change the live city. After a comparison, apply that or change live applies that one change. Outside artist events require Qloo and are not supported offline.";
+const HELP = "Offline city chat supports: summary; scenes; find venue <name>; tell me about <venue>; busiest venues; struggling venues; what if <venue> closes; what if we open a cafe in <area>; raise rent by 20% in <area>. Cases use bounded observation windows. Explicit commands such as close <venue> change the live city. After preparing a case, apply that plays the change; outcomes appear after playback. Use finish case or resume to leave the focused view, and Change history to rewind. Outside artist events require Qloo and are not supported offline.";
 // Explanations grounded in sim/steps/exposure, drift, decay and sim/calibration.
 const LESSONS: [RegExp, string][] = [
   [/^(?:what is this (?:lab|app)|what is genus ?loci|explain (?:this |the )?lab)$/, "This is a city culture simulation lab. Residents have changing taste profiles, visit venues and form scenes. Try one intervention and compare a simulated future with an unchanged baseline. The results describe this model, not a forecast of real people. Try: What if the busiest club closes?"],
@@ -172,7 +172,7 @@ export async function runOfflineChat(text: string, deps: ToolDeps, context: Offl
     const validated = CopilotActionSchema.safeParse(action);
     if (!validated.success) return refuse();
     const result = await call(live ? "apply" : "what_if", live ? { actions: [validated.data] } : { actions: [validated.data], weeks });
-    return show(live ? "Live change result" : `Comparison over ${weeks} weeks (live city unchanged)`, result, { lastVenue, lastAction: live ? undefined : validated.data });
+    return show(live ? "Live change result" : "Case prepared (live city unchanged)", result, { lastVenue, lastAction: live ? undefined : validated.data });
   } catch {
     return reply("Offline chat could not complete the request. Check the city is loaded and try again.", false);
   }

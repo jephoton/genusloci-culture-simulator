@@ -36,6 +36,17 @@ function deps(over: Partial<ToolDeps> = {}): ToolDeps {
 }
 
 describe("runCityTool", () => {
+  it("defers case outcomes until playback and preserves the prepared plan", async () => {
+    const shared = deps({ deferComparisonSummary: true, comparison: { current: null } });
+    const ready = await runCityTool("what_if", { actions: [{ do: "close_venue", venue: 0 }] }, shared);
+    expect(ready).toMatchObject({ comparisonReady: true });
+    expect(ready).not.toHaveProperty("biggestGainers");
+    expect(shared.comparison?.current?.actions).toEqual([{ type: "closeVenue", venue: 0 }]);
+    const act = vi.fn(async () => true);
+    const blocked = await runCityTool("apply", { actions: [{ do: "close_venue", venue: 0 }] }, deps({ isCaseActive: () => true, act }));
+    expect(blocked).toHaveProperty("error");
+    expect(act).not.toHaveBeenCalled();
+  });
   it("invalidates the older plan when a newer comparison cannot resolve or validate", async () => {
     const act = vi.fn(async () => true);
     const shared = deps({ act, comparison: { current: null } });

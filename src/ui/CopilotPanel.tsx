@@ -30,8 +30,7 @@ export function toolLabel(part: ToolPart): string {
     case "scene":
       return "Checked a scene";
     case "what_if": {
-      const weeks = Number(i.weeks ?? 8);
-      return done ? `Simulated ${weeks} weeks, with and without the change` : `Simulating ${weeks} weeks…`;
+      return done ? "Prepared a case against an unchanged future" : "Preparing the case…";
     }
     case "apply":
       return done ? "Changed the live city" : "Changing the city…";

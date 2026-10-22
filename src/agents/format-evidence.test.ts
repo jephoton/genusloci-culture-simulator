@@ -12,6 +12,14 @@ describe("deterministic evidence summaries", () => {
     const text = formatEvidence({ city: "Test", residents: 100, week: 1, tick: 7, fidelity: 0.8, scenes: [] });
     expect(text).not.toContain("0.8");
     expect(text).toContain("No scenes");
+    expect(text).not.toMatch(/week|day|date/i);
+  });
+  it("describes venue activity without calendar labels", () => {
+    const ranking = formatEvidence({ sort: "busiest", venues: [{ name: "Alpha", weeklyVisits: 12, health: 0.5 }] });
+    const venue = formatEvidence({ venue: 0, name: "Alpha", open: true, visitorsTonight: 3, weeklyVisits: 12 });
+    expect(ranking).toContain("12 visits in the recent activity cycle");
+    expect(venue).toContain("3 visits this step");
+    expect(`${ranking}\n${venue}`).not.toMatch(/week|tonight/i);
   });
   it("reports rejection rather than claiming successful mutation", () => {
     expect(formatEvidence({ applied: ["rejected by the simulation"] })).toContain("rejected");

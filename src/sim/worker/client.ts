@@ -1,7 +1,8 @@
 import type { Action } from "@/sim/actions/schema";
 import type { SimConfig } from "@/sim/config";
+import type { CaseSpec } from "@/sim/case";
 import type { Frame } from "@/sim/frame";
-import type { CommandResults, StoppedMessage, WorkerCommand, WorkerMessage } from "@/sim/worker/protocol";
+import type { CaseCompleteMessage, CommandResults, StoppedMessage, WorkerCommand, WorkerMessage } from "@/sim/worker/protocol";
 
 /** The subset of the Worker API the client needs (lets tests use an in-process fake). */
 export type WorkerLike = {
@@ -20,6 +21,7 @@ export class SimClient {
   private terminated = false;
   private readonly frameListeners = new Set<(frame: Frame) => void>();
   private readonly stoppedListeners = new Set<(message: StoppedMessage) => void>();
+  private readonly caseListeners = new Set<(message: CaseCompleteMessage) => void>();
 
   constructor(private readonly worker: WorkerLike) {
     worker.addEventListener("message", (e) => {
@@ -27,6 +29,7 @@ export class SimClient {
       if ("kind" in data) {
         if (data.kind === "frame") for (const listener of this.frameListeners) listener(data.frame);
         else if (data.kind === "stopped") for (const listener of this.stoppedListeners) listener(data);
+        else if (data.kind === "case-complete") for (const listener of this.caseListeners) listener(data);
         return;
       }
       const p = this.pending.get(data.id);
@@ -92,6 +95,16 @@ export class SimClient {
     return () => {
       this.stoppedListeners.delete(listener);
     };
+  }
+  onCaseComplete(listener: (message: CaseCompleteMessage) => void): () => void {
+    this.caseListeners.add(listener);
+    return () => { this.caseListeners.delete(listener); };
+  }
+  startCase(timeline: string, spec: CaseSpec, ticksPerSecond: number) {
+    return this.request<"startCase">({ type: "startCase", timeline, spec, ticksPerSecond });
+  }
+  finishCase(timeline: string) {
+    return this.request<"finishCase">({ type: "finishCase", timeline });
   }
   play(timeline: string, ticksPerSecond: number) {
     return this.request<"play">({ type: "play", timeline, ticksPerSecond });
