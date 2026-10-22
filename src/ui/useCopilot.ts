@@ -64,6 +64,7 @@ export function useCopilot(city: string, deps: ToolDeps) {
   const cooldownRef = useRef(0);
   const executed = useRef(new Map<string, Promise<unknown>>());
   const epoch = useRef(0);
+  const failures = useRef(0);
   const coolDown = useCallback((seconds: number) => {
     cooldownRef.current = Math.max(cooldownRef.current, Date.now() + seconds * 1000);
     setCooldownUntil(cooldownRef.current);
@@ -83,9 +84,11 @@ export function useCopilot(city: string, deps: ToolDeps) {
     transport,
     sendAutomaticallyWhen: (options) => Date.now() >= cooldownRef.current && lastAssistantMessageIsCompleteWithToolCalls(options),
     onError: (error) => {
+      failures.current++;
       const seconds = retrySecondsFromMessage(error.message);
       if (seconds !== null) coolDown(seconds);
     },
+    onFinish: ({ isAbort, isDisconnect }) => { if (isAbort || isDisconnect) failures.current++; },
     async onToolCall({ toolCall }) {
       if (toolCall.dynamic || !isClientTool(toolCall.toolName)) return;
       const generation = epoch.current;
@@ -110,9 +113,12 @@ export function useCopilot(city: string, deps: ToolDeps) {
     ...chat,
     cooldownUntil,
     resetChat,
-    sendMessage: (...args: Parameters<typeof chat.sendMessage>) => {
-      if (Date.now() < cooldownRef.current) return Promise.resolve();
-      return chat.sendMessage(...args);
+    sendMessage: async (...args: Parameters<typeof chat.sendMessage>) => {
+      if (Date.now() < cooldownRef.current) return false;
+      const before = failures.current;
+      chat.clearError();
+      await chat.sendMessage(...args);
+      return failures.current === before;
     },
   };
 }

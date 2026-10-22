@@ -2,7 +2,17 @@
 
 <!-- generated: maintained by agents -->
 
+## Gemini-first chat routing (2026-10-22)
+
+The user selected **Gemini Flash-Lite → Groq → deterministic local parsing**. This now replaces both the old provider order and local-first question routing. Only Gemini/Groq participate in automatic model selection; other registered providers remain explicit-probe options. Gemini defaults to the live-tested `gemini-3.5-flash-lite` for both tiers. Environment model overrides are honored; the local configured chain was verified as Flash-Lite then GPT-OSS 120B, without printing keys.
+
+Initial stream errors, reasoning-only failures and empty completions fall through before text/tool activity. Started answer/tool streams are not replayed through another provider. Exhausted AI questions are interpreted locally automatically; unsupported language receives clarification. Explicit live changes/playback/rewind stay local, and AI handoff clears stale local action references. No duplicate live action can be introduced by provider fallback. Existing cooldown applies after an exhausted chain, not a successful backup response. See [decision 0007](decisions/0007-gemini-first-chat.md) and [updated walkthrough](chat-lab-walkthrough.md).
+
+Browser rehearsal of the actual chat completed a fresh city-summary tool round and answered 2,500 residents / 140 open venues. Disabling AI produced the local summary; AI was re-enabled afterward. Mock regressions exercise initial provider failure, empty/reasoning-only responses, no replay after tool start, provider order and local fallback. Independent review's empty/reasoning-only stream finding was reproduced and fixed. Final verification: 570 tests across 101 files, lint, and production build including TypeScript passed. Provider failure branches use mocks; no deliberate live quota exhaustion or browser network-failure injection was performed. No credentials, paid plans, merge, push or deployment changed.
+
 ## Free LLM provider evaluation (2026-10-22)
+
+The following describes the evaluation stage; its unchanged-priority limitation was subsequently resolved by the Gemini-first routing above.
 
 [Provider findings](spikes/2026-10-22-llm-provider-options.md) now favor Gemini Flash-Lite after the user supplied its key locally. It passed three live schema probes (lookup, comparison, summary) and a two-request production `copilotStream` continuation with synthetic browser tool output: selected fresh summary and answered correctly in 2,651 ms. Flash passed lookup but failed comparison with an unclassified error. Seven Gemini requests total, no observed 429; sustained reliability, actual browser/worker rehearsal and project quotas remain unverified. Earlier Groq probes each passed lookup but failed comparison with HTTP 400 tool generation failure, distinct from earlier 429s. No Qloo or live-city calls. Cerebras offers a limited trial rather than a permanently free tier; OpenRouter's free plan has a small daily allowance.
 

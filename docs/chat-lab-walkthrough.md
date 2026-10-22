@@ -6,6 +6,8 @@ The experiment chatbot is the only visible command entry point. Existing simulat
 
 ## First experiment without a language model
 
+For this deterministic rehearsal, disable **Chat options and limits → Use AI guide** first. With AI enabled, questions instead try Gemini, then Groq, then local parsing.
+
 1. Load London and ask **What can I do?** or **How do tastes evolve?**
 2. Ask **Show the busiest venues**. At the initial tick, visits may all be zero. Say **play**, let the city run, then **pause** before comparing. Tied busiest targets require a named venue; the bot does not arbitrarily choose one.
 3. Use an actual full name from the list, e.g. **What if Cirque Le Soir closes for 4 weeks?**. This runs four seeded scenario/no-change pairs and reports recorded totals/ranges. It does not advance or modify the live city. A selected venue is focused on the map.
@@ -16,11 +18,11 @@ Other supported local examples: **summary**, **scenes**, **find venue Heaven**, 
 
 ## Two interpretation paths
 
-Supported local commands are interpreted deterministically and use the same validated tools as the former co-pilot. There is no model request for these commands. Unknown/ambiguous targets are clarified; missing data is not fabricated. The parser accepts one bounded command at a time. It does not cover every simulation tool, outside-artist lookup, arbitrary paraphrases or open-ended conversation.
+With AI enabled and configured, questions try **Gemini Flash-Lite → Groq → deterministic local parser**. Missing providers are skipped. Local parsing is also used directly when AI is disabled or the exhausted provider chain is cooling down. Its bounded grammar clarifies unknown/ambiguous targets and does not cover every tool, outside-artist lookup, arbitrary paraphrases or open-ended conversation.
 
-If a provider is configured, unsupported questions may use AI. **Chat options and limits → Use AI for unsupported questions** lets the user disable it. AI receives bounded recent local evidence plus current timeline identity; it must refresh current city facts. It can inspect and compare but cannot mutate the live city. To apply an AI-described change, restate a supported explicit local command. Passing control to AI clears pending local references so **apply that** cannot accidentally apply an older local comparison.
+**Chat options and limits → Use AI guide** disables provider requests. AI receives bounded recent local evidence plus current timeline identity; it must refresh current city facts. It can inspect and compare but cannot mutate the live city. Explicit live commands such as **close <full venue name>**, and exact playback/rewind commands, always run locally. To apply an AI-described change, restate a supported explicit live command. Passing control to AI clears pending local references so **apply that** cannot accidentally apply an older local comparison.
 
-Provider failure leaves local chat available. A failed AI request is not automatically re-executed, because tool work may already have happened. The visible notice explains this and offers local commands; the existing provider cooldown still applies to AI. Clearing chat does not bypass provider cooldown or reset the model city. Background LLM scene naming is disabled, removing unsolicited naming requests from this path.
+Provider failover handles request errors, initial stream errors and empty responses before user-visible text or a tool call begins. Once answer/tool output begins, providers are not replayed; an exhausted/failed AI question falls back to deterministic interpretation, which may repeat a read-only lookup or hypothetical comparison but cannot duplicate a live action. Unsupported local language receives clarification. The existing cooldown applies after exhausted provider rate limits; it does not intercept a successful Groq fallback. Clearing chat does not bypass cooldown or reset the city. Background LLM scene naming remains disabled.
 
 “Local” means LLM-free operation against a loaded world; it does not mean city loading or live Qloo requests work without network/storage access. Qloo remains the source of the prebuilt city's taste relationships. No LLM-free mode is represented as equivalent to unrestricted language understanding.
 

@@ -50,7 +50,7 @@ Transient planning and naming state is tied to simulation timeline identity. Pla
 - **`app/api/world/[slug]`** — serves a built World via `world/store.ts`: `.cache/worlds` locally, else the **private** Vercel Blob store (`worlds/<slug>.world.json`, read with `BLOB_READ_WRITE_TOKEN`); 404 if unknown or not built.
 - **`ui/`** — `useCityWorld` (Qloo world first, then synthetic over OSM, then Synthville), `useSimulation` (worker lifecycle, pushed frames in a ref plus state, actions, rewind), `GameShell` (composition and tools), `Hud`, `Toolbar`, `TimelineBar`, `VenuePanel`; `ClientGame` loads it client-only (`next/dynamic` with `ssr: false`)
 - **`agents/`** — LLM features on the Vercel AI SDK v7 (decision 0003):
-  - `providers.ts` — provider chain (DeepSeek → Groq → Cerebras → OpenRouter → Gemini; only those with keys), `fallbackModel` (next provider if a call fails before streaming), `modelFor(tier)`; DeepSeek thinking is off
+  - `providers.ts` — configured chat chain Gemini Flash-Lite → Groq; `fallbackModel` advances on failures/empty streams before text/tool activity. Other vendors remain registered for explicit probes only. `LabChat` falls back to the bounded deterministic parser after AI failure, or immediately when AI is disabled/cooling down.
   - `tools.ts` — co-pilot tool and action schemas shared by server and browser (`city_summary`, `find`, `venues`, `venue`, `scene`, `what_if`, `apply`)
   - `city.ts` — the co-pilot's view of the city, computed in the browser from World + frame + digest: summaries, fuzzy find, venue ranking, area resolution, action mapping, named what-if results, interview personas
   - `run-tool.ts` — runs city tools in the browser against the worker; never throws
@@ -73,8 +73,8 @@ Transient planning and naming state is tied to simulation timeline identity. Pla
 ## Boundaries
 
 - Qloo response data must **never** be committed to the repo (Qloo terms). Fixtures in the repo are synthetic.
-- Secrets live in environment variables only: `QLOO_API_KEY`, `DEEPSEEK_API_KEY`, and optional fallbacks `GROQ_API_KEY`, `CEREBRAS_API_KEY`, `OPENROUTER_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY` (models overridable with `<PROVIDER>_MODEL` / `<PROVIDER>_SMALL_MODEL`).
-- The co-pilot only changes the live city through `apply`, which it is told to use only when the user asks.
+- Secrets live in environment variables only: `QLOO_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY`, `GROQ_API_KEY` (models overridable with `<PROVIDER>_MODEL` / `<PROVIDER>_SMALL_MODEL`). Other registered provider keys are for explicit probes, not automatic chat fallback.
+- The AI guide has no advertised live `apply` tool. Explicit local live commands invoke the validated dispatcher; provider retries cannot replay these writes. Questions use AI first, with deterministic interpretation after exhaustion.
 - Sim ticks make zero API calls; the server is stateless apart from caches.
 
 ## Deployment (M7)

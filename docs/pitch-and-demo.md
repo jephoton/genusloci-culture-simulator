@@ -1,6 +1,6 @@
 # Genus Loci — Glossary, Pitch and Demo Runbook
 
-> **Current rehearsal:** use [Chat-first lab walkthrough](chat-lab-walkthrough.md). The public promise is an inspectable cultural ecology learning lab, not validated promoter forecasts. Demonstrate lookup → hypothetical comparison → evidence → explicit apply → rewind through chat, including local mode with AI disabled. The older timed venue-planner/sandbox sequence below is historical reference and is not the current interface.
+> **Current rehearsal:** use [Chat-first lab walkthrough](chat-lab-walkthrough.md). The public promise is an inspectable cultural ecology learning lab, not validated promoter forecasts. Questions try Gemini Flash-Lite → Groq → deterministic parsing; explicit live changes/playback stay local. Demonstrate lookup → hypothetical comparison → evidence → explicit apply → rewind through chat, including local mode with AI disabled. The older timed venue-planner/sandbox sequence below is historical reference and is not the current interface.
 
 <!-- generated: maintained by agents; keep in sync as plans land -->
 

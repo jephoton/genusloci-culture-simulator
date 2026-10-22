@@ -1,6 +1,6 @@
 import { createUIMessageStreamResponse, toUIMessageStream, type UIMessage } from "ai";
 import { CopilotBodySchema, copilotStream } from "@/agents/copilot";
-import { modelFor, PROVIDERS } from "@/agents/providers";
+import { modelFor, CHAT_PROVIDERS } from "@/agents/providers";
 import { liveQlooClient } from "@/agents/qloo-live";
 import { clientKey, createRateLimiter } from "@/agents/rate-limit";
 import { agentStreamError, providerRetrySeconds } from "@/agents/stream-error";
@@ -13,7 +13,7 @@ let providerCooldownUntil = 0;
 
 /** Configuration only: no credentials, model construction or provider request. */
 export async function GET() {
-  return Response.json({ configured: PROVIDERS.some((p) => !!process.env[p.keyVar]?.trim()) }, { headers: { "Cache-Control": "no-store" } });
+  return Response.json({ configured: CHAT_PROVIDERS.some((p) => !!process.env[p.keyVar]?.trim()) }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(req: Request) {

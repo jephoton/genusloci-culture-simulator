@@ -1,0 +1,12 @@
+/** Explicit writes stay local; asking about a change is an AI-first question. */
+export function isDirectLocalCommand(text: string): boolean {
+  const normalized = text.normalize("NFKC").trim().replace(/^please\s+/i, "");
+  if (/\?[?.!]*$/.test(normalized)) return false;
+  return /^(?:close |open |raise rent )/i.test(normalized) || /^(?:apply that(?: live)?|make that change(?: live)?|change live)[.!]*$/i.test(normalized);
+}
+
+/** AI is read-only, so its exhausted chain can safely fall back to local interpretation. */
+export async function runQuestionWithFallback<T>(sendAI: () => Promise<boolean>, runLocal: () => Promise<T>): Promise<{ source: "ai" } | { source: "local"; result: T }> {
+  try { if (await sendAI()) return { source: "ai" }; } catch { /* use bounded local language */ }
+  return { source: "local", result: await runLocal() };
+}

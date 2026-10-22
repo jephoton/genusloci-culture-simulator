@@ -1,0 +1,10 @@
+# 0007 — Gemini-first questions with Groq and local fallback
+
+<!-- generated: user-approved provider and interpretation order -->
+
+- **Status:** Accepted (2026-10-22); supersedes 0003.
+- **Decision:** Questions use configured Gemini Flash-Lite first, then Groq, then deterministic local interpretation. Other registered vendors remain available for explicit evaluation only. Both Gemini tiers default to the successfully probed Flash-Lite model; environment model overrides remain supported.
+- **Rationale:** The user explicitly chose this order after Flash-Lite passed schema and streamed-continuation probes. The former local-first policy did not match that choice. These bounded results do not establish unrestricted model reliability or unlimited free quota.
+- **Execution boundary:** Explicit local live changes and exact playback/rewind commands bypass AI. The AI tool surface is read-only with hypothetical forks, so local fallback may repeat inspection/comparison but cannot duplicate a live write. AI handoff clears pending local target/action references; applying an AI-described change requires a full explicit live command.
+- **Failure boundary:** Advance providers on initial request/stream errors and empty output, buffering metadata/reasoning until actual text or a tool call starts. Never replay an already-started text/tool stream through another provider. Final AI failure triggers local parsing. No configured AI, disabled AI or exhausted-chain cooldown also selects local parsing. Ambiguous unsupported commands still receive clarification, not invented behavior.
+- **Limits:** Cooldown is process-local and covers exhausted-chain rate limits. A successful Groq fallback does not set it. Real account quotas and sustained reliability remain external constraints; no paid plan or production deployment was changed.

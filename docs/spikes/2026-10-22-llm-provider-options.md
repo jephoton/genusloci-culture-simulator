@@ -4,6 +4,8 @@
 
 ## Recommendation
 
+**Implemented follow-up:** The user selected Gemini Flash-Lite → Groq → deterministic parsing. See [decision 0007](../decisions/0007-gemini-first-chat.md). Historical statements below about unchanged application priority describe the evaluation stage, before that follow-up.
+
 Gemini Flash-Lite is now the preferred candidate based on bounded live schema and streamed-continuation checks, retaining local commands for supported operations. Groq and Gemini are configured locally. Flash-Lite passed all three schema probes and one synthetic streamed conversation; Flash passed lookup but failed the comparison probe. This small sample does not establish general quality or reliability. Cerebras, OpenRouter and DeepSeek remain untested locally.
 
 ## Published offers checked on 2026-10-22
