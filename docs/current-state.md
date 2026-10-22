@@ -2,6 +2,12 @@
 
 <!-- generated: maintained by agents -->
 
+## Suggested-prompt keyboard completion (2026-10-22)
+
+Experiment chat now offers **Right Arrow to fill** for explicit prompt recommendations in the welcome/latest assistant reply, including labeled AI suggestions and quoted Try/Ask/Say examples. With the input empty or holding a matching prefix and the caret at the end, unmodified Right Arrow fills the recommendation without sending. Selected text, middle-of-draft cursor movement, modifiers and IME composition preserve normal editing. The visible hint is also clickable. Unrelated drafts are not replaced. AI instructions request a stable `Suggested prompt:` line when recommending a next question; recommendations cause no additional provider calls.
+
+Browser checks confirmed empty-input fill, no submission, normal cursor movement within a prefix and completion at the end. All nine targeted completion/copilot tests, TypeScript and targeted ESLint passed. Regressions cover extraction, quoted venue names, apostrophes, prefix matching and selection/caret guards. See [walkthrough](chat-lab-walkthrough.md). No provider order, environment, merge, push or deployment changes.
+
 ## Gemini-first chat routing (2026-10-22)
 
 The user selected **Gemini Flash-Lite → Groq → deterministic local parsing**. This now replaces both the old provider order and local-first question routing. Only Gemini/Groq participate in automatic model selection; other registered providers remain explicit-probe options. Gemini defaults to the live-tested `gemini-3.5-flash-lite` for both tiers. Environment model overrides are honored; the local configured chain was verified as Flash-Lite then GPT-OSS 120B, without printing keys.

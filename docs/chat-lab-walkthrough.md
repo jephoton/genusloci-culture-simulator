@@ -4,6 +4,8 @@
 
 The experiment chatbot is the only visible command entry point. Existing simulation functions are reused through the canonical city-tool dispatcher; the former workspaces remain in source as compatibility/result-card components, but their navigation and controls are hidden. The city map remains available for inspection, pan and zoom. Minimize chat to inspect more of the map, then reopen it.
 
+When a reply recommends a prompt, a small **Right Arrow to fill** hint appears below the input. Focus the input and press **→** to fill the recommendation, or finish a matching prefix with the cursor at its end. You can also click the hint. Filling never sends: edit the prompt, then press Enter or Send. Right Arrow retains normal cursor/selection behavior elsewhere in your draft.
+
 ## First experiment without a language model
 
 For this deterministic rehearsal, disable **Chat options and limits → Use AI guide** first. With AI enabled, questions instead try Gemini, then Groq, then local parsing.

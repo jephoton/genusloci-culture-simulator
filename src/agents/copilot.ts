@@ -27,6 +27,7 @@ export function copilotInstructions(city: string): string {
     "How to answer:",
     "- Short and concrete: a sentence of answer, then 2–4 bullet points with numbers from the tools (scene sizes, visits, fans).",
     "- Name venues, artists, scenes and neighbourhoods only as tools returned them.",
+    "- If you recommend a next question, put it on its own line as Suggested prompt: <question>. The visitor can fill it into the input without sending it.",
     "- what_if repeats each comparison with different random seeds and marks every change \"clear\" or \"too small to call\". Explain consistency within the model; disagreement is inconclusive, not proof of no effect. Neither classification validates a real-world forecast. Preserve ranges and limits.",
     "- Never mention tool names, ids or JSON to the user.",
   ].join("\n");
