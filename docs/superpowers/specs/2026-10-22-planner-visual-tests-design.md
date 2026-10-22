@@ -2,6 +2,8 @@
 
 <!-- generated: proposed design, awaiting user review; not implemented -->
 
+**On hold:** subsequent problem reassessment challenged this workflow's usefulness. Read [product brief](../../product-brief.md) before planning implementation. The milestones below are historical proposals, not approved work.
+
 ## Product decision
 
 Help an event planner who already has an artist choose a location, understand the simulated audience and local effects, and compare alternatives before scheduling. The user confirmed existing venues first, with optional custom map locations. The city is the explanation surface for that decision. The ecosystem remains the simulation engine; rent, migration and venue creation are secondary experiments, not steps in the planner journey.

@@ -2,6 +2,12 @@
 
 <!-- generated: maintained by agents -->
 
+## Product reassessment: pause feature expansion (2026-10-22)
+
+The user challenged the event-planner problem statement and the retention of sandbox features. [Product brief](product-brief.md) records primary-source research, existing competitors and a conditional recommendation: test an evidence-backed audience-fit venue shortlist for independent music promoters before implementing more simulation UI. This is a hypothesis, not validated demand. Advanced experiments, automatic openings and user-facing fidelity have no demonstrated role in that proposed workflow; ALife should not be retained as decision authority merely because it is implemented.
+
+The previous [visual-tests design](superpowers/specs/2026-10-22-planner-visual-tests-design.md) is on hold, including its proposed milestones. Do not execute it without revisiting this product decision. Current application behavior is unchanged. The next product checkpoint is a realistic sourced shortlist compared with practitioner research and a plain Qloo recommendation list, with explicit no-go criteria. Public evidence and competitor review are complete for this task; no practitioner validation, UI removal, new feature work or live forecast validation was performed.
+
 ## Walkthrough feedback review (2026-10-22)
 
 Read-only implementation audit completed for numeric editing, venue camera focus, event completion, interview history, scene/background focus, rewind, capacity/fidelity semantics, scouting and AI request coordination. The user confirmed existing venues first with optional custom locations. Proposed direction: one Scout locations → compare → visual test → outcomes → schedule journey, with advanced ecosystem interventions secondary. The current architecture document's god-game goal is historical and conflicts with that proposed planner positioning; update it when the new direction is approved/implemented.
