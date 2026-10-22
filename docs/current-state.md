@@ -2,6 +2,12 @@
 
 <!-- generated: maintained by agents -->
 
+## Free LLM provider evaluation (2026-10-22)
+
+[Provider findings](spikes/2026-10-22-llm-provider-options.md) recommend Gemini as the next candidate to benchmark, with current free Flash/Flash-Lite offers subject to project limits. Only Groq is configured. Two bounded schema probes each passed lookup but failed comparison with HTTP 400; the diagnostic response classified it as tool generation failure, distinct from earlier 429s. Four inference requests total, no tool execution or Qloo calls. Gemini quality/reliability remains unmeasured; Cerebras currently offers a limited trial rather than a permanently free tier, and OpenRouter's free plan has a small daily allowance.
+
+`scripts/spike-llm-providers.ts` provides dry inventory and explicit per-provider live probes, with no retries or automatic fallback. TypeScript and targeted ESLint passed. No application provider settings, credentials, billing or production behavior changed. Before switching, verify actual Gemini quotas/model IDs, real multi-round streaming and provider-specific cooldown behavior; adding a key alone does not put Gemini ahead of Groq.
+
 ## Chat-first lab entry and LLM-necessity spike (2026-10-22)
 
 The user approved the learner/portfolio cultural-ecology narrative and requested chatbot-only entry with reused tools and an LLM-free fallback. `LabChat` is now the sole visible command surface. Legacy workspaces remain in source under a hidden compatibility container; underlying closure/opening/rent/inspection/comparison tools are reused through `runCityTool`. Map inspection remains possible; chat is minimizable. The former intro/menu/toolbar and routine toasts are not visible. Attribution remains visible. Background LLM scene naming is disabled.
