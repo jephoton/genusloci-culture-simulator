@@ -29,7 +29,7 @@ export type Simulation = {
   setSpeed(ticksPerSecond: number): void;
   /** Resolves true once the action is accepted (queued, or applied while paused); false if it was rejected. */
   act(action: Action): Promise<boolean>;
-  rewind(tick: number): Promise<void>;
+  rewind(tick: number): Promise<boolean>;
   /** Per-cell demand for a headliner in the live city, plus up to 3 candidate cells. Rejects on failure. */
   demand(entity: number): Promise<CommandResults["demand"]>;
   /** Simulates a night for `entity` at each cell in forked futures (live city untouched). Rejects on failure. */
@@ -183,13 +183,15 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
   const rewind = useCallback(
     async (tick: number) => {
       const client = clientRef.current;
-      if (!client) return;
+      if (!client) return false;
       try {
         const result = await client.rewind(MAIN_TIMELINE, tick);
         setDigest(result.digest);
         await refresh();
+        return true;
       } catch (e) {
         report(e);
+        return false;
       }
     },
     [refresh, report, setDigest],

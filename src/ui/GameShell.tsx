@@ -45,6 +45,7 @@ import { VenueDirectory } from "@/ui/VenueDirectory";
 import { EventPlanner } from "@/ui/EventPlanner";
 import { WorkspaceNav, type WorkspacePanel } from "@/ui/WorkspaceNav";
 import { useAgentAvailability } from "@/ui/useAgentAvailability";
+import { LabChat } from "@/ui/LabChat";
 import type { World } from "@/world/schema";
 import { Attribution } from "@/ui/Attribution";
 import { useCityWorld } from "@/ui/useCityWorld";
@@ -204,7 +205,7 @@ function Game({
     if ("error" in info) return null;
     return { id, tastes: info.tastes.map((t) => t.name), homes: info.homes, parentId: info.splitFrom };
   });
-  const sceneNames = useSceneNames(world.city.name, liveDigest, describeScene, sim.frame, frames, aiConfigured === true);
+  const sceneNames = useSceneNames(world.city.name, liveDigest, describeScene, sim.frame, frames, false);
   const sceneNamesRef = useRef(sceneNames);
   useEffect(() => {
     sceneNamesRef.current = sceneNames;
@@ -231,7 +232,7 @@ function Game({
 
   const intro = useIntro();
   /** The same single-drawer navigation on every screen size. */
-  const [panel, setPanel] = useState<WorkspacePanel | null>("plan");
+  const [panel, setPanel] = useState<WorkspacePanel | null>(null);
   const navigationRef = useRef<HTMLElement>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const closeDrawer = useCallback(() => {
@@ -259,7 +260,9 @@ function Game({
       if (cell !== undefined) L.flyTo([L.layout.cellX[cell], L.layout.cellZ[cell]]);
     },
   }));
-  const copilot = useCopilot(world.city.name, copilotDeps);
+  // The local command layer owns explicit mutations. AI interpretation may inspect
+  // and compare, but a failed stream cannot leave a mutation eligible for replay.
+  const copilot = useCopilot(world.city.name, { ...copilotDeps, act: async () => false });
 
   /** Leaves scout mode with nothing booked; `resume` restarts play if scouting paused it. */
   const exitScout = useCallback(
@@ -702,6 +705,13 @@ function Game({
         rules={CLOSURE_RULES}
         scout={scoutOverlay}
       />
+      <LabChat city={world.city.name} citySlug={citySlug} cities={CITY_OPTIONS} onCityChange={onCityChange}
+        deps={copilotDeps} ai={copilot} configured={aiConfigured === true} frame={sim.frame}
+        onPlay={play} onPause={pause} onRewind={sim.rewind} onFocusVenue={previewEventVenue} />
+      {attribution && <Attribution qloo={world.meta?.source === "qloo"} />}
+      {/* Keep the existing workspaces available for future chat result cards;
+          experiment chat is the only visible command entry point. */}
+      <div hidden>
       <Hud
         city={world.city.name}
         digest={sim.digest}
@@ -862,7 +872,6 @@ function Game({
         onRewind={(t) => void sim.rewind(t)}
       />
       <Toasts toasts={toasts} onSelect={(t) => t.anchor && flyTo(t.anchor)} />
-      {attribution && <Attribution qloo={world.meta?.source === "qloo"} />}
       <button
         type="button"
         onClick={intro.show}
@@ -873,6 +882,7 @@ function Game({
         ?
       </button>
       <Intro city={world.city.name} open={intro.open} onClose={intro.close} />
+      </div>
       {sim.status === "loading" && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center text-zinc-400">Growing the city…</div>
       )}

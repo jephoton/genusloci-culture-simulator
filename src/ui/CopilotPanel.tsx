@@ -67,7 +67,7 @@ function Markdown({ text }: { text: string }) {
   return <div className="space-y-1.5">{blocks}</div>;
 }
 
-function Message({ message }: { message: UIMessage }) {
+export function Message({ message }: { message: UIMessage }) {
   if (message.role === "user") {
     const text = message.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
     return <div className="ml-8 rounded-lg bg-violet-500/20 px-3 py-2 text-sm text-violet-50">{text}</div>;

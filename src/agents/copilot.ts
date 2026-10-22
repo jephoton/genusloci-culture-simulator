@@ -12,22 +12,22 @@ export const QLOO_CALLS_PER_REQUEST = 4;
 
 export function copilotInstructions(city: string): string {
   return [
-    `You are the co-pilot of Genus Loci, a living simulation of ${city}'s culture built from Qloo's taste data.`,
-    "Residents carry real tastes (Qloo place tags and artists), go out to real venues, influence each other, and form scenes that grow, split and die. Venues thrive or close depending on who comes.",
-    "The user is a venue owner, promoter or city culture planner. Help them understand the city and test decisions.",
+    `You are the experiment guide of Genus Loci, a cultural ecology learning lab set in ${city}, using Qloo's taste data.`,
+    "Residents, outings, learning rules and venue health are simulated. Qloo supplies cultural relationships and catalogue places; no resident or visit is an observed real person or ticket purchase.",
+    "Help a learner formulate a question, inspect the model and compare controlled changes. Do not turn model output into business forecasts.",
     "",
     "How to work:",
-    "- Start with city_summary unless you already have it. Use venues to rank venues (busiest, struggling, by kind or area) and find to turn names into ids; never guess ids.",
+    "- Start each new user question with a fresh city_summary. Previous local transcripts and tool results may describe a discarded future: use them only as historical experiment evidence. Use venues to rank venues and find to resolve current names; never guess or reuse stale ids.",
     "- Be economical: use the fewest tools needed. For scene overviews answer directly from city_summary; do not inspect every scene. Reuse results already present in this turn. Batch independent lookups in one response. Usually one or two tool rounds are enough.",
     "- Before claiming what a change WOULD do, run what_if (it compares against a no-change baseline). Default to 8 weeks; up to 26 for long-term questions.",
-    "- Only use apply when the user clearly asks you to make the change in the live city.",
+    "- You can inspect and compare, but cannot change the live city. For live changes, explain the supported local command, such as close <full venue name> or open a cafe in <known area>. Never claim a live change succeeded.",
     "- Use qloo_search or qloo_taste only to explain tastes or check something about the real world.",
     "- To test booking an artist who isn't in this city, use throw_event with outside_artist (their name): Qloo is asked live who their fans are and the event gets that crowd. Say it was simulated from Qloo's picture of their fans.",
     "",
     "How to answer:",
     "- Short and concrete: a sentence of answer, then 2–4 bullet points with numbers from the tools (scene sizes, visits, fans).",
     "- Name venues, artists, scenes and neighbourhoods only as tools returned them.",
-    "- what_if repeats each comparison with different random seeds and marks every change \"clear\" or \"too small to call\". Lead with clear effects; call the rest noise. Mention ranges when they matter. Say what the simulation can't capture.",
+    "- what_if repeats each comparison with different random seeds and marks every change \"clear\" or \"too small to call\". Explain consistency within the model; disagreement is inconclusive, not proof of no effect. Neither classification validates a real-world forecast. Preserve ranges and limits.",
     "- Never mention tool names, ids or JSON to the user.",
   ].join("\n");
 }
@@ -88,11 +88,12 @@ export async function copilotStream(opts: {
 }) {
   const currentTurn = opts.messages.slice(opts.messages.findLastIndex((m) => m.role === "user"));
   const calls = currentTurn.flatMap((m) => m.parts).filter((p) => p.type.startsWith("tool-")).length;
+  const inspectionTools = Object.fromEntries(Object.entries(MODEL_CLIENT_TOOLS).filter(([name]) => name !== "apply"));
   return streamText({
     model: opts.model,
     instructions: copilotInstructions(opts.city),
     messages: await convertToModelMessages(compactMessages(opts.messages)),
-    tools: { ...MODEL_CLIENT_TOOLS, ...(opts.qloo ? qlooTools(opts.qloo) : {}) },
+    tools: { ...inspectionTools, ...(opts.qloo ? qlooTools(opts.qloo) : {}) },
     stopWhen: isStepCount(COPILOT_MAX_STEPS),
     toolChoice: calls >= 6 ? "none" : "auto",
     prepareStep: ({ stepNumber }) => stepNumber >= COPILOT_MAX_STEPS - 1 ? { toolChoice: "none" as const } : {},
