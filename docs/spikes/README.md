@@ -1,5 +1,7 @@
 # Product and ALife spikes
 
+The user subsequently chose a chat-first lab entry. See [chat/agentic requirement findings](2026-10-22-chat-agent-requirements.md) and the [implemented walkthrough](../chat-lab-walkthrough.md). Supported commands execute locally; optional AI adds language flexibility. The finite parser is not an unrestricted LLM replacement.
+
 <!-- generated: bounded findings, not an implementation commitment -->
 
 The user explicitly values keeping the ALife work as an interesting portfolio project, even without a commercially validated use case or hackathon win. This changes the evaluation: usefulness can mean teaching, experimentation and demonstrating systems craft. Do not force a business claim to justify retaining the simulation.

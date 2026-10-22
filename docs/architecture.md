@@ -10,7 +10,9 @@ The operator-authenticated `/api/world-builds` route uses a private Blob compare
 
 Transient planning and naming state is tied to simulation timeline identity. Planning closes if its tick, epoch or host changes, and callbacks guard against stale comparisons. Naming prunes discarded lineages and rejects results from abandoned generations. Outside-artist HTTP responses contain stable Qloo IDs; `ui/outside-act-client.ts` matches those IDs to the caller's actual World, avoiding numeric-index mismatches after world publication.
 
-**Goal:** a god-game sandbox of a real city's cultural ecosystem, grounded in Qloo's taste graph, built for the Qloo Agentic Hackathon (deadline 2026-10-31 11:45 GMT+8).
+**Goal:** a chat-first cultural ecology laboratory for learners and portfolio exploration, grounded in Qloo's taste graph. Visitors inspect the authored model, compare interventions and distinguish model behavior from real-world forecasts. The engine retains the original ecosystem mechanisms; a professional event-planning product is not validated. See [current chat walkthrough](chat-lab-walkthrough.md) and [product spikes](spikes/README.md).
+
+**Current interaction boundary:** `LabChat` routes known commands through `agents/offline-chat.ts` and canonical `runCityTool`; deterministic evidence formatting is separate from interpretation. Optional LLM assistance supports inspection/comparisons and receives recent local evidence, but live actions remain explicit local commands. `useCopilot` retains cooldown/deduplication; local commands need no inference. Background naming is disabled. Former workspace components remain hidden compatibility code, not additional visible entry points.
 
 **Full design:** [superpowers/specs/2026-10-09-genusloci-design.md](superpowers/specs/2026-10-09-genusloci-design.md)
 

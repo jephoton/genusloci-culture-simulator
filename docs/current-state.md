@@ -2,6 +2,18 @@
 
 <!-- generated: maintained by agents -->
 
+## Chat-first lab entry and LLM-necessity spike (2026-10-22)
+
+The user approved the learner/portfolio cultural-ecology narrative and requested chatbot-only entry with reused tools and an LLM-free fallback. `LabChat` is now the sole visible command surface. Legacy workspaces remain in source under a hidden compatibility container; underlying closure/opening/rent/inspection/comparison tools are reused through `runCityTool`. Map inspection remains possible; chat is minimizable. The former intro/menu/toolbar and routine toasts are not visible. Attribution remains visible. Background LLM scene naming is disabled.
+
+Deterministic commands cover help/model explanations, summaries, venue/scene lookup, rankings, closure/opening/rent comparisons and explicit local live actions. Exact playback/rewind commands also work. Comparisons render recorded totals and seeded ranges without a model call. Optional AI handles unsupported questions using bounded local evidence and fresh city facts; it has no advertised live-apply tool, and failed AI requests are not replayed. Handoff clears previous local action/target references. Successful rewind clears references/AI context; failure is reported without claiming success. No provider/environment changes were made.
+
+The language spike scored 8/14 on a small post-implementation synthetic phrasing challenge, with zero unintended writes. Six reasonable paraphrases were refused: unrestricted LLM parity is not achieved or claimed. See [agentic requirements and findings](spikes/2026-10-22-chat-agent-requirements.md) and [current walkthrough](chat-lab-walkthrough.md). Published rules do not explicitly mandate an LLM; they do require an agentic tool/framework/existing-agent integration. Organizer acceptance of a wholly deterministic route remains unconfirmed.
+
+Browser rehearsal with AI disabled covered a four-week/four-seed venue closure comparison without live advance, explicit apply, calendar-date advance on the applied action and successful rewind. Earlier parser review regressions cover ambiguous/negated/declarative/question punctuation forms. Full guided experiment playback, richer affected-entity overlays and resident taste/route traces remain future work; this chat change does not claim to implement those earlier proposals.
+
+Final verification: 562 tests across 100 files, lint, TypeScript and production build passed. Independent review findings about punctuation, declarative commands, stale AI/local targets, rewind failure reporting and optional-AI policy were addressed. `npx tsx scripts/spike-chat-language.ts` reproduces the 8/14 language result without Qloo/provider calls. Changes are local on `feat/focused-city-interface`; no merge, push, deployment, key changes or paid-provider setup was performed. No live LLM head-to-head benchmark or provider-failure browser simulation was performed in this pass.
+
 ## Three direction spikes completed (2026-10-22)
 
 The user authorized promoter, cross-domain Qloo and ALife-purpose spikes, explicitly valuing a portfolio ALife project independently of commercial utility or hackathon results. [Spike index](spikes/README.md) integrates the findings. Recommendation: a playable cultural ecology laboratory is the strongest fit for that goal; do not force a forecasting/product claim to retain the engine. This is a recommendation, not an approved application redesign.

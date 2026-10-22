@@ -1,8 +1,8 @@
 # Genus Loci
 
-**A living model of a city's culture, built from Qloo's taste graph, that you can poke and question.**
+**A chat-first cultural ecology laboratory: explore how tastes, encounters and shared places interact in an agent-based model grounded in Qloo.**
 
-Thousands of simulated residents carry real tastes: Qloo place tags and the artists their local venues' crowds love. Every night they go out to real venues, influence each other, and form scenes that grow, split and fade. Venues thrive or close depending on who comes. Open a club, throw a gig, close a landmark, raise the rent, and watch the city respond. Or ask the AI co-pilot to test a decision before you make it.
+Thousands of synthetic residents carry weighted cultural interests. They visit catalogue venues, influence one another and form model scenes. Ask the experiment chat to inspect the city, compare a hypothetical closure/opening/rent change against a no-change future, or explicitly apply an intervention. Supported local commands require no LLM; optional AI helps with broader questions. Outcomes describe the authored model, not observed fans or validated ticket forecasts. Start with the [current walkthrough](docs/chat-lab-walkthrough.md).
 
 **Live demo:** https://genusloci-culture-simulator.vercel.app (London, Singapore, New York)
 
@@ -12,10 +12,12 @@ Built for the [Qloo Agentic Hackathon](https://qloo.devpost.com/), "Agents, but 
 
 ## Who it's for
 
-- **Venue owners and promoters:** "Where should I put this headliner?" "What happens to my crowd if the club next door closes?"
-- **City culture planners:** "What does this neighbourhood lose if this venue goes?" "Which scenes are under-served?"
+- **Learners and technically curious visitors:** investigate how individual rules can produce group patterns, inspect assumptions and compare reproducible model experiments.
+- **ALife/agent-based modelling enthusiasts and portfolio reviewers:** explore deterministic simulation, cultural data grounding, tool orchestration and the limits of causal claims. Practitioner decision support remains unvalidated.
 
 ## What you can do
+
+The chatbot is the current entry point. The inventory below describes retained engine capabilities; earlier standalone workspaces are hidden compatibility code. See the walkthrough for which commands are locally supported. Arbitrary language, every legacy action and LLM equivalence are not promised.
 
 - **Watch a real city:** real streets from OpenStreetMap and about 140 real venues from Qloo. Residents walk out each night and home again, and scenes appear in the legend with plain names generated from their tastes.
 - **Change it:** open a venue (the best-fitting real place for that spot), throw an event with a real artist, or close a venue. Effects ripple through the city.

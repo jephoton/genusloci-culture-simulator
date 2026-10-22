@@ -1,5 +1,7 @@
 # Genus Loci — Glossary, Pitch and Demo Runbook
 
+> **Current rehearsal:** use [Chat-first lab walkthrough](chat-lab-walkthrough.md). The public promise is an inspectable cultural ecology learning lab, not validated promoter forecasts. Demonstrate lookup → hypothetical comparison → evidence → explicit apply → rewind through chat, including local mode with AI disabled. The older timed venue-planner/sandbox sequence below is historical reference and is not the current interface.
+
 <!-- generated: maintained by agents; keep in sync as plans land -->
 
 > **Status (2026-10-14):** London and Singapore run on **real Qloo data** (M4). Venues, artists, tastes and heatmaps all come from Qloo; the World files are built with `pnpm build:world <city>` and served by the app, never committed. The synthetic city is only a fallback. **M6 agents are live:** the co-pilot answers questions and runs what-if scenarios, scenes get field-guide names from their Qloo tastes, and you can interview a resident of any scene.
