@@ -1,4 +1,5 @@
-import { runCityTool, type ToolDeps } from "@/agents/run-tool";
+import { applyLastComparison, clearComparison, runCityTool, type ToolDeps } from "@/agents/run-tool";
+import { isComparisonQuestion } from "@/agents/lab-routing";
 import { CopilotActionSchema, type CopilotAction, type ClientToolName } from "@/agents/tools";
 import { VENUE_KINDS } from "@/world/schema";
 import { formatEvidence } from "@/agents/format-evidence";
@@ -23,6 +24,7 @@ const errorOf = (value: unknown) => typeof object(value)?.error === "string" ? o
  * Unrecognised language never reaches apply; this does not claim general language understanding. */
 export async function runOfflineChat(text: string, deps: ToolDeps, context: OfflineChatContext = {}): Promise<OfflineChatResult> {
   const previous = { ...context };
+  if (isComparisonQuestion(text)) { clearComparison(deps); previous.lastAction = undefined; }
   const reply = (message: string, supported = true, next = previous): OfflineChatResult => ({ text: message, supported, context: next });
   const refuse = () => reply("I couldn't safely interpret that offline. Use one command at a time, or type help for examples. No change was made.", false);
   const call = (name: ClientToolName, input: unknown = {}) => runCityTool(name, input, deps);
@@ -45,6 +47,7 @@ export async function runOfflineChat(text: string, deps: ToolDeps, context: Offl
       return show("Current scenes", errorOf(summary) ? summary : { scenes: object(summary)?.scenes });
     }
     if (/^(?:apply that|apply that live|make that change|make that change live|change live)$/.test(lower) && !question) {
+      if (deps.comparison) return show("Live change result", await applyLastComparison(deps), { ...previous, lastAction: undefined });
       if (!previous.lastAction) return reply("There is no previous comparison to apply. Describe one change first.");
       const parsed = CopilotActionSchema.safeParse(previous.lastAction);
       if (!parsed.success) return refuse();

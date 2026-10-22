@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { UIMessage } from "ai";
 import { runOfflineChat } from "@/agents/offline-chat";
-import { isDirectLocalCommand, runQuestionWithFallback } from "@/agents/lab-routing";
+import { isComparisonQuestion, isDirectLocalCommand, runQuestionWithFallback } from "@/agents/lab-routing";
 import type { CopilotAction } from "@/agents/tools";
-import type { ToolDeps } from "@/agents/run-tool";
+import { clearComparison, type ToolDeps } from "@/agents/run-tool";
 import type { Frame } from "@/sim/frame";
 import { Message } from "@/ui/CopilotPanel";
 import type { useCopilot } from "@/ui/useCopilot";
@@ -49,8 +49,8 @@ export function LabChat({ city, citySlug, cities, onCityChange, deps, ai, config
   };
   useEffect(() => () => { generation.current++; }, []);
   useEffect(() => {
-    if (frame && timeline.current !== frame.epoch) { timeline.current = frame.epoch; context.current = {}; generation.current++; }
-  }, [frame]);
+    if (frame && timeline.current !== frame.epoch) { timeline.current = frame.epoch; context.current = {}; clearComparison(deps); generation.current++; }
+  }, [frame, deps]);
   useEffect(() => { end.current?.scrollIntoView({ block: "nearest" }); }, [messages, ai.messages, busy, open]);
 
   const send = async (raw: string) => {
@@ -58,6 +58,7 @@ export function LabChat({ city, citySlug, cities, onCityChange, deps, ai, config
     if (!text || inFlight.current || locked) return;
     inFlight.current = true; setBusy(true); setInput("");
     const token = generation.current;
+    if (isComparisonQuestion(text)) { clearComparison(deps); context.current.lastAction = undefined; }
     try {
       // Playback is a small exact grammar: unsupported modifiers never trigger it.
       let reply: string | undefined;
@@ -86,8 +87,9 @@ export function LabChat({ city, citySlug, cities, onCityChange, deps, ai, config
       if (outcome.source === "local" && outcome.result) {
         const result = outcome.result;
         context.current = result.supported ? result.context : {};
-        if (result.context.lastVenue !== undefined) onFocusVenue(result.context.lastVenue);
-        const localReply = useAI ? `AI is unavailable; using the local parser.\n\n${result.text}` : result.text;
+        if (result.context.lastVenue !== undefined && !deps.comparison?.current && !/^Live change result/.test(result.text)) onFocusVenue(result.context.lastVenue);
+        const playingReply = /^Live change result/.test(result.text) && /done/.test(result.text) ? `${result.text}\n\nPlaying the simulation so you can watch the change. Say ‘pause’ to inspect it.` : result.text;
+        const localReply = useAI ? `AI is unavailable; using the local parser.\n\n${playingReply}` : playingReply;
         setMessages((m) => [...m, ...(!useAI ? [message("user", text)] : []), message("assistant", localReply)]);
       }
     } catch {
@@ -124,7 +126,7 @@ export function LabChat({ city, citySlug, cities, onCityChange, deps, ai, config
           const completion = promptCompletion(input, [e.currentTarget.placeholder], e.currentTarget.selectionStart, e.currentTarget.selectionEnd);
           if (completion && !locked) { e.preventDefault(); fillPrompt(completion); }
         }} title="Press Right Arrow to fill the example prompt." disabled={locked} autoComplete="off" placeholder={placeholderPrompt} className="min-w-0 flex-1 rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm outline-none focus:border-violet-400" /><button disabled={locked || !input.trim()} className="rounded-lg bg-violet-500/70 px-3 py-2 text-sm disabled:opacity-40">Send</button></form>
-        <details className="text-[11px] text-zinc-400"><summary className="cursor-pointer">Chat options and limits</summary><div className="mt-2 space-y-2"><p>Questions try Gemini, then Groq, then the bounded local parser. Local mode asks for clarification rather than inventing an action. Say “help”, “play”, “pause”, or “rewind to day 0”.</p><label className="flex gap-2"><input type="checkbox" checked={allowAI} disabled={!configured || aiBusy} onChange={(e) => setAllowAI(e.target.checked)} />Use AI guide{!configured && " (no provider configured)"}</label><p>AI can inspect and compare. Live changes and playback use explicit local commands. Provider retries stop once answer or tool output begins.</p><button type="button" disabled={locked} onClick={() => { generation.current++; context.current = {}; ai.resetChat(); setMessages([]); }} className="text-violet-200">Clear conversation</button></div></details>
+        <details className="text-[11px] text-zinc-400"><summary className="cursor-pointer">Chat options and limits</summary><div className="mt-2 space-y-2"><p>Questions try Gemini, then Groq, then the bounded local parser. Local mode asks for clarification rather than inventing an action. Say “help”, “play”, “pause”, or “rewind to day 0”.</p><label className="flex gap-2"><input type="checkbox" checked={allowAI} disabled={!configured || aiBusy} onChange={(e) => setAllowAI(e.target.checked)} />Use AI guide{!configured && " (no provider configured)"}</label><p>AI can inspect and compare. Live changes and playback use explicit local commands. Provider retries stop once answer or tool output begins.</p><button type="button" disabled={locked} onClick={() => { generation.current++; context.current = {}; clearComparison(deps); ai.resetChat(); setMessages([]); }} className="text-violet-200">Clear conversation</button></div></details>
       </div>
     </section>}
   </>;

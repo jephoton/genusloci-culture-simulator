@@ -8,12 +8,12 @@ import { buildingProportions, gableGeometry } from "@/render/architecture";
 import type { FrameStore } from "@/render/frame-store";
 import { type CityLayout, hash01 } from "@/render/layout";
 
-export function Buildings({ frames, layout }: { frames: RefObject<FrameStore>; layout: CityLayout }) {
+export function Buildings({ frames, layout, dimmed = false }: { frames: RefObject<FrameStore>; layout: CityLayout; dimmed?: boolean }) {
   const { count } = layout.buildings;
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const roofRef = useRef<THREE.InstancedMesh>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
-  const uniforms = useMemo(() => ({ uTime: { value: 0 } }), []);
+  const uniforms = useMemo(() => ({ uTime: { value: 0 }, uFocus: { value: 1 } }), []);
   const roofs = useMemo(() => {
     const g = gableGeometry();
     g.setAttribute("aSeed", new THREE.InstancedBufferAttribute(layout.buildings.seed, 1));
@@ -49,7 +49,14 @@ export function Buildings({ frames, layout }: { frames: RefObject<FrameStore>; l
 
   // Window flicker runs on the pausable animation clock, so a pause freezes it too.
   useFrame(() => {
-    if (materialRef.current) materialRef.current.uniforms.uTime.value = frames.current.clock.now() / 1000;
+    const time = frames.current.clock.now() / 1000;
+    for (const mesh of [meshRef.current, roofRef.current]) {
+      const material = mesh?.material as THREE.ShaderMaterial | undefined;
+      if (material?.uniforms) {
+        material.uniforms.uTime.value = time;
+        material.uniforms.uFocus.value = dimmed ? 0.08 : 1;
+      }
+    }
   });
 
   return (

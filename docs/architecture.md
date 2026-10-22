@@ -53,7 +53,7 @@ Transient planning and naming state is tied to simulation timeline identity. Pla
   - `providers.ts` — configured chat chain Gemini Flash-Lite → Groq; `fallbackModel` advances on failures/empty streams before text/tool activity. Other vendors remain registered for explicit probes only. `LabChat` falls back to the bounded deterministic parser after AI failure, or immediately when AI is disabled/cooling down.
   - `tools.ts` — co-pilot tool and action schemas shared by server and browser (`city_summary`, `find`, `venues`, `venue`, `scene`, `what_if`, `apply`)
   - `city.ts` — the co-pilot's view of the city, computed in the browser from World + frame + digest: summaries, fuzzy find, venue ranking, area resolution, action mapping, named what-if results, interview personas
-  - `run-tool.ts` — runs city tools in the browser against the worker; never throws
+  - `run-tool.ts` — runs city tools in the browser against the worker; successful what-if calls capture a shared resolved-action record for one explicit local apply. Epoch/timeline/venue-identity guards prevent stale replay; only accepted actions trigger playback/focus callbacks.
   - `copilot.ts` — instructions, server-side Qloo tools (`qloo_search`, `qloo_taste`, capped per question, budget floor ≥ 1000), `copilotStream`
   - `naming.ts` — plain scene names from Qloo tastes (structured output, small tier)
   - `interview.ts` — persona schema and grounded first-person chat

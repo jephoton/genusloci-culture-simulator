@@ -6,7 +6,7 @@ import type { FlyTo } from "@/render/CameraDirector";
 import { CityCanvas, type ScoutOverlay } from "@/render/CityCanvas";
 import type { FrameChange } from "@/render/effects/diff";
 import type { Origin } from "@/render/effects/director";
-import type { Focus } from "@/render/focus";
+import { experimentFocus, followExperiment, type Focus } from "@/render/focus";
 import type { GhostSpec } from "@/render/Ghost";
 import { type CityLayout, nearestCell, type XZ } from "@/render/layout";
 import { chooseVenueEntity } from "@/render/placement";
@@ -193,9 +193,9 @@ function Game({
 
   // The co-pilot and scene namer call back into the city at arbitrary times; they read the latest
   // values through this ref, so their callbacks can be created once.
-  const latest = useRef({ world, layout, act, latestDigest, whatIf, flyTo, liveDigest, frames, citySlug });
+  const latest = useRef({ world, layout, act, latestDigest, whatIf, flyTo, liveDigest, frames, citySlug, play, pause });
   useEffect(() => {
-    latest.current = { world, layout, act, latestDigest, whatIf, flyTo, liveDigest, frames, citySlug };
+    latest.current = { world, layout, act, latestDigest, whatIf, flyTo, liveDigest, frames, citySlug, play, pause };
   });
   const [describeScene] = useState(() => (id: number) => {
     const L = latest.current;
@@ -241,6 +241,8 @@ function Game({
     navigationRef.current?.querySelector<HTMLElement>('[data-workspace-active="true"]')?.focus();
   }, [clearFocus]);
   const [copilotDeps] = useState<ToolDeps>(() => ({
+    comparison: { current: null },
+    onComparisonCleared: clearFocus,
     context: (d) => {
       const L = latest.current;
       const f = L.frames.current.current;
@@ -249,15 +251,25 @@ function Game({
       return { world: L.world, frame: f, digest: d, layout: L.layout, sceneNames: names };
     },
     latestDigest: () => latest.current.latestDigest(),
-    whatIf: (actions, weeks) => latest.current.whatIf(actions, weeks),
+    whatIf: (actions, weeks) => { latest.current.pause(); return latest.current.whatIf(actions, weeks); },
     act: (action) => latest.current.act(action),
     outsideAct: (name) => fetchOutsideAct(latest.current.citySlug, name, latest.current.world),
-    onApplied: (actions) => {
+    onCompared: (actions, before) => {
+      setHovered(null); setSelected(null);
+      setPinned(experimentFocus(before.frame, actions));
+      const first = actions[0];
+      const cell = first.type === "closeVenue" ? before.frame.venueCell[first.venue] : "cell" in first ? first.cell : "cells" in first ? first.cells[0] : undefined;
+      if (cell !== undefined) latest.current.flyTo([latest.current.layout.cellX[cell], latest.current.layout.cellZ[cell]]);
+    },
+    onApplied: (actions, before) => {
       const L = latest.current;
-      const f = L.frames.current.current;
+      const f = before.frame;
+      setHovered(null); setSelected(null);
+      setPinned(experimentFocus(f, actions));
       const a = actions[0];
       const cell = a.type === "closeVenue" ? f?.venueCell[a.venue] : "cell" in a ? a.cell : "cells" in a ? a.cells[0] : undefined;
       if (cell !== undefined) L.flyTo([L.layout.cellX[cell], L.layout.cellZ[cell]]);
+      L.play();
     },
   }));
   // The local command layer owns explicit mutations. AI interpretation may inspect
@@ -517,7 +529,10 @@ function Game({
     const info = sceneInfo({ world, frame: sim.frame, digest: sim.digest, layout, sceneNames: new Map([...sceneNames].map(([id, n]) => [id, n.name])) }, pinnedLive.id);
     return "error" in info ? null : info;
   }, [pinnedLive, sim.frame, sim.digest, world, layout, sceneNames]);
-  const focus = useMemo<Focus>(() => (hovered !== null ? { kind: "scene", id: hovered } : pinnedLive), [hovered, pinnedLive]);
+  const focus = useMemo<Focus>(() => {
+    if (pinnedLive?.kind === "experiment") return sim.frame ? followExperiment(pinnedLive, sim.frame) : null;
+    return hovered !== null ? { kind: "scene", id: hovered } : pinnedLive;
+  }, [hovered, pinnedLive, sim.frame]);
 
   const onVenueClick = useCallback(
     (slot: number) => {
@@ -708,6 +723,7 @@ function Game({
       <LabChat city={world.city.name} citySlug={citySlug} cities={CITY_OPTIONS} onCityChange={onCityChange}
         deps={copilotDeps} ai={copilot} configured={aiConfigured === true} frame={sim.frame}
         onPlay={play} onPause={pause} onRewind={sim.rewind} onFocusVenue={previewEventVenue} />
+      {focus?.kind === "experiment" && <div className="panel absolute left-3 top-24 z-10 max-w-64 space-y-1 px-3 py-2 text-xs text-zinc-300"><p>Following {focus.agents.size} observed visitors, the target venues and their current destinations.</p><p className="text-[10px] text-zinc-400">An observed group, not every person causally affected.</p><button type="button" onClick={clearFocus} className="text-violet-200">Clear highlights</button></div>}
       {attribution && <Attribution qloo={world.meta?.source === "qloo"} />}
       {/* Keep the existing workspaces available for future chat result cards;
           experiment chat is the only visible command entry point. */}

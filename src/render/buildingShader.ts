@@ -27,6 +27,7 @@ export const BUILDING_VERTEX = /* glsl */ `
 /** Painted miniature facades, large sparse windows, and visible cornices instead of glittering towers. */
 export const BUILDING_FRAGMENT = /* glsl */ `
   uniform float uTime;
+  uniform float uFocus;
   varying vec3 vWorld;
   varying vec3 vNormal;
   varying float vSeed;
@@ -54,16 +55,17 @@ export const BUILDING_FRAGMENT = /* glsl */ `
     color = mix(color, mix(vec3(0.075, 0.12, 0.15), vec3(0.95, 0.66, 0.31) * flicker, on), window * wall);
     float sill = step(0.21, f.y) * step(f.y, 0.28) * step(0.22, f.x) * step(f.x, 0.78);
     color = mix(color, paint * 0.9, sill * wall);
-    gl_FragColor = vec4(color, 1.0);
+    gl_FragColor = vec4(color * uFocus, 1.0);
   }
 `;
 
 export const ROOF_FRAGMENT = /* glsl */ `
+  uniform float uFocus;
   varying vec3 vNormal;
   varying float vSeed;
   void main() {
     vec3 roof = vSeed < 0.33 ? vec3(0.39, 0.22, 0.20) : vSeed < 0.66 ? vec3(0.20, 0.32, 0.35) : vec3(0.33, 0.29, 0.38);
     float light = 0.65 + 0.35 * max(dot(normalize(vNormal), normalize(vec3(0.4, 0.8, 0.3))), 0.0);
-    gl_FragColor = vec4(roof * light, 1.0);
+    gl_FragColor = vec4(roof * light * uFocus, 1.0);
   }
 `;

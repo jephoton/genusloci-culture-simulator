@@ -37,7 +37,7 @@ const DYING_HEALTH = 0.15;
 const BEACON_PERIOD_MS = 1500;
 const BEACON_HZ = 1.2;
 /** Under a focus, venues outside it keep this fraction of their light. */
-const UNFOCUSED_LIT = 0.3;
+const UNFOCUSED_LIT = 0.06;
 /**
  * Struggling venues (health under the closure threshold) pulse red at WARN_HZ: the sign and band are
  * pulled towards red by WARN_TINT_MIN…WARN_TINT_MAX of the way, and a red ring breathes on the ground.
@@ -178,7 +178,7 @@ export function Body({ kind, mats: { neon, body, band, roof = body, window = ban
 }
 
 function Landmark({
-  frames, epoch, view, hues, selected, inFocus, struggling, onSelect,
+  frames, epoch, view, hues, selected, inFocus, struggling, onSelect, emphasized = false,
 }: {
   /** Holds the pausable animation clock every pulse and spring runs on. */
   frames: RefObject<FrameStore>;
@@ -187,6 +187,7 @@ function Landmark({
   view: VenueView;
   hues: Float32Array;
   selected: boolean;
+  emphasized?: boolean;
   /** On the path to closing (see isStruggling): shows the red warning pulse. */
   struggling: boolean;
   /** False when a focus is active and this venue is outside it: it dims. */
@@ -202,7 +203,7 @@ function Landmark({
   const glow = view.open ? 0.5 + 2.2 * view.health : 0.04;
   const sign: Rgb = [r * glow, g * glow, b * glow];
   const pillar = (24 * LANDMARK_SCALE) / view.scale;
-  const beacon = view.isEvent && view.open;
+  const beacon = (view.isEvent && view.open && inFocus) || emphasized;
   const mats = useMemo<Materials>(
     () => ({
       neon: new THREE.MeshBasicMaterial({ toneMapped: false }),
@@ -422,7 +423,7 @@ export function Landmarks({
   return (
     <group>
       {views.map((v) => (
-        <Landmark key={v.slot} frames={frames} epoch={frame?.epoch ?? -1} view={v} hues={hues} selected={selected === v.slot} inFocus={venueInFocus(focus, v)} struggling={frame ? isStruggling(frame, v.slot, rules) : false} onSelect={onSelect} />
+        <Landmark key={v.slot} frames={frames} epoch={frame?.epoch ?? -1} view={v} hues={hues} selected={selected === v.slot} emphasized={focus?.kind === "experiment" && focus.targets.has(v.slot)} inFocus={venueInFocus(focus, v)} struggling={venueInFocus(focus, v) && !!frame && isStruggling(frame, v.slot, rules)} onSelect={onSelect} />
       ))}
     </group>
   );

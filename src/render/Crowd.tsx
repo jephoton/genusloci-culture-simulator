@@ -25,7 +25,7 @@ const JOIN = 0.1;
 /** The route cache is dropped when it grows past this many routes; routes rebuild lazily. */
 const MAX_ROUTES = 20_000;
 /** Under a focus, agents outside it keep this fraction of their brightness. */
-const UNFOCUSED_LIT = 0.12;
+const UNFOCUSED_LIT = 0.025;
 /** Under a focus, agents in it are drawn this much larger. */
 const FOCUSED_SIZE = 1.3;
 /** Time constant of the fade into and out of focus. */
@@ -321,7 +321,7 @@ export function Crowd({
       const since = now - m.changedAt[i];
       const pop = 1 + 1.2 * Math.exp(-since / 220);
       const flash = 1.5 * Math.exp(-since / 160);
-      const member = agentInFocus(f, frame.scene[i], frame.attendance[i]);
+      const member = agentInFocus(f, frame.scene[i], frame.attendance[i], i);
       m.lit[i] += ((member ? 1 : UNFOCUSED_LIT) - m.lit[i]) * focusBlend;
       m.emphasis[i] += ((f && member ? 1 : 0) - m.emphasis[i]) * focusBlend;
       const lit = m.lit[i];

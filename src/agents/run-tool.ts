@@ -7,6 +7,8 @@ import type { WhatIfResult } from "@/sim/whatif";
 
 /** What the browser needs to run the co-pilot's city tools. */
 export interface ToolDeps {
+  /** Shared by model comparisons and local explicit apply, never inferred from prose. */
+  comparison?: { current: ComparedPlan | null };
   /** The city as of now (latest frame); `digest` is refreshed first. */
   context(digest: SimDigest | null): CityContext | null;
   latestDigest(): Promise<SimDigest>;
@@ -15,7 +17,43 @@ export interface ToolDeps {
   /** Looks an artist the city doesn't know up in Qloo (via /api/outside-act). */
   outsideAct?(name: string): Promise<OutsideAct | { error: string }>;
   /** Called after the co-pilot changes the live city (for toasts and camera). */
-  onApplied?(actions: Action[]): void;
+  onApplied?(actions: Action[], before: CityContext): void;
+  onCompared?(actions: Action[], before: CityContext): void;
+  onComparisonCleared?(): void;
+}
+
+export type ComparedPlan = { actions: Action[]; epoch: number; timeline: string; venues: { slot: number; entity: number; cell: number }[] };
+
+export function clearComparison(deps: ToolDeps): void {
+  if (deps.comparison) deps.comparison.current = null;
+  deps.onComparisonCleared?.();
+}
+
+async function applyActions(actions: Action[], deps: ToolDeps, ctx: CityContext): Promise<unknown> {
+  if (deps.comparison) deps.comparison.current = null;
+  const accepted: Action[] = [];
+  const results: string[] = [];
+  for (const action of actions) {
+    const ok = await deps.act(action);
+    results.push(ok ? "done" : "rejected by the simulation");
+    if (ok) accepted.push(action);
+  }
+  if (accepted.length) deps.onApplied?.(accepted, ctx);
+  return { applied: results };
+}
+
+/** Apply only a successfully executed comparison, with timeline and slot identity guards. */
+export async function applyLastComparison(deps: ToolDeps): Promise<unknown> {
+  const plan = deps.comparison?.current;
+  if (!plan) return { error: "There is no previous comparison to apply. Describe one change first." };
+  deps.comparison!.current = null; // Consume before awaiting: double delivery cannot apply twice.
+  try {
+    const ctx = deps.context(await deps.latestDigest());
+    if (!ctx || ctx.frame.epoch !== plan.epoch || ctx.frame.timeline !== plan.timeline || plan.venues.some((v) => ctx.frame.venueEntity[v.slot] !== v.entity || ctx.frame.venueCell[v.slot] !== v.cell || !ctx.frame.venueOpen[v.slot])) {
+      return { error: "The city changed or this comparison belongs to a discarded timeline. Compare again before applying." };
+    }
+    return await applyActions(plan.actions, deps, ctx);
+  } catch { return { error: "The comparison could not be applied. Check the city before trying again." }; }
 }
 
 export const isClientTool = (name: string): name is ClientToolName => Object.hasOwn(CLIENT_TOOLS, name);
@@ -45,6 +83,7 @@ const outsideNotes = (m: Map<string, OutsideAct>) =>
 
 /** Runs one co-pilot city tool. Never throws: problems come back as `{ error }` for the model to read. */
 export async function runCityTool(name: string, input: unknown, deps: ToolDeps): Promise<unknown> {
+  if (name === "what_if") clearComparison(deps);
   if (!isClientTool(name)) return { error: `Unknown tool ${name}` };
   const parsed = CLIENT_TOOLS[name].inputSchema.safeParse(input ?? {});
   if (!parsed.success) return { error: `Bad input for ${name}: ${parsed.error.issues.map((i) => i.message).join("; ")}` };
@@ -75,6 +114,15 @@ export async function runCityTool(name: string, input: unknown, deps: ToolDeps):
         if ("error" in mapped) return mapped;
         const { result } = await deps.whatIf(mapped.actions, p.weeks ?? 8);
         const described = describeWhatIf(ctx, result);
+        const current = deps.context(null);
+        if (!current || current.frame.epoch !== ctx.frame.epoch || current.frame.timeline !== ctx.frame.timeline) return { error: "The timeline changed during comparison. Compare again." };
+        if (result.actions.every((r) => r.ok)) {
+          if (deps.comparison) deps.comparison.current = {
+            actions: structuredClone(mapped.actions), epoch: ctx.frame.epoch, timeline: ctx.frame.timeline,
+            venues: mapped.actions.filter((a) => a.type === "closeVenue").map((a) => ({ slot: a.venue, entity: ctx.frame.venueEntity[a.venue], cell: ctx.frame.venueCell[a.venue] })),
+          };
+          deps.onCompared?.(mapped.actions, ctx);
+        } else if (deps.comparison) deps.comparison.current = null;
         return outside.size > 0 ? { ...described, outsideArtists: outsideNotes(outside) } : described;
       }
       case "apply": {
@@ -83,10 +131,7 @@ export async function runCityTool(name: string, input: unknown, deps: ToolDeps):
         if ("error" in outside) return outside;
         const mapped = toSimActions(ctx, p.actions, outside);
         if ("error" in mapped) return mapped;
-        const results: string[] = [];
-        for (const a of mapped.actions) results.push((await deps.act(a)) ? "done" : "rejected by the simulation");
-        deps.onApplied?.(mapped.actions);
-        return { applied: results };
+        return applyActions(mapped.actions, deps, ctx);
       }
     }
   } catch (e) {

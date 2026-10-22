@@ -24,9 +24,10 @@ const NEUTRAL: Rgb = [0.9, 0.85, 0.75];
  * player's own changes (full shockwave) from the simulation's (softer); without it, all count as the player's.
  */
 export function Effects({
-  world, layout, frames, shockwave, rules, onChanges, classify,
+  world, layout, frames, shockwave, rules, onChanges, classify, muted = false,
 }: {
   world: World;
+  muted?: boolean;
   /** The sim's closure rules, so the diff can tell when a venue starts struggling. */
   rules: ClosureRules;
   layout: CityLayout;
@@ -95,13 +96,13 @@ export function Effects({
 
     shockwave.setAspect(size.width / Math.max(1, size.height));
     shockwave.setWaves(
-      d.waves.map((w) => {
+      (muted ? [] : d.waves).map((w) => {
         const p = scratch.v.set(w.x, 0, w.z).project(camera);
         return { u: p.x * 0.5 + 0.5, v: p.y * 0.5 + 0.5, progress: d.progress(w, now), strength: p.z < 1 ? w.strength : 0 };
       }),
     );
     const [sx, sy] = d.shake(now);
-    shockwave.setShake(sx, sy);
+    shockwave.setShake(muted ? 0 : sx, muted ? 0 : sy);
 
     const mesh = ripplesRef.current;
     if (!mesh) return;
@@ -123,7 +124,7 @@ export function Effects({
   });
 
   return (
-    <instancedMesh ref={ripplesRef} args={[ring, undefined, MAX_RIPPLES]} frustumCulled={false}>
+    <instancedMesh ref={ripplesRef} args={[ring, undefined, MAX_RIPPLES]} frustumCulled={false} visible={!muted}>
       <meshBasicMaterial toneMapped={false} transparent depthWrite={false} blending={THREE.AdditiveBlending} />
     </instancedMesh>
   );

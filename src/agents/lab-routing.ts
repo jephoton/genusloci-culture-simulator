@@ -1,4 +1,8 @@
 /** Explicit writes stay local; asking about a change is an AI-first question. */
+export function isComparisonQuestion(text: string): boolean {
+  return /\b(?:what (?:happens )?if|simulate|compare|comparison)\b/i.test(text) || /^(?:please\s+)?(?:close|open|raise rent)\b.*\?[?.!]*$/i.test(text.trim());
+}
+
 export function isDirectLocalCommand(text: string): boolean {
   const normalized = text.normalize("NFKC").trim().replace(/^please\s+/i, "");
   if (/\?[?.!]*$/.test(normalized)) return false;

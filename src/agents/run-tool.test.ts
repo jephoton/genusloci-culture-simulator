@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { CityContext } from "@/agents/city";
 import { runCityTool, type ToolDeps } from "@/agents/run-tool";
+import { runOfflineChat } from "@/agents/offline-chat";
 import { DEFAULT_CONFIG } from "@/sim/config";
 import { digest } from "@/sim/digest";
 import { buildFrame } from "@/sim/frame";
@@ -35,6 +36,38 @@ function deps(over: Partial<ToolDeps> = {}): ToolDeps {
 }
 
 describe("runCityTool", () => {
+  it("invalidates the older plan when a newer comparison cannot resolve or validate", async () => {
+    const act = vi.fn(async () => true);
+    const shared = deps({ act, comparison: { current: null } });
+    for (const fail of [async () => runOfflineChat("what if Unknown Venue closes", shared), async () => runCityTool("what_if", { actions: "invalid" }, shared)]) {
+      await runCityTool("what_if", { actions: [{ do: "close_venue", venue: 0 }], weeks: 1 }, shared);
+      await fail();
+      await runOfflineChat("apply that", shared);
+      expect(act).not.toHaveBeenCalled();
+    }
+  });
+  it("applies the exact AI comparison through local apply-that once", async () => {
+    const act = vi.fn(async () => true);
+    const shared = deps({ act, comparison: { current: null } });
+    await runCityTool("what_if", { actions: [{ do: "close_venue", venue: 0 }], weeks: 1 }, shared);
+    expect(act).not.toHaveBeenCalled();
+    expect((await runOfflineChat("apply that", shared)).text).toContain("done");
+    expect(act).toHaveBeenCalledExactlyOnceWith({ type: "closeVenue", venue: 0 });
+    expect((await runOfflineChat("apply that", shared)).text).toContain("no previous comparison");
+  });
+
+  it("rejects a remembered comparison after rewind and does not announce rejected actions", async () => {
+    const act = vi.fn(async () => false);
+    const onApplied = vi.fn();
+    const memory = { current: null };
+    const shared = deps({ act, onApplied, comparison: memory });
+    await runCityTool("what_if", { actions: [{ do: "close_venue", venue: 0 }], weeks: 1 }, shared);
+    const rewound = deps({ act, comparison: memory, context: () => ({ ...ctx, frame: { ...ctx.frame, epoch: ctx.frame.epoch + 1 } }) });
+    expect((await runOfflineChat("apply that", rewound)).text).toMatch(/changed|discarded|stale/i);
+    expect(act).not.toHaveBeenCalled();
+    await runCityTool("apply", { actions: [{ do: "close_venue", venue: 0 }] }, shared);
+    expect(onApplied).not.toHaveBeenCalled();
+  });
   it("runs the read tools", async () => {
     expect(await runCityTool("city_summary", {}, deps())).toMatchObject({ residents: 200 });
     expect(await runCityTool("venue", { venue: 0 }, deps())).toMatchObject({ venue: 0 });

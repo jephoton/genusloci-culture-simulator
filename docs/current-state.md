@@ -2,6 +2,14 @@
 
 <!-- generated: maintained by agents -->
 
+## Comparison apply, playback and experiment focus fixes (2026-10-22)
+
+AI and local successful what-if comparisons now share the exact resolved simulation actions. Local **apply that** consumes the latest record once, validates timeline/epoch and closure target identity/open state, and applies without guessing from AI text. It survives read-only follow-ups. New comparison attempts clear old plans before parsing/resolution, including failed attempts; clear-chat, timeline change and live application also invalidate memory. AI still has no live apply tool. Only accepted actions invoke the application callback; successful live changes resume playback automatically. Comparisons pause for inspection.
+
+Experiment focus captures the targeted venues and the pre-change observed attendee group (or affected-cell residents for area actions), then keeps those people and their current destination venues highlighted. It does not highlight entire taste scenes or claim causal completeness. Target beacons persist through closure; unrelated landmarks/crowds and background paint/roofs dim, broad scene auras and general shockwave/ripple effects are suppressed. A small focus explanation and Clear highlights control appear on the map. Before any outings, the observed cohort may be empty. Resetting epoch invalidates the focus. See [current walkthrough](chat-lab-walkthrough.md).
+
+Verification: 579 tests across 102 files, lint and production build including TypeScript passed. Browser rehearsal compared Cirque Le Soir through AI, applied it with **apply that**, received `done`, and observed playback continue through later days/weeks. One observed pre-change visitor stayed in the focused cohort; a map inspection confirmed target beacon/background dimming, including the initially missed roof-material uniform. Review's stale older-plan issue was reproduced and fixed with a regression for unknown-venue/malformed newer comparisons. The live AI rehearsal selected the default eight-week horizon despite a one-week request and described visits imprecisely; instructions now explicitly require requested/returned horizon, persistent closure semantics and total-visit units, but that language correction has not had another live-provider rehearsal. No keys, billing, merge, push or deployment changed.
+
 ## Suggested-prompt keyboard completion (2026-10-22)
 
 Labeled recommendation lines (including “Suggested next prompt:” and bold/bulleted variants) are now hidden from assistant reply rendering while retained in raw message data for the input placeholder. The suggestion appears only inside the input; user-authored messages are unaffected. Extraction and hiding share the same label matcher. All 12 targeted prompt/rendering tests passed, including actual server-rendered assistant/user messages; TypeScript and targeted ESLint passed.
