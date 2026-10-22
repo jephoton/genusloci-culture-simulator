@@ -4,6 +4,8 @@
 
 ## Suggested-prompt keyboard completion (2026-10-22)
 
+Labeled recommendation lines (including “Suggested next prompt:” and bold/bulleted variants) are now hidden from assistant reply rendering while retained in raw message data for the input placeholder. The suggestion appears only inside the input; user-authored messages are unaffected. Extraction and hiding share the same label matcher. All 12 targeted prompt/rendering tests passed, including actual server-rendered assistant/user messages; TypeScript and targeted ESLint passed.
+
 Following the user's clarification, Right Arrow fills the exact placeholder displayed inside the input box. The separate suggestion below the input has been removed. The initial placeholder is “What if the busiest club closes?”; the latest assistant reply's explicit recommendation can replace it. With the input empty or holding a matching prefix and the caret at the end, unmodified Right Arrow fills that placeholder without sending. Selected text, middle-of-draft cursor movement, modifiers and IME composition preserve normal editing. Unrelated drafts are not replaced. AI instructions request a stable `Suggested prompt:` line when recommending a next question; recommendations cause no additional provider calls.
 
 Browser checks confirmed empty-input fill, no submission, normal cursor movement within a prefix and completion at the end. All nine targeted completion/copilot tests, TypeScript and targeted ESLint passed. Regressions cover extraction, quoted venue names, apostrophes, prefix matching and selection/caret guards. See [walkthrough](chat-lab-walkthrough.md). No provider order, environment, merge, push or deployment changes.

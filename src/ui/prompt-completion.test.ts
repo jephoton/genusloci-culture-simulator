@@ -1,5 +1,14 @@
 import { expect, it } from "vitest";
-import { recommendedPrompts, promptCompletion } from "./prompt-completion";
+import { recommendedPrompts, promptCompletion, withoutPromptRecommendation } from "./prompt-completion";
+
+it("keeps labeled recommendations in the input while hiding the whole line from replies", () => {
+  for (const label of ["Suggested prompt:", "Suggested next prompt:", "**Suggested next prompt:**", "- Next prompt:"]) {
+    const reply = `The city has 600 residents.\n${label} How do tastes evolve?`;
+    expect(recommendedPrompts(reply)).toEqual(["How do tastes evolve?"]);
+    expect(withoutPromptRecommendation(reply)).toBe("The city has 600 residents.");
+  }
+  expect(withoutPromptRecommendation("A prompt can help explore the model.")).toBe("A prompt can help explore the model.");
+});
 
 it("extracts suggested questions without treating quoted venue names as prompts", () => {
   expect(recommendedPrompts('Alpha Club is called “The Lab”. Try “What if Alpha Club closes?” or ask **Show the busiest venues**.')).toEqual(["What if Alpha Club closes?", "Show the busiest venues"]);

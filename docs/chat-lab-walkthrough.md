@@ -6,6 +6,8 @@ The experiment chatbot is the only visible command entry point. Existing simulat
 
 The empty input displays an example prompt inside the box; a reply's explicit recommendation can replace that example. Focus the input and press **→** to fill exactly the displayed placeholder, or finish a matching prefix with the cursor at its end. Filling never sends: edit the prompt, then press Enter or Send. Right Arrow retains normal cursor/selection behavior elsewhere in your draft. There is no separate suggestion below the input.
 
+Labeled next-prompt recommendations are hidden from the assistant's displayed reply and appear only as the input placeholder. Their internal labels are not shown to the visitor.
+
 ## First experiment without a language model
 
 For this deterministic rehearsal, disable **Chat options and limits → Use AI guide** first. With AI enabled, questions instead try Gemini, then Groq, then local parsing.

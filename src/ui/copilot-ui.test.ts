@@ -1,9 +1,21 @@
 import type { UIMessage } from "ai";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { friendlyError, toolLabel } from "@/ui/CopilotPanel";
+import { friendlyError, Message, toolLabel } from "@/ui/CopilotPanel";
 import { overTurnLimit, recentMessages, TURN_LIMITS, toolCallsThisTurn } from "@/ui/useCopilot";
 
 const msg = (i: number, role: "user" | "assistant"): UIMessage => ({ id: String(i), role, parts: [] });
+
+it("renders recommendations only as input data while preserving user-authored text", () => {
+  const text = "There are 600 residents.\nSuggested next prompt: How do tastes evolve?";
+  const assistant = renderToStaticMarkup(createElement(Message, { message: { id: "a", role: "assistant", parts: [{ type: "text", text }] } }));
+  expect(assistant).toContain("600 residents");
+  expect(assistant).not.toContain("Suggested next prompt");
+  expect(assistant).not.toContain("How do tastes evolve?");
+  const user = renderToStaticMarkup(createElement(Message, { message: { id: "u", role: "user", parts: [{ type: "text", text }] } }));
+  expect(user).toContain("Suggested next prompt");
+});
 
 describe("recentMessages", () => {
   it("keeps short conversations whole and cuts long ones at a user turn", () => {

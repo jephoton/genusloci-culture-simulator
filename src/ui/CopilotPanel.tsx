@@ -2,6 +2,7 @@
 
 import type { UIMessage } from "ai";
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
+import { withoutPromptRecommendation } from "@/ui/prompt-completion";
 
 const SUGGESTIONS = [
   "What scenes live here, and where?",
@@ -75,7 +76,7 @@ export function Message({ message }: { message: UIMessage }) {
   return (
     <div className="space-y-1.5 text-sm text-zinc-200">
       {message.parts.map((p, i) => {
-        if (p.type === "text") return <Markdown key={i} text={p.text} />;
+        if (p.type === "text") return <Markdown key={i} text={withoutPromptRecommendation(p.text)} />;
         if (p.type.startsWith("tool-")) {
           const part = p as unknown as ToolPart;
           const failed = part.state === "output-error";
