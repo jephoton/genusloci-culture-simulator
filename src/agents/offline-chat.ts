@@ -34,7 +34,12 @@ export async function runOfflineChat(text: string, deps: ToolDeps, context: Offl
   };
   try {
     const raw = text.trim();
-    if (!raw || raw.length > 500 || /[;\n\r"“”`]/.test(raw) || /^'.*'$/.test(raw) || /\b(?:and|then|also|but|or|don't|dont|do not|never|not|unless|except)\b/i.test(raw)) return refuse();
+    // Conjunctions inside an exact known place name are data, not compound instructions.
+    const candidate = raw.replace(/[?.!]+$/, "").replace(/^please\s+/i, "").replace(/^(?:what if|what happens if|simulate|compare)\s+(?:(?:we|i)\s+)?/i, "");
+    const target = candidate.match(/^close (.+)$/i)?.[1] ?? candidate.match(/^(.+) closes$/i)?.[1];
+    const current = target ? deps.context(null) : null;
+    const exactNamedTarget = !!target && !!current && Array.from(current.frame.venueEntity).slice(0, current.frame.nVenues).some((entity, slot) => normalize(current.frame.venueLabels?.[slot] ?? current.world.entities[entity]?.name ?? "") === normalize(target));
+    if (!raw || raw.length > 500 || /[;\n\r"“”`]/.test(raw) || /^'.*'$/.test(raw) || (!exactNamedTarget && /\b(?:and|then|also|but|or|don't|dont|do not|never|not|unless|except)\b/i.test(raw))) return refuse();
     const question = /\?[?.!]*$/.test(raw);
     let command = raw.replace(/[?.!]+$/, "").replace(/^please\s+/i, "").trim();
     const lower = normalize(command);
@@ -100,7 +105,8 @@ export async function runOfflineChat(text: string, deps: ToolDeps, context: Offl
       const next = Array.isArray(rows) && rows.length === 1 && typeof rows[0].venue === "number" ? { ...previous, lastVenue: rows[0].venue } : { ...previous, lastVenue: undefined };
       return show("Venue matches", result, next);
     }
-    match = command.match(/^(?:tell me about|details (?:on|for)|venue info(?: for)?|show venue) (.+)$/i);
+    match = command.match(/^(?:tell me about|details (?:on|for)|venue info(?: for)?|show venue|what is|what's|which is|show me) ((?:the )?(?:busiest|most struggling) (?:venue|club|bar|cafe|restaurant|gallery|music venue|shop|stadium))$/i)
+      ?? command.match(/^(?:tell me about|details (?:on|for)|venue info(?: for)?|show venue) (.+)$/i);
     if (match) {
       const found = await venue(match[1]);
       if (typeof found === "string") return reply(found, true, { ...previous, lastVenue: undefined });

@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { canInspectVenue, caseBeaconColour } from "@/render/case-view";
+import { canInspectVenue, venueBeaconScene } from "@/render/case-view";
 import type { ExperimentFocus } from "@/render/focus";
 
 it("allows only focused venues during a case without requiring a new focus", () => {
@@ -9,7 +9,10 @@ it("allows only focused venues during a case without requiring a new focus", () 
   expect(canInspectVenue(null, 3)).toBe(true);
 });
 
-it("gives case markers one stable colour independent of crowd tastes", () => {
-  expect(caseBeaconColour(true, [1, 0, 0])).toEqual(caseBeaconColour(true, [0, 0, 1]));
-  expect(caseBeaconColour(false, [1, 0, 0])).toEqual([1, 0, 0]);
+it("colours target beacons by the venue's matching scene, including closed targets", () => {
+  expect(venueBeaconScene({ identityScene: 4, dominantScene: 8 })).toBe(4);
+  expect(venueBeaconScene({ identityScene: 4, dominantScene: -1 })).toBe(4);
+  expect(venueBeaconScene({ identityScene: 7, dominantScene: 8 })).toBe(7);
+  expect(venueBeaconScene({ identityScene: -1, dominantScene: 8 })).toBe(8);
+  expect(venueBeaconScene({ identityScene: -1, dominantScene: -1 })).toBe(-1);
 });

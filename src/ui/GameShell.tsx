@@ -6,7 +6,7 @@ import type { FlyTo } from "@/render/CameraDirector";
 import { CityCanvas, type ScoutOverlay } from "@/render/CityCanvas";
 import type { FrameChange } from "@/render/effects/diff";
 import type { Origin } from "@/render/effects/director";
-import { experimentFocus, followExperiment, type Focus } from "@/render/focus";
+import { experimentFocus, followExperiment, venueFocus, type Focus } from "@/render/focus";
 import { canInspectVenue } from "@/render/case-view";
 import type { GhostSpec } from "@/render/Ghost";
 import { type CityLayout, nearestCell, type XZ } from "@/render/layout";
@@ -196,9 +196,9 @@ function Game({
 
   // The co-pilot and scene namer call back into the city at arbitrary times; they read the latest
   // values through this ref, so their callbacks can be created once.
-  const latest = useRef({ world, layout, act, latestDigest, whatIf, flyTo, liveDigest, frames, citySlug, play, pause, startCase: sim.startCase, activeCase: sim.activeCase });
+  const latest = useRef({ world, layout, act, latestDigest, whatIf, flyTo, liveDigest, frames, citySlug, play, pause, startCase: sim.startCase, finishCase: sim.finishCase, activeCase: sim.activeCase, pinned });
   useEffect(() => {
-    latest.current = { world, layout, act, latestDigest, whatIf, flyTo, liveDigest, frames, citySlug, play, pause, startCase: sim.startCase, activeCase: sim.activeCase };
+    latest.current = { world, layout, act, latestDigest, whatIf, flyTo, liveDigest, frames, citySlug, play, pause, startCase: sim.startCase, finishCase: sim.finishCase, activeCase: sim.activeCase, pinned };
   });
   const [describeScene] = useState(() => (id: number) => {
     const L = latest.current;
@@ -248,6 +248,18 @@ function Game({
     comparison: { current: null },
     deferComparisonSummary: true,
     isCaseActive: () => latest.current.activeCase !== null,
+    beforeChange: async () => { await latest.current.finishCase(); clearFocus(); },
+    onInspectVenue: (slot, ctx) => {
+      const L = latest.current;
+      if (L.pinned?.kind === "experiment") {
+        const current = followExperiment(L.pinned, ctx.frame);
+        if (!current || !canInspectVenue(current, slot)) return;
+      } else {
+        L.pause(); setHovered(null); setPinned(venueFocus(ctx.frame, slot));
+      }
+      setSelected(slot);
+      L.flyTo([L.layout.cellX[ctx.frame.venueCell[slot]], L.layout.cellZ[ctx.frame.venueCell[slot]]]);
+    },
     onComparisonCleared: () => { if (!latest.current.activeCase) clearFocus(); },
     context: (d) => {
       const L = latest.current;
@@ -444,7 +456,7 @@ function Game({
       flyTo([layout.cellX[f.venueCell[slot]], layout.cellZ[f.venueCell[slot]]]);
       return;
     }
-    setPinned({ kind: "venue", slot }); setSelected(null);
+      setPinned(venueFocus(f, slot)); setSelected(slot);
     flyTo([layout.cellX[f.venueCell[slot]], layout.cellZ[f.venueCell[slot]]]);
   }, [flyTo, layout, pinned]);
   const schedulePlannedEvent = useCallback(async (slot: number, a: BookingAct, date: BookingDate, snapshot: string) => {
@@ -545,6 +557,7 @@ function Game({
   }, [pinnedLive, sim.frame, sim.digest, world, layout, sceneNames]);
   const focus = useMemo<Focus>(() => {
     if (pinnedLive?.kind === "experiment") return sim.frame ? followExperiment(pinnedLive, sim.frame) : null;
+      if (pinnedLive?.kind === "venue" && pinnedLive.epoch !== undefined && pinnedLive.epoch !== sim.frame?.epoch) return null;
     return hovered !== null ? { kind: "scene", id: hovered } : pinnedLive;
   }, [hovered, pinnedLive, sim.frame]);
   const finishCase = async (resume: boolean) => {
@@ -568,7 +581,8 @@ function Game({
       }
       if (planVenue !== null) endPlan(true);
       setSelected(slot);
-      setPinned({ kind: "venue", slot });
+        const frame = latest.current.frames.current.current;
+        setPinned(frame ? venueFocus(frame, slot) : { kind: "venue", slot });
       setPanel("venues");
       setInterview(null);
     },
@@ -749,8 +763,8 @@ function Game({
         onPlay={play} onPause={pause} onRewind={sim.rewind} onFocusVenue={previewEventVenue} onFinishCase={finishCase} caseMessages={caseMessages} caseStatus={sim.activeCase ? caseComplete ? "complete" : "running" : null} />
       {selected !== null && sim.frame && canInspectVenue(focus, selected) && <VenueInspection world={world} frame={sim.frame} slot={selected} onClose={() => setSelected(null)} />}
       <TimelineBar tick={sim.frame?.tick ?? 0} ticksPerWeek={sim.frame?.ticksPerWeek ?? 1} earliest={sim.frame?.earliestTick ?? 0} playing={sim.playing} speed={sim.speed} onPlay={play} onPause={pause} onSpeed={sim.setSpeed} onRewind={(tick) => void sim.rewind(tick)} caseComplete={caseComplete} changes={sim.caseChanges} />
-      {focus?.kind === "experiment" && <div className="panel absolute left-3 top-24 z-10 max-w-64 space-y-1 px-3 py-2 text-xs text-zinc-300"><p>{sim.activeCase ? caseComplete ? "Case complete · paused" : sim.playing ? "Case playing" : "Case paused" : "Case prepared"} · {focus.agents.size} observed visitors.</p>{sim.activeCase && <progress aria-label="Case playback progress" max={sim.activeCase.maxTicks} value={Math.max(0, (sim.frame?.tick ?? sim.activeCase.startTick) - sim.activeCase.startTick)} className="h-1 w-full accent-cyan-300" />}<p className="text-[10px] text-zinc-400">Cyan beacon: case target. Other venue colours describe crowds, not changing venue tastes. Say “finish case” or “resume” to leave.</p></div>}
-      {attribution && <Attribution qloo={world.meta?.source === "qloo"} />}
+      {focus?.kind === "experiment" && <div className="panel absolute left-3 top-24 z-10 max-w-64 space-y-1 px-3 py-2 text-xs text-zinc-300"><p>{sim.activeCase ? caseComplete ? "Case complete · paused" : sim.playing ? "Case playing" : "Case paused" : "Case prepared"} · {focus.agents.size} observed visitors.</p>{sim.activeCase && <progress aria-label="Case playback progress" max={sim.activeCase.maxTicks} value={Math.max(0, (sim.frame?.tick ?? sim.activeCase.startTick) - sim.activeCase.startTick)} className="h-1 w-full accent-cyan-300" />}<p className="text-[10px] text-zinc-400">Target beacons follow the closest taste scene; signs follow the current crowd. A new change starts another case. Say “finish case” or “resume” to leave.</p><button type="button" onClick={() => void finishCase(false)} className="mt-1 rounded border border-white/20 px-3 py-1 text-xs hover:bg-white/10">Exit case/view</button></div>}
+      {focus && focus.kind !== "experiment" && <button type="button" onClick={() => void finishCase(false)} className="panel absolute left-3 top-24 z-10 px-3 py-2 text-xs hover:bg-white/10">Exit case/view</button>}{attribution && <Attribution qloo={world.meta?.source === "qloo"} />}
       {/* Keep the existing workspaces available for future chat result cards;
           experiment chat is the only visible command entry point. */}
       <div hidden>

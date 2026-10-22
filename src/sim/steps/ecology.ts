@@ -59,6 +59,7 @@ export function applyResidentialEcology(s: SimState, rng: Rng): { moves: number;
       s.energy[i] = 0.5 + 0.5 * rng.next();
       s.curiosity[i] = rng.next();
       s.attendance[i] = -1;
+      s.attendanceHistory.fill(-1, i * s.config.ticksPerWeek, (i + 1) * s.config.ticksPerWeek);
       s.scenes.assignment[i] = -1;
       replaced[i] = 1;
       changed.push(i);

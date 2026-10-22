@@ -2,6 +2,8 @@
 
 > **Current entry point:** experiment chat, with bottom playback and named change history. Questions try Gemini Flash-Lite, then Groq, then deterministic parsing. Prepare a case → explicitly apply → watch focused live playback → automatic pause and observed summary → rewind or resume. Only highlighted venues are selectable within a case; inspection shows name/model health without releasing focus. Main chat/playback use checkpoints, not numbered weeks. Follow [Chat-first lab walkthrough](chat-lab-walkthrough.md) for the current rehearsal and model limits. The workspace/button tour below is a legacy feature reference; those menus are no longer visible entry points.
 
+Current follow-up: **Exit case/view** releases a highlight and pauses; a valid new intervention replaces the previous observation while retaining applied changes. Busiest-venue lookup highlights recorded recent visitors. Beacon/body hues reflect the closest live taste scene, while sign hues reflect the current crowd; venue taste profiles stay fixed.
+
 A hands-on tour of every feature, in an order where each section sets up the next. It takes about 25–35 minutes. For the extended demo and an optional three-minute judge path, see [pitch-and-demo.md](pitch-and-demo.md#demo-runbook-allow-56-minutes).
 
 <!-- generated: navigation updated for the focused interface -->

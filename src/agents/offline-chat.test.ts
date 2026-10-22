@@ -30,6 +30,14 @@ function fixture() {
 }
 
 describe("offline chat deterministic phrase fixture (bounded grammar, not an LLM parity benchmark)", () => {
+  it("accepts conjunctions within an exact known venue name while refusing compound commands", async () => {
+    const f = fixture();
+    f.context.world.entities[0].name = "Ain't Nothin' But";
+    expect((await runOfflineChat("close Ain't Nothin' But", f.deps)).text).toContain("done");
+    f.act.mockClear();
+    expect((await runOfflineChat("close Ain't Nothin' But and close Alpha Bar", f.deps)).supported).toBe(false);
+    expect(f.act).not.toHaveBeenCalled();
+  });
   it.each([
     ["help", "Offline city chat"],
     ["city summary", "Synthville"],
@@ -38,6 +46,8 @@ describe("offline chat deterministic phrase fixture (bounded grammar, not an LLM
     ["find venue Alpha", "Alpha Club"],
     ["tell me about Alpha Club", "Venue details"],
     ["venue info for Alpha Club", "recent activity cycle"],
+    ["what's the busiest club?", "Venue details"],
+    ["which is the busiest club?", "Venue details"],
     ["busiest venues", "busiest"],
     ["struggling venues in Test Quarter", "struggling"],
     ["what is this lab?", "city culture simulation lab"],

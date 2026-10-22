@@ -97,7 +97,7 @@ export function LabChat({ city, citySlug, cities, onCityChange, deps, ai, config
       if (outcome.source === "local" && outcome.result) {
         const result = outcome.result;
         context.current = result.supported ? result.context : {};
-        if (result.context.lastVenue !== undefined && !deps.comparison?.current && !/^Live change result/.test(result.text)) onFocusVenue(result.context.lastVenue);
+        if (result.context.lastVenue !== undefined && !deps.comparison?.current && /^Venue (?:details|matches)\n/.test(result.text)) onFocusVenue(result.context.lastVenue);
         const playingReply = /^Live change result/.test(result.text) && /done/.test(result.text) ? `${result.text}\n\nPlaying the simulation so you can watch the change. Say ‘pause’ to inspect it.` : result.text;
         const localReply = useAI ? `AI is unavailable; using the local parser.\n\n${playingReply}` : playingReply;
         setMessages((m) => [...m, ...(!useAI ? [message("user", text, sentAt)] : []), message("assistant", localReply)]);

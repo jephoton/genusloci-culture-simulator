@@ -19,6 +19,8 @@ export type Frame = {
   alive: Uint8Array;
   homeCell: Int32Array;
   attendance: Int32Array;
+  /** Optional for older frame fixtures; agent slots × ticksPerWeek, recorded recent outings. */
+  attendanceHistory?: Int32Array;
   /** Per agent slot: lineage id of its scene, or -1. */
   scene: Int32Array;
   /** Per lineage id: parent lineage id, or -1. */
@@ -73,6 +75,12 @@ export function buildFrame(
     if (a >= 0) scene[i] = s.scenes.live[a];
   }
   const n = s.nVenues;
+  const attendance = s.attendance.slice();
+  // Raw state preserves expired-event attendance for final-turnout accounting. A reused venue
+  // lifetime clears history: do not draw those old visitors as the replacement venue's crowd.
+  if (s.tick > 0) for (let a = 0; a < attendance.length; a++) {
+    if (s.attendanceHistory[a * s.config.ticksPerWeek + (s.tick - 1) % s.config.ticksPerWeek] !== attendance[a]) attendance[a] = -1;
+  }
   // Events only grow, in tick order: scan back from the end and stop at the first older one.
   const events = s.scenes.events;
   let first = events.length;
@@ -90,7 +98,8 @@ export function buildFrame(
     sceneEvents: events.slice(first),
     alive: s.alive.slice(),
     homeCell: s.homeCell.slice(),
-    attendance: s.attendance.slice(),
+    attendance,
+    attendanceHistory: s.attendanceHistory.slice(),
     scene,
     lineageParents: Int32Array.from(s.scenes.lineages, (l) => l.parent ?? -1),
     nVenues: n,

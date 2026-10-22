@@ -25,6 +25,10 @@ export function addVenue(
   reachKm = 0,
 ): number {
   let v = reusableSlot(s);
+  if (v >= 0) {
+    // A recycled event slot is a different venue lifetime, even with the same catalogue entity.
+    for (let i = 0; i < s.attendanceHistory.length; i++) if (s.attendanceHistory[i] === v) s.attendanceHistory[i] = -1;
+  }
   if (v < 0) {
     v = s.nVenues;
     if (v >= s.venueEntity.length) return -1;

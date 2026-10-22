@@ -29,12 +29,14 @@ it("residents leave an expensive cell for cheaper sampled homes deterministicall
 
 it("turnover refreshes residents while preserving population and reserve slots", () => {
   const s = initState(makeTinyWorld(), { ...DEFAULT_CONFIG, nAgents: 80, residentTurnoverRate: 1 }, 7);
+  s.attendanceHistory.fill(0, 0, 80 * s.config.ticksPerWeek);
   const before = s.genomes.w.slice();
   const result = applyResidentialEcology(s, createRng(21));
   expect(result.replacements).toBe(80);
   expect(s.genomes.w).not.toEqual(before);
   expect(s.alive.reduce((a, b) => a + b, 0)).toBe(80);
   expect(s.attendance.every((v) => v === -1)).toBe(true);
+  expect(s.attendanceHistory.every((v) => v === -1)).toBe(true);
   expect(s.genomes.ids.slice(80 * 32).every((id) => id === -1)).toBe(true);
 });
 

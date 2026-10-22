@@ -28,6 +28,7 @@ export function formatEvidence(result: unknown): string {
   if (typeof r.venue === "number") return [
     `${value(r.name)} · ${value(r.kind)} · ${value(r.area)}. ${r.open ? "Open" : "Closed"} in the model.`,
     `${value(r.visitorsTonight)} visits this step; ${value(r.weeklyVisits)} visits in the recent activity cycle.`,
+    ...(typeof r.recentVisitors === "number" ? [`${r.recentVisitors} distinct recent visitors recorded. Their highlights follow recorded outings, not all members of a taste scene.`] : []),
     `Recorded venue tastes: ${Array.isArray(r.tastes) ? r.tastes.map(value).join(", ") || "unavailable" : "unavailable"}.`,
     "Model visit targets are not real room capacities. Ask ‘what if this venue closes?’ to compare futures.",
   ].join("\n");

@@ -5,6 +5,9 @@ export type Roster = { offsets: Int32Array; members: Int32Array };
 
 /** Sets s.venueAttendance from s.attendance and returns the attendee roster. */
 export function tallyAttendance(s: SimState): Roster {
+  const cycle = s.config.ticksPerWeek;
+  const cursorTick = s.tick % cycle;
+  for (let a = 0; a < s.alive.length; a++) s.attendanceHistory[a * cycle + cursorTick] = s.alive[a] ? s.attendance[a] : -1;
   const nV = s.nVenues;
   const counts = s.venueAttendance;
   counts.fill(0);

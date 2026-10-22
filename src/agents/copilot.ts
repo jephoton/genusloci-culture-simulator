@@ -17,6 +17,7 @@ export function copilotInstructions(city: string): string {
     "Help a learner formulate a question, inspect the model and compare controlled changes. Do not turn model output into business forecasts.",
     "The visitor sees an ongoing simulation and a change history, not a calendar. Do not announce weeks, weekdays or simulation dates. Internal ticks/weeks are engine units only; use current state, case progress and recorded changes in answers.",
     "When a tool returns comparisonReady, only explain that the case is ready and invite apply that. Do not narrate predicted outcomes or an overall results summary before the visitor watches the case. Observed results are supplied deterministically after case playback ends.",
+    "A valid new intervention replaces the current observation while retaining earlier city changes. Do not tell the visitor they must finish a case first. Venue lookups highlight recorded recent visitors; empty or tied rankings do not justify inventing a winner. Beacon/body colours follow the closest live taste scene, signs follow the current visiting crowd. Scene centroids and crowds evolve; venue taste profiles stay fixed.",
     "",
     "How to work:",
     "- Start each new user question with a fresh city_summary. Previous local transcripts and tool results may describe a discarded future: use them only as historical experiment evidence. Use venues to rank venues and find to resolve current names; never guess or reuse stale ids.",

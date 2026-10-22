@@ -36,6 +36,51 @@ function deps(over: Partial<ToolDeps> = {}): ToolDeps {
 }
 
 describe("runCityTool", () => {
+  it("finishes an active observation before a valid new intervention and refreshes its context", async () => {
+    let active = true;
+    const order: string[] = [];
+    const shared = deps({ isCaseActive: () => active, beforeChange: async () => { order.push("finish"); active = false; }, act: async () => { order.push("apply"); return true; }, onApplied: (_, before) => { expect(before.frame.tick).toBe(ctx.frame.tick + 1); }, context: (d) => ({ ...ctx, digest: d, frame: { ...ctx.frame, tick: ctx.frame.tick + (active ? 0 : 1) } }) });
+    expect(await runCityTool("apply", { actions: [{ do: "close_venue", venue: 0 }] }, shared)).toEqual({ applied: ["done"] });
+    expect(order).toEqual(["finish", "apply"]);
+  });
+  it("does not release an active case for an invalid target", async () => {
+    const beforeChange = vi.fn(async () => {});
+    const shared = deps({ isCaseActive: () => true, beforeChange });
+    expect(await runCityTool("apply", { actions: [{ do: "close_venue", venue: 99999 }] }, shared)).toHaveProperty("error");
+    expect(beforeChange).not.toHaveBeenCalled();
+  });
+  it("connects read tools to venue inspection including a unique busiest result", async () => {
+    const onInspectVenue = vi.fn();
+    const shared = deps({ onInspectVenue });
+    await runCityTool("venue", { venue: 0 }, shared);
+    expect(onInspectVenue).toHaveBeenCalledWith(0, expect.anything());
+    onInspectVenue.mockClear();
+    const visits = new Int32Array(ctx.frame.nVenues); visits[0] = 10;
+    const ranked = deps({ onInspectVenue, context: () => ({ ...ctx, frame: { ...ctx.frame, venueWeekVisits: visits } }) });
+    const result = await runCityTool("venues", { sort: "busiest", limit: 1 }, ranked);
+    expect(onInspectVenue).toHaveBeenCalledWith(0, expect.anything());
+    expect((result as { venues: unknown[] }).venues).toHaveLength(1);
+    onInspectVenue.mockClear(); visits.fill(0);
+    await runCityTool("venues", { sort: "busiest", limit: 1 }, ranked);
+    expect(onInspectVenue).not.toHaveBeenCalled();
+  });
+  it("rejects a target replaced during case handoff without applying it", async () => {
+    let stopped = false;
+    const act = vi.fn(async () => true);
+    const shared = deps({ act, isCaseActive: () => true, beforeChange: async () => { stopped = true; }, context: () => ({ ...ctx, frame: { ...ctx.frame, epoch: ctx.frame.epoch + (stopped ? 1 : 0) } }) });
+    expect(await runCityTool("apply", { actions: [{ do: "close_venue", venue: 0 }] }, shared)).toHaveProperty("error");
+    expect(act).not.toHaveBeenCalled();
+  });
+  it("allows preparing and applying a replacement case after ending the previous observation", async () => {
+    let active = true;
+    const beforeChange = vi.fn(async () => { active = false; });
+    const act = vi.fn(async () => true);
+    const shared = deps({ beforeChange, act, isCaseActive: () => active, comparison: { current: null }, deferComparisonSummary: true });
+    expect(await runCityTool("what_if", { actions: [{ do: "close_venue", venue: 0 }], weeks: 1 }, shared)).toMatchObject({ comparisonReady: true });
+    expect(beforeChange).toHaveBeenCalledOnce();
+    expect((await runOfflineChat("apply that", shared)).text).toContain("done");
+    expect(act).toHaveBeenCalledExactlyOnceWith({ type: "closeVenue", venue: 0 });
+  });
   it("defers case outcomes until playback and preserves the prepared plan", async () => {
     const shared = deps({ deferComparisonSummary: true, comparison: { current: null } });
     const ready = await runCityTool("what_if", { actions: [{ do: "close_venue", venue: 0 }] }, shared);
