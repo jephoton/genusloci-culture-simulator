@@ -2,6 +2,8 @@
 
 <!-- generated: research-backed recommendation, not validated product demand or an approved implementation plan -->
 
+**Follow-up:** the user subsequently authorized the [three spikes](spikes/README.md) and explicitly accepted ALife portfolio/research value as an independent goal. Their findings favor a playable cultural ecology lab for that goal. The promoter hypothesis below remains unvalidated; do not treat it as the chosen direction merely because it was documented first.
+
 ## Decision
 
 Conditional go for a small audience-fit research prototype; no-go for further ecosystem/visual-test expansion until its decision value is demonstrated. The previous proposed visual-tests design is on hold. Do not preserve rent changes, migration, openings/closures or general scenario controls in an Advanced experiments product menu merely because they exist.

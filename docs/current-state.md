@@ -2,6 +2,14 @@
 
 <!-- generated: maintained by agents -->
 
+## Three direction spikes completed (2026-10-22)
+
+The user authorized promoter, cross-domain Qloo and ALife-purpose spikes, explicitly valuing a portfolio ALife project independently of commercial utility or hackathon results. [Spike index](spikes/README.md) integrates the findings. Recommendation: a playable cultural ecology laboratory is the strongest fit for that goal; do not force a forecasting/product claim to retain the engine. This is a recommendation, not an approved application redesign.
+
+Three artist-conditioned London scouting briefs were generated from live Qloo evidence in ignored `.cache/spikes/product-direction/`. Affinity changed rankings but surfaced unverified/inappropriate performance formats, so promoter decision value remains unvalidated. Dining and brand probes returned cross-domain results; matched restaurant controls differed by signal. Brand recommendation responses exposed string keywords incompatible with the production parser; only the spike script adapts them. No production parser or UI changed. Across four capped/cached runs, 27 network starts and zero 429s were observed; no LLM calls or environment changes were needed. Do not commit generated Qloo reports/payloads.
+
+The synthetic ALife experiment was independently reproduced via `npx tsx scripts/spike-alife-purpose.ts`: ten seed pairs, 600 residents, 52 weekly ticks, friend-choice bonus removed. Concentration changes split five positive/five negative, with near-zero mean; repeated seed-one report matched exactly. This is a model finding, not real-world behavioral validation. Reproducible scripts and source-backed spike reports are available; previous visual-test implementation plan stays on hold pending a chosen public promise. Update the architecture/README/pitch when that promise is approved; current application still reflects earlier directions.
+
 ## Product reassessment: pause feature expansion (2026-10-22)
 
 The user challenged the event-planner problem statement and the retention of sandbox features. [Product brief](product-brief.md) records primary-source research, existing competitors and a conditional recommendation: test an evidence-backed audience-fit venue shortlist for independent music promoters before implementing more simulation UI. This is a hypothesis, not validated demand. Advanced experiments, automatic openings and user-facing fidelity have no demonstrated role in that proposed workflow; ALife should not be retained as decision authority merely because it is implemented.
