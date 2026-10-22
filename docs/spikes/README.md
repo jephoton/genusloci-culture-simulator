@@ -1,6 +1,6 @@
 # Product and ALife spikes
 
-For free LLM options and the bounded live Groq tool-schema probe, see [provider evaluation](2026-10-22-llm-provider-options.md). Gemini is the next candidate to test; its live results remain pending local credentials.
+For free LLM options and bounded live tool-schema probes, see [provider evaluation](2026-10-22-llm-provider-options.md). Gemini Flash-Lite passed three schemas and a synthetic streamed tool-result continuation after local credentials were supplied; broad reliability and real browser rehearsal remain unverified.
 
 The user subsequently chose a chat-first lab entry. See [chat/agentic requirement findings](2026-10-22-chat-agent-requirements.md) and the [implemented walkthrough](../chat-lab-walkthrough.md). Supported commands execute locally; optional AI adds language flexibility. The finite parser is not an unrestricted LLM replacement.
 
