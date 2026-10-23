@@ -2,6 +2,8 @@
 
 <!-- generated: maintained by agents; keep in sync with the spec -->
 
+The artist-first comparison is restored as a separate **Plan an event** workspace, with an accessible event calendar and return to the same mounted chat. Its explicit entry ends any focused observation and pauses before planning; schedule/cancel actions preserve manual playback. The comparison engine is reused, including snapshot guards and host baseline accounting. [Comparison-first workspace evaluation](comparison-workspace-evaluation.md) recommends a future hierarchy change but does not implement replacement of the main case view.
+
 Current rendering/playback policy: `CityCanvas` omits placeholder background buildings while retaining actual venue landmarks, roads and labels. Applied cases are armed paused through worker `startCase.autoplay=false`; the bottom Play button starts observation and Pause retains it. Chat playback/exit requests produce button guidance rather than calling controls. Case endpoint stopping and operational pauses for inspection/application/rewind remain. See the current walkthrough.
 
 ## Simulation scheduling and world builds

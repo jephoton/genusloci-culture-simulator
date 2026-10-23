@@ -2,6 +2,16 @@
 
 <!-- generated: maintained by agents -->
 
+## Planner restoration, judging audit and workspace evaluation (2026-10-23)
+
+The separate **Plan an event** and **Event calendar** entries are restored beside experiment chat. The existing artist-first shortlist and paired alternative-host comparison are reused. Switching to planning finishes any active case observation, pauses and clears the old focus; scheduling remains paused until the visitor clicks Play. Returning to chat preserves the conversation, and switching planner/calendar preserves the artist brief. Editable duration fields allow an empty intermediate value with bounded submission validation. Booking receipts follow cancellation/rewind instead of retaining stale success. The welcome text distinguishes Qloo cultural inputs from authored residents and explicitly identifies synthetic fallback worlds.
+
+Browser rehearsal compared Ghetts across three hosts, selected and scheduled 100 Club, verified paused playback, cancelled the booking and checked its corrected receipt. It also checked chat preservation, entering the planner during a live case, and editable duration. Independent spec and quality reviews found no remaining actionable findings after fixes. Full verification: **644 tests across 115 files**, lint and TypeScript passed. Production build passed on retry, including compilation, TypeScript and static generation; an earlier attempt was interrupted by the framework security gate, and the advisory remains a release concern. Desktop was rehearsed; no phone/touch verification or new live-provider round was performed.
+
+See [judging alignment](judging-alignment.md), [commit/milestone overlay](project-history.md) and [comparison workspace evaluation](comparison-workspace-evaluation.md). The recommendation is comparison-first with the existing case view as **Watch this option**. The main-view replacement and selected-comparison-to-case bridge are not implemented by this evaluation. The project spans about 14 calendar days from the first commit on 9 October; Git does not establish work hours.
+
+The public demo still shows the older sandbox and does not yet match this local flow. Publication/provider rehearsal and Devpost submission remain release work. Installed Next.js 16.4.0 reported registry-confirmed advisories; this task did not establish app exploitability or upgrade dependencies. Patch and verify the framework before publishing. No merge, push, deployment or credential changes were made.
+
 ## Manual playback and venue-only buildings (2026-10-22)
 
 The user requested removing placeholder building presence and giving visitors direct playback control. `CityCanvas` no longer renders background `Buildings`; actual venue landmarks, residents, streets and labels remain. The building renderer remains in source for possible future reuse but is not mounted.

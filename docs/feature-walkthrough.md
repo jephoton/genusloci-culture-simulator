@@ -1,5 +1,7 @@
 # Feature walkthrough
 
+> **Restored separate planner:** click **Plan an event**, choose a local artist such as Ghetts in London, then **Find matching venues → Compare impact at … venues**. Select alternatives to see no-event/event host totals and the three-run turnout range. Scheduling is explicit and remains paused. **Event calendar** shows modeled bookings; **Return to experiment chat** preserves the conversation. This is again a visible entry, while the older broad sandbox menus below remain historical reference.
+
 > **Latest controls:** placeholder buildings are removed. Applying a change leaves its case paused; click bottom **Play** when ready, **Pause** to stop, or **Exit case/view** to release focus. Chat start/stop/resume requests only explain those controls. Completed cases still pause automatically and show outcomes.
 
 > **Current entry point:** experiment chat, with bottom playback and named change history. Questions try Gemini Flash-Lite, then Groq, then deterministic parsing. Prepare a case → explicitly apply → watch focused live playback → automatic pause and observed summary → rewind or resume. Only highlighted venues are selectable within a case; inspection shows name/model health without releasing focus. Main chat/playback use checkpoints, not numbered weeks. Follow [Chat-first lab walkthrough](chat-lab-walkthrough.md) for the current rehearsal and model limits. The workspace/button tour below is a legacy feature reference; those menus are no longer visible entry points.

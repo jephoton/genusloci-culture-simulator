@@ -1,5 +1,7 @@
 # Chat-first cultural ecology lab
 
+The separate **Plan an event** and **Event calendar** entries are restored alongside chat. Opening the planner explicitly finishes an active case and pauses. Pick an artist, find an affinity-based existing-venue shortlist and compare alternative hosts with the same event brief; optional scheduling stays paused. Return to experiment chat keeps the existing conversation. The comparison-first default workspace is being evaluated separately, not silently substituted for the current case view.
+
 <!-- generated: current implemented entry flow -->
 
 The experiment chatbot is the command entry point for questions and changes. Playback belongs to the bottom Play/Pause controls: chat requests for start, stop, resume or finish provide directions without changing playback. Existing simulation functions are reused through the canonical city-tool dispatcher; former workspaces remain hidden compatibility components. The map remains available for inspection, pan and zoom. Placeholder background buildings are removed; actual venue landmarks remain. Minimize chat to inspect more of the map, then reopen it.

@@ -10,17 +10,20 @@ import type { Frame } from "@/sim/frame";
 import { Message } from "@/ui/CopilotPanel";
 import type { useCopilot } from "@/ui/useCopilot";
 import { promptCompletion, recommendedPrompts } from "@/ui/prompt-completion";
+import { labIntro } from "@/ui/lab-intro";
+import type { PlanningView } from "@/ui/EventPlanningWorkspace";
 
 type LocalContext = { lastAction?: CopilotAction; lastVenue?: number };
 const suggestions = ["What can I do?", "Show the busiest venues", "What if the busiest club closes?", "How do tastes evolve?"];
 const message = (role: "user" | "assistant", text: string, at = Date.now()): UIMessage => ({ id: crypto.randomUUID(), role, parts: [{ type: "text", text }], metadata: { labAt: at } });
 const cooldownExpired = (until: number) => Date.now() >= until;
 const submissionTime = () => Date.now();
-const welcome = "Welcome to the cultural ecology lab. Ask a question, inspect the model, then compare a change against a no-change future. Try ‘Show the busiest venues’ or ‘What if the busiest club closes?’\n\nLocal commands work without an LLM. These are experiments in an artificial society, not forecasts about real businesses.";
 
-export function LabChat({ city, citySlug, cities, onCityChange, deps, ai, configured, frame, onPause, onRewind, onFocusVenue, caseMessages = [], caseStatus = null }: {
+export function LabChat({ city, citySlug, cities, onCityChange, deps, ai, configured, frame, qlooGrounded, onPause, onRewind, onFocusVenue, planning = false, planningBusy = false, onPlanning, caseMessages = [], caseStatus = null }: {
   city: string; citySlug: string; cities: { slug: string; name: string }[]; onCityChange: (city: string) => void;
   deps: ToolDeps; ai: ReturnType<typeof useCopilot>; configured: boolean; frame: Frame | null;
+  qlooGrounded: boolean;
+  planning?: boolean; planningBusy?: boolean; onPlanning?: (view: PlanningView) => void;
   onPause: () => void; onRewind: (tick: number) => Promise<boolean>; onFocusVenue: (slot: number) => void;
   caseMessages?: { id: string; text: string; at: number }[];
   caseStatus?: "running" | "complete" | null;
@@ -39,7 +42,7 @@ export function LabChat({ city, citySlug, cities, onCityChange, deps, ai, config
   const end = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const aiBusy = ai.status === "streaming" || ai.status === "submitted";
-  const locked = busy || aiBusy || !frame;
+  const locked = busy || aiBusy || !frame || planningBusy;
   const transcript: UIMessage[] = [...messages, ...caseMessages.filter((entry) => entry.at > clearedAt).map((entry) => ({ id: `case-summary-${entry.id}`, role: "assistant" as const, parts: [{ type: "text" as const, text: entry.text }], metadata: { labAt: entry.at } }))].sort((a, b) => ((a.metadata as { labAt?: number })?.labAt ?? 0) - ((b.metadata as { labAt?: number })?.labAt ?? 0));
   const latest = messages.findLast((m) => m.role === "assistant");
   const aiStart = (latest?.metadata as { labAIStart?: number } | undefined)?.labAIStart;
@@ -102,14 +105,20 @@ export function LabChat({ city, citySlug, cities, onCityChange, deps, ai, config
   const submit = (event: FormEvent) => { event.preventDefault(); void send(input); };
 
   return <>
-    <header className="panel pointer-events-auto absolute left-3 right-3 top-3 z-10 flex items-center justify-between gap-3 px-4 py-3 sm:right-auto sm:min-w-64">
+    <header className="panel pointer-events-auto absolute left-3 right-3 top-3 z-10 space-y-2 px-4 py-3 lg:right-auto lg:min-w-64">
+      <div className="flex items-center justify-between gap-3">
       <div><h1 className="text-sm font-medium tracking-wide">Genus Loci</h1><p className="text-[11px] text-zinc-400">Cultural ecology lab · {frame ? "Live city" : "Preparing city…"}</p></div>
       <select aria-label="City" value={citySlug} onChange={(e) => onCityChange(e.target.value)} className="rounded bg-zinc-900 px-2 py-2 text-xs">{cities.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}</select>
+      </div>
+      {onPlanning && <nav aria-label="Lab workspaces" className="flex gap-2 text-xs">
+        <button id="event-planner-entry" type="button" disabled={locked} onClick={() => onPlanning("plan")} className="rounded border border-violet-400/30 bg-violet-500/20 px-3 py-2 text-violet-100 disabled:opacity-40">{planningBusy ? "Opening planner…" : "Plan an event"}</button>
+        <button type="button" disabled={locked} onClick={() => onPlanning("calendar")} className="rounded border border-white/10 px-3 py-2 text-zinc-300 disabled:opacity-40">Event calendar</button>
+      </nav>}
     </header>
-    {!open ? <button type="button" onClick={() => setOpen(true)} className="panel absolute bottom-28 right-4 z-20 px-5 py-3 text-sm">Open experiment chat</button> : <section aria-label="Experiment chat" className="panel absolute bottom-28 left-3 right-3 top-24 z-20 flex flex-col overflow-hidden sm:left-auto sm:right-4 sm:top-4 sm:w-[25rem]">
+    {!planning && (!open ? <button type="button" onClick={() => setOpen(true)} className="panel absolute bottom-28 right-4 z-20 px-5 py-3 text-sm">Open experiment chat</button> : <section aria-label="Experiment chat" className="panel absolute bottom-28 left-3 right-3 top-32 z-20 flex flex-col overflow-hidden lg:left-auto lg:right-4 lg:top-4 lg:w-[25rem]">
       <header className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3"><div><h2 className="text-sm font-medium">Ask the lab</h2><p className="text-[11px] text-zinc-400">{city}{allowAI ? " · AI guide with local fallback" : " · Local commands ready"}</p></div><button type="button" aria-label="Minimize experiment chat" onClick={() => setOpen(false)} className="rounded px-2 py-1 text-zinc-400">−</button></header>
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4" role="log" aria-label="Experiment conversation" aria-live="polite">
-        <p className="whitespace-pre-line text-sm leading-relaxed text-zinc-300">{welcome}</p>
+        <p className="whitespace-pre-line text-sm leading-relaxed text-zinc-300">{labIntro(qlooGrounded)}</p>
         {transcript.map((m, index) => {
           const start = (m.metadata as { labAIStart?: number } | undefined)?.labAIStart;
           if (start === undefined) return <Message key={m.id} message={m} />;
@@ -131,6 +140,6 @@ export function LabChat({ city, citySlug, cities, onCityChange, deps, ai, config
         }} title="Press Right Arrow to fill the example prompt." disabled={locked} autoComplete="off" placeholder={placeholderPrompt} className="min-w-0 flex-1 rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm outline-none focus:border-violet-400" /><button disabled={locked || !input.trim()} className="rounded-lg bg-violet-500/70 px-3 py-2 text-sm disabled:opacity-40">Send</button></form>
         <details className="text-[11px] text-zinc-400"><summary className="cursor-pointer">Chat options and limits</summary><div className="mt-2 space-y-2"><p>Questions try Gemini, then Groq, then the bounded local parser. Use the bottom Play/Pause buttons and Exit case/view. Rewind through History & speed.</p><label className="flex gap-2"><input type="checkbox" checked={allowAI} disabled={!configured || aiBusy} onChange={(e) => setAllowAI(e.target.checked)} />Use AI guide{!configured && " (no provider configured)"}</label><p>AI can inspect and prepare a case. Apply explicitly, then click Play when ready; outcomes appear after playback stops. Provider retries stop once answer or tool output begins.</p><button type="button" disabled={locked} onClick={() => { generation.current++; context.current = {}; clearComparison(deps); ai.resetChat(); setMessages([]); setClearedAt(Date.now()); }} className="text-violet-200">Clear conversation</button></div></details>
       </div>
-    </section>}
+    </section>)}
   </>;
 }
