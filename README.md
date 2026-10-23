@@ -1,76 +1,81 @@
 # Genus Loci
 
-**A chat-first cultural ecology laboratory: explore how tastes, encounters and shared places interact in an agent-based model grounded in Qloo.**
+**A Qloo-grounded cultural ecology lab: ask a question, change a shared place, and follow what its simulated visitors do next.**
 
-Thousands of synthetic residents carry weighted cultural interests. They visit catalogue venues, influence one another and form model scenes. Ask the experiment chat to inspect the city, compare a hypothetical closure/opening/rent change against a no-change future, or explicitly apply an intervention. Supported local commands require no LLM; optional AI helps with broader questions. Outcomes describe the authored model, not observed fans or validated ticket forecasts. Start with the [current walkthrough](docs/chat-lab-walkthrough.md).
+Genus Loci helps learners and technically curious people explore how individual tastes and shared places can produce collective cultural patterns. Instead of accepting an LLM's invented story about a venue closure, inspect a reproducible model, prepare an intervention, watch its recorded recent visitors and rewind to test another idea.
 
-**Live demo:** https://genusloci-culture-simulator.vercel.app (London, Singapore, New York)
+Qloo supplies catalogue venues, taste relationships, artist affinities and geographic heatmaps. The residents, learning rules and outcomes are authored simulation, not observed people or validated forecasts about businesses.
 
-![London in Genus Loci: residents coloured by scene stream between real venues while the co-pilot explains the city's scenes](docs/images/london.png)
+**Public demo:** [Genus Loci](https://genusloci-culture-simulator.vercel.app/) · **Current guide:** [Chat lab walkthrough](docs/chat-lab-walkthrough.md)
 
-Built for the [Qloo Agentic Hackathon](https://qloo.devpost.com/), "Agents, but with taste".
+> Release note: the public URL was accessible on 2026-10-23, but still served the older sandbox interface. The current chat-first flow described here must be published before submission. See [judging alignment and release checks](docs/judging-alignment.md).
 
-## Who it's for
+## The experience
 
-- **Learners and technically curious visitors:** investigate how individual rules can produce group patterns, inspect assumptions and compare reproducible model experiments.
-- **ALife/agent-based modelling enthusiasts and portfolio reviewers:** explore deterministic simulation, cultural data grounding, tool orchestration and the limits of causal claims. Practitioner decision support remains unvalidated.
+1. Click **Play**, let residents make a few outings, then click **Pause**.
+2. Ask **What's the busiest club?** Inspect its name, model health and recorded recent visitors.
+3. Ask **What if <full venue name> closes?** The guide resolves the target and prepares a paired scenario/no-change comparison without modifying the live city.
+4. Say **apply that**. The validated change is applied once and its focused case stays paused. Click **Play** when ready; **Pause** remains under your control.
+5. Follow the recent visitor cohort and its current destinations. At a settling heuristic or observation cap, playback pauses and chat reports actual monitored outcomes.
+6. Use **Change history** to rewind before the change. **Exit case/view** releases the highlight and leaves the city paused.
 
-## What you can do
+For artist/location comparison, open the separate **Plan an event** entry: choose an artist, find culturally matching existing venues, compare alternative hosts and optionally schedule an event in the model. This restored entry reuses the original comparison engine; it does not require an LLM. Its results are exploratory model evidence, not verified suitability or sales forecasts.
 
-The chatbot is the current entry point. The inventory below describes retained engine capabilities; earlier standalone workspaces are hidden compatibility code. See the walkthrough for which commands are locally supported. Arbitrary language, every legacy action and LLM equivalence are not promised.
+AI questions try Gemini, then Groq, then bounded deterministic interpretation. The AI guide can choose inspection, comparison and live Qloo lookup tools; explicit city mutations remain local and require the visitor's command. The fallback supports documented commands, not unrestricted language parity. No extra agent-purchase or LLM key is needed to try local commands.
 
-- **Watch a real city:** real streets from OpenStreetMap and about 140 real venues from Qloo. Residents walk out each night and home again, and scenes appear in the legend with plain names generated from their tastes.
-- **Change it:** open a venue (the best-fitting real place for that spot), throw an event with a real artist, or close a venue. Effects ripple through the city.
-- **Scout a location:** compare candidate spots for a headliner. Each spot is simulated a few weeks ahead next to a no-event baseline, over several seeded runs.
-- **Ask the co-pilot:** *"What happens if the busiest club closes?"* It reads the city, ranks venues and runs a what-if. Each what-if repeats a with-change and a no-change copy of the city four times, and the co-pilot reports which effects are clear and which are too small to call. It can also make the change when asked, and look things up in Qloo.
-- **Talk to a resident:** interview a typical member of any scene. They speak only from their own simulated tastes.
+The visible flow is a learning lab. Retained booking, resident-interview and sandbox code does not imply every legacy feature is exposed through the current UI.
 
-## How it uses Qloo
+## Why Qloo matters
 
-Qloo data drives the model, not just its labels:
+| Qloo-derived input | Role in the model |
+| --- | --- |
+| Places, locations, kinds and taste tags | Venue catalogue, venue profiles and scene starting points |
+| Artist recommendations and cultural affinities | Taste graph used in venue matching and adoption probabilities |
+| Heatmaps | Geographic seeding; separate held-out maps support a limited spatial diagnostic |
+| Live search and tag-affinity tools | Grounded cultural lookups available to the AI guide |
 
-| Qloo | Used for |
-|---|---|
-| Place insights within the city (one union-of-tags query per venue kind) | The venues: location, kind, popularity and taste tags |
-| Artist recommendations for each anchor venue's crowd | Artists in residents' tastes, event headliners, venue–artist and artist–artist affinities |
-| Place and music tags | Taste genes, plus the affinities that drive who adopts what and how tastes drift |
-| Heatmaps | One per scene seeds where its residents live. A **different, held-out** one per scene measures **fidelity**, which rises as the city runs (after 60 weeks: London about 0.22, New York 0.31, Singapore 0.11) |
-| Search and tag affinities (live) | Co-pilot lookups, capped per question |
+Removing Qloo would leave a functioning generic simulator, but remove the basis for its city-specific cultural relationships. Qloo provides cultural inputs; it does not validate the authored dynamics. We have not demonstrated superiority over an LLM-only baseline or real-world forecasting accuracy.
 
-Qloo responses are never committed to this repository (Qloo terms). City worlds are built with a CLI, cached locally, and served by the app from a private store.
+## Architecture
 
-## How it works
+- **Simulation:** deterministic TypeScript in a Web Worker. Sparse tastes, outings, social exposure, drift/decay, venue health, scene clustering and lineage. Snapshot rewind and fork support reproducible experiments.
+- **Agent:** Vercel AI SDK tool calling. City tools execute in the browser against the worker; Qloo tools run on the server. Provider fallback stops replay once answer/tool output begins.
+- **Interface:** Next.js 16, React 19, React Three Fiber and Three.js. Actual venue landmarks, OSM streets, animated residents, relevant-only case inspection and manual playback.
+- **Verification:** Vitest, ESLint and production TypeScript builds. Current task evidence and known limits live in [current state](docs/current-state.md).
 
-- **Simulation** (TypeScript, in a Web Worker). Residents have sparse taste genomes over Qloo entities. Each tick (one day):
-  - residents choose a venue by taste, distance and friends;
-  - they're exposed to the venue's and the crowd's tastes, and adopt along Qloo affinities;
-  - tastes drift and decay;
-  - venues' health follows their weekly occupancy;
-  - scenes are tracked with warm-started spherical k-means and lineages;
-  - under-served scenes can get new venues.
+## Run locally
 
-  It's deterministic, with exact rewind and fork.
-- **Rendering:** a React Three Fiber night diorama, with OSM streets, instanced buildings, landmarks per venue kind, crowds walking the street graph, and post-processed effects for openings, closures and events.
-- **Agents:** the Vercel AI SDK, provider-agnostic. DeepSeek V4 Flash is primary, with fallbacks through Groq, Cerebras, OpenRouter and Gemini. The co-pilot's city tools run in the browser against the simulation worker; Qloo tools run on the server.
-- **Stack:** Next.js 16, React 19, Three.js, zod, Vitest (about 380 tests), deployed on Vercel.
-
-More detail: [docs/architecture.md](docs/architecture.md), [docs/qloo-notes.md](docs/qloo-notes.md), [docs/decisions](docs/decisions).
-
-## Running it locally
+Use Node 24 and pnpm 10.30.3.
 
 ```bash
 pnpm install
-cp .env.example .env.local   # then add QLOO_API_KEY and DEEPSEEK_API_KEY
-pnpm build:world london      # builds a city from Qloo into .cache/worlds (about 60–80 calls; reruns are free)
-pnpm dev                     # http://localhost:3000
+cp .env.example .env.local
+# Add QLOO_API_KEY to build a Qloo-grounded world.
+# Optionally add GOOGLE_GENERATIVE_AI_API_KEY and/or GROQ_API_KEY for the AI guide.
+pnpm build:world london
+pnpm dev
 ```
 
-Without a Qloo world the game falls back to a synthetic population over the real streets. Without an LLM key it still runs, but the co-pilot, scene names and interviews are offline.
+Open localhost:3000. City builds write ignored `.cache/worlds/<city>.world.json`; they use live Qloo calls and cache matching requests. Costs depend on cache state and available signals. Other supported city slugs are `singapore` and `newyork` (see `src/geo/cities.ts` for the registry).
 
-Other commands: `pnpm test`, `pnpm lint`, `pnpm calibrate --world=<city>`, `pnpm build:geo <city>`, `pnpm qloo:smoke`, `pnpm upload:worlds`.
+Without a built world or configured private world store, the app uses an explicitly identified synthetic fallback. That fallback is useful for setup/testing but does not demonstrate Qloo grounding. Without LLM credentials, local experiment commands still work. Provider configuration does not guarantee quota or availability.
+
+```bash
+pnpm test
+pnpm lint
+pnpm build
+```
+
+Externally hosted builds need the private world store configured and optional server-side provider credentials; see [.env.example](.env.example), [architecture](docs/architecture.md) and [world-build operations](docs/on-demand-world-builds.md). Never commit credentials, cached Qloo responses or built world files.
+
+## Scope and evidence
+
+Primary audience: learners, educators running exploratory demonstrations, and ALife/agent-based-modelling enthusiasts. Educational usefulness is a hypothesis; no learner study or practitioner validation has been completed. A closure case follows recorded recent visitor slots, not every causally affected resident. Observation caps and settling thresholds are model choices. Its post-playback summary is an observation, not a paired causal estimate. Resident routes/taste histories, saved concurrent branches and side-by-side animated baselines remain future work.
 
 ## Data and licences
 
-- Code: [MIT](LICENSE).
-- Map data © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, ODbL 1.0 (`public/geo`).
-- Taste data from [Qloo](https://www.qloo.com), used under the hackathon terms and not redistributed here.
+- Code: [MIT](LICENSE), copyright Jethro Tan.
+- Map data: [OpenStreetMap contributors](https://www.openstreetmap.org/copyright), ODbL; see `public/geo`.
+- Cultural data: [Qloo](https://www.qloo.com), used under the applicable hackathon terms; raw response caches and generated worlds stay out of Git.
+
+Built for the [Qloo Agentic Hackathon](https://qloo.devpost.com/). Submission copy: [Devpost draft](docs/devpost.md). Judge path: [pitch and demo](docs/pitch-and-demo.md).

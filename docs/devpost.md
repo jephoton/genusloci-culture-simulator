@@ -1,59 +1,60 @@
 # Devpost write-up (draft)
 
-<!-- Draft for the submission form; edit freely. Numbers verified 2026-10-14. -->
+<!-- generated: aligned with the current chat-first lab; review before publishing -->
 
 **Name:** Genus Loci
 
-**Tagline:** A living model of a city's culture, built from Qloo's taste graph, that you can poke and question.
+**Tagline:** A Qloo-grounded cultural ecology lab: change a shared place and follow its simulated visitors.
 
-**Live demo:** https://genusloci-culture-simulator.vercel.app
-**Repo:** https://github.com/jephoton/genusloci-culture-simulator
+**Demo:** https://genusloci-culture-simulator.vercel.app/
+
+**Public source:** https://github.com/jephoton/genusloci-culture-simulator
+
+**Release gate:** The public URL still showed the older sandbox UI when checked on 2026-10-23. Publish and rehearse the current branch before using this description in the submission. This note is for preparation, not submission copy.
 
 ## Inspiration
 
-Cities lose their culture one venue at a time, and nobody sees it coming. A club closing, a rent rise or a new gallery isn't one business decision: it's a shock to an ecosystem of scenes. Ecologists model ecosystems. We wanted to model a city's taste the same way, with residents who carry real tastes, venues that compete for them, and scenes that emerge, split and die, so that venue owners, promoters and city culture teams could test a decision before making it.
+How do individual cultural tastes and shared meeting places produce a scene? A chat model can tell a plausible story about a club closing, but that story does not let a learner inspect the residents, repeat the experiment or change one condition and watch again.
+
+Genus Loci turns that question into an inspectable artificial society. Its immediate audience is learners, educators demonstrating agent-based systems, and technically curious people exploring culture as an emergent process. It is an exploratory learning tool, not a validated decision system for promoters or city planners.
 
 ## What it does
 
-- **A real city, alive:** London, Singapore or New York, on real OpenStreetMap streets, with about 140 real venues from Qloo. 2,500 residents carry taste genomes made of real Qloo place tags and artists. Every night they go out, influence each other and form scenes, which get plain names generated from their tastes. Venues thrive or close depending on who comes.
-- **God-game tools:** open a venue (the best-fitting real place for that spot), throw an event with a real artist, close a venue, and watch the effects ripple through the city.
-- **Scout a location:** compare spots for a headliner. Each is simulated weeks ahead next to a no-event baseline over several seeded runs: turnout, new fans, and visits taken from neighbouring venues.
-- **An AI co-pilot that experiments before it answers:** ask *"What happens if the busiest club closes?"*.
-  - It reads the city and ranks the clubs.
-  - It runs a **what-if**: four paired runs of the city with and without the change.
-  - It answers with real venue names, visit shifts with ranges, and scene sizes, separating clear effects from ones too small to call.
-  - Ask it to make the change and it does, live. It can also look things up in Qloo.
-- **Interview a resident:** chat with a typical member of any scene. They speak only from their own simulated tastes ("give me a proper grime night with my mates, Wretch 32 or Ghetts on the lineup").
+The AI guide reads the current city, resolves venue names and uses simulation tools to prepare an experiment. The visitor explicitly applies a change and clicks Play. Recent visitors to the affected venue remain highlighted as they make subsequent outings. The visitor can inspect relevant venues, pause, read observed outcomes after completion, exit the view or rewind before a named change.
+
+A single journey ties the interface together: question → inspect → prepare → apply → watch → outcomes → rewind. Closures, openings and rent pressure provide different questions within that same lab. They are interventions in an authored model, not announcements about real businesses.
+
+A separate Plan an event entry restores artist-first exploration: choose an artist, shortlist culturally matching existing venues, compare alternative hosts against unchanged baselines and optionally schedule a modeled event. This makes artist/location comparison directly accessible without requiring conversational interpretation; affinity and simulated turnout do not establish real-world venue suitability or ticket demand.
+
+## Why it is Qloo-powered
+
+Qloo is used throughout world construction: place insights supply catalogue venues and their tags, artist recommendations contribute cultural relationships, and heatmaps seed the geographic distribution of taste profiles. Those inputs feed venue matching and affinity-weighted adoption in the simulated population. Separate held-out heatmaps provide a limited spatial diagnostic, not forecasting validation.
+
+The guide also has server-side Qloo search and taste-analysis tools for grounded cultural questions. It uses the Vercel AI SDK to select tools and work from returned evidence, rather than invent venue identities or numerical outcomes. The simulation worker supplies the recorded results.
+
+A generic simulator would still run without Qloo, but would not retain the same city-specific taste relationships. Qloo supplies the cultural grounding; the simulation's rules and parameters are our assumptions. We do not claim a measured win over an LLM-only baseline.
 
 ## How we built it
 
-- **Qloo is the physics, not the labels.**
-  - Venues come from place insights (one union-of-tags query per venue kind).
-  - Residents' tastes and the affinity graph come from those venues' tags and from artist recommendations for each venue's crowd.
-  - Where each scene's residents live comes from one Qloo heatmap per scene.
-  - **Fidelity** is measured on a *different*, held-out heatmap per scene, and it rises as the simulation runs. After 60 simulated weeks (mean of three seeds) London scores about 0.22, Singapore 0.11 and New York 0.31, and all three climb from where they start. The scores are modest, but honest and falsifiable.
-- **Simulation:** deterministic TypeScript in a Web Worker.
-  - Daily ticks cover outings, exposure, adoption along Qloo affinities, drift, decay and venue health.
-  - Scenes are tracked with warm-started spherical k-means and lineages.
-  - It supports exact rewind and forking, which is what makes what-ifs and scouting possible.
-- **Rendering:** a React Three Fiber night diorama, with crowds walking the real street graph and post-processed shockwaves, beacons and ripples for openings, closures and events.
-- **Agents:** the Vercel AI SDK, provider-agnostic (DeepSeek V4 Flash primary, with fallbacks through Groq, Cerebras, OpenRouter and Gemini). The co-pilot's city tools run *in the browser* against the simulation worker; its Qloo tools run on the server, capped per question.
-- **Stack:** Next.js 16, React 19, Three.js, zod, Vitest (about 380 tests). Deployed on Vercel; city worlds live in a private Blob store, because Qloo data stays out of the public repo.
+- Deterministic TypeScript simulation in a Web Worker, with sparse taste genomes, outings, exposure/adoption, drift, decay, venue health and discovered scenes.
+- Snapshot rewind and fork for reproducible comparisons; multiple paired seeds for the underlying what-if calculation.
+- A chat-first Next.js/React interface and React Three Fiber city, with real OSM streets, venue landmarks and a bounded recorded visitor cohort.
+- Vercel AI SDK tool calling, Gemini-first/Groq-backup routing and deterministic command fallback. Explicit city mutations are validated locally and are not advertised as an autonomous AI action tool.
+- Manual Play/Pause and explicit Exit case/view, with automatic stopping at a disclosed settling heuristic or observation limit.
+- Cached, validated and budgeted Qloo access; generated Qloo worlds are excluded from the public repository and loaded through the hosted application.
 
-## Challenges
+## Challenges and lessons
 
-- **Calibration honesty.** Seeding residents from venue locations scored almost no fidelity, because Qloo heatmaps mostly track how central an area is. We switched to seeding from one heatmap and validating on another, rather than fitting to the score.
-- **Noise.** A single simulated future can't tell an effect from chance. Paired seeded runs and a "too small to call" verdict made the co-pilot's claims trustworthy.
-- **A 10,000-call monthly quota.** Every Qloo call is validated, throttled and cached, including known-bad requests. A city costs about 60–80 calls to build, and rebuilds are free.
-- **Silent API failures.** Invalid Qloo parameters return an empty 200, and many venues can't act as signals for some target types. The client validates inputs, flags suspicious empty results and caches "invalid signal" answers.
+Grounded data is different from validated dynamics. Qloo helps us model culturally meaningful relationships, but it does not tell us that our adoption rates, capacities or closure rules describe real people. We keep those boundaries visible.
+
+A compelling visualisation also needs a question to follow. We narrowed the experience to one case at a time, followed recorded recent visitors, removed placeholder buildings and moved playback into the user's hands.
+
+Provider failure cannot be allowed to duplicate a city change. Tool execution, explicit apply and fallback are separated; local commands remain available when AI is unavailable. The fallback has a bounded grammar and is not presented as equivalent to an LLM.
 
 ## What we learned
 
-Grounding matters more than eloquence. The co-pilot became useful when every claim was backed by a what-if against a baseline, and when it said plainly what it couldn't tell.
+The useful promise is an experiment a learner can inspect and repeat, rather than a confident prediction about a real venue. Our strongest contribution is combining cultural data grounding, tool-using guidance and an artificial society whose behavior is visible and reproducible.
 
 ## What's next
 
-- Any city, on demand, with a progress screen and a quota guard.
-- "Book for my venue": compare acts and nights for a specific venue.
-- Specimen cards and a scene family tree.
-- Averaging scenes across runs for even steadier answers.
+Test whether learners can explain what changed, identify which assumptions produced it and distinguish Qloo evidence from model behavior. Then evaluate a controlled Qloo-grounded-versus-generic comparison, add resident taste/outing traces, and consider saved branches. No learner study, professional demand validation or real-world causal validation is claimed yet.
