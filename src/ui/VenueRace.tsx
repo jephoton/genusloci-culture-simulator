@@ -8,10 +8,11 @@ import type { EventOutcome } from "@/sim/events";
 import type { Frame } from "@/sim/frame";
 import type { RaceRequest } from "@/sim/worker/protocol";
 import type { RaceContext } from "@/agents/race-helper";
-import { type Candidate, readableTag } from "@/agents/venue-agent";
+import { type Candidate, MAX_CANDIDATES, readableTag } from "@/agents/venue-agent";
 import { ArtistPicker } from "@/ui/ArtistPicker";
 import type { BookingAct } from "@/ui/BookingPanel";
-import { rankArtistVenues, type VenueFit } from "@/ui/event-planning";
+import { rankArtistVenues, type RaceVenue, rankRaceVenues, type VenueFit } from "@/ui/event-planning";
+import { CITIES } from "@/geo/cities";
 import { fetchOutsideAct } from "@/ui/outside-act-client";
 import { agentExplain, agentFallbackNote, agentPick } from "@/ui/venue-agent-client";
 import { LETTERS, NIGHT_OPTIONS, raceStartTick, summariseRace, WEEKDAYS } from "@/ui/venue-race";
@@ -22,9 +23,14 @@ type Phase = "artist" | "shortlist" | "race";
 /** Shown when the race stops; set from the forecast so the summary matches the futures run. */
 type Race = { runs: EventOutcome[][]; hosts: VenueFit[]; startTick: number; nights: number };
 /** The scout agent's pick: a reason per venue slot, what it looked up, and a fallback note if it couldn't pick. */
-type Scout = { working: true } | { working: false; reasons: Map<number, string>; summary: string; steps: string[]; note?: string };
+type Scout = { working: true } | { working: false; reasons: Map<number, string>; liveFits: Map<number, number>; summary: string; steps: string[]; note?: string };
 
 const SPEEDS = [{ value: 0.25, label: "Slow" }, { value: 0.5, label: "Normal" }, { value: 1, label: "Fast" }] as const;
+/** Qloo affinity in the city's data as a percentage of the best venue's (0 where there's no link). */
+const fitPercent = (v: VenueFit, all: readonly VenueFit[]) => {
+  const top = Math.max(0, ...all.map((f) => f.affinity));
+  return top > 0 ? Math.round((100 * v.affinity) / top) : 0;
+};
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const n = (x: number) => Math.round(x).toLocaleString();
 
@@ -33,7 +39,7 @@ const n = (x: number) => Math.round(x).toLocaleString();
  * them night by night in parallel futures, read the result, then change the setup and race again.
  */
 export function VenueRace({
-  world, city, layout, liveFrame, raceFrame, playing, speed, raceDone, onPlay, onPause, onSpeed, onHighlight, startRace, endRace,
+  world, city, layout, liveFrame, raceFrame, playing, speed, raceDone, onPlay, onPause, onSpeed, onHighlight, startRace, endRace, venueFans,
 }: {
   world: World;
   city: string;
@@ -53,12 +59,15 @@ export function VenueRace({
   onHighlight(hosts: number[] | null): void;
   startRace(race: RaceRequest): Promise<{ runs: EventOutcome[][] }>;
   endRace(): Promise<void>;
+  /** Per venue slot: taste-weighted residents within an event's reach, from the live city. */
+  venueFans(entity: number, profile?: { entity: number; weight: number }[]): Promise<number[]>;
 }) {
   const artists = useMemo(() => world.entities.flatMap((e, i) => (e.type === "artist" ? [{ i, name: e.name }] : [])), [world]);
   const [phase, setPhase] = useState<Phase>("artist");
   const [query, setQuery] = useState("");
   const [act, setAct] = useState<BookingAct | null>(null);
-  const [fits, setFits] = useState<VenueFit[]>([]);
+  /** Every eligible venue for the current artist, best first. */
+  const [fits, setFits] = useState<RaceVenue[]>([]);
   const [hosts, setHosts] = useState<VenueFit[]>([]);
   const [weekday, setWeekday] = useState(4);
   const [nights, setNights] = useState<number>(3);
@@ -98,6 +107,13 @@ export function VenueRace({
     return count;
   };
 
+  /** The card's Qloo figure: from the city's data, else from the agent's live Qloo lookup. */
+  const fitLabel = (h: VenueFit) => {
+    const stored = fitPercent(h, fits);
+    const live = scout && !scout.working ? scout.liveFits.get(h.slot) : undefined;
+    return stored > 0 ? `Qloo fit ${stored}` : live !== undefined ? `Qloo live fit ${live}` : "no stored Qloo link";
+  };
+
   const choose = (next: VenueFit[]) => {
     setHosts(next);
     onHighlight(next.map((h) => h.slot));
@@ -121,8 +137,10 @@ export function VenueRace({
           : { key: `out:${r.artist.name}`, label: r.artist.name, entity: r.proxy, profile: r.profile, note: `Not in this city's data: Qloo says their fans also like ${r.similar.slice(0, 3).map((s) => s.name).join(", ") || r.tags.slice(0, 3).map((t) => t.name).join(", ")}.` };
       }
       if (generation !== request.current) return;
-      const ranked = rankArtistVenues(world, liveFrame, next, 8);
-      if (ranked.length === 0) throw new Error(`Qloo links no music venue, club or bar in this city to ${next.label}. Try another artist.`);
+      const fans = await venueFans(next.entity, next.profile);
+      if (generation !== request.current) return;
+      const ranked = rankRaceVenues(world, liveFrame, next, fans, MAX_CANDIDATES);
+      if (ranked.length === 0) throw new Error("This city has no open music venue, club or bar to race.");
       setAct(next);
       setFits(ranked);
       setHosts([]);
@@ -131,20 +149,23 @@ export function VenueRace({
       setPhase("shortlist");
       setScout({ working: true });
       const candidates: Candidate[] = ranked.map((f, i) => ({
-        id: `v${i}`, name: f.name, kind: f.kind, area: area(f.slot),
-        qlooFit: Math.round((100 * f.affinity) / ranked[0].affinity), regulars: regulars(f.slot),
-        tags: world.entities[liveFrame.venueEntity[f.slot]].tags.filter((t) => !t.includes(":category:")).slice(0, 12).map(readableTag),
+        id: `v${i}`, qid: world.entities[liveFrame.venueEntity[f.slot]].id, name: f.name, kind: f.kind, area: area(f.slot),
+        qlooFit: fitPercent(f, ranked), fansNearby: f.fans, regulars: regulars(f.slot),
+        tags: world.entities[liveFrame.venueEntity[f.slot]].tags.filter((t) => !t.includes(":category:")).slice(0, 8).map(readableTag),
       }));
       const artistTags = next.profile ? undefined : world.entities[next.entity].tags.slice(0, 20).map(readableTag);
-      const r = await agentPick({ city: world.city.name, artist: next.label, artistNote: next.note, artistTags, candidates });
+      const spec = CITIES[city as keyof typeof CITIES] ?? { lat: world.city.lat, lon: world.city.lon, radiusM: 1500 };
+      const r = await agentPick({ city: world.city.name, near: { lat: spec.lat, lon: spec.lon, radiusM: spec.radiusM * 1.5 }, artist: next.label, artistNote: next.note, artistTags, candidates });
       if (generation !== request.current) return;
       if ("error" in r) {
-        choose(ranked.slice(0, 3));
-        setScout({ working: false, reasons: new Map(), summary: "", steps: [], note: agentFallbackNote(r.error) });
+        const top = ranked.slice(0, 3);
+        choose(top);
+        const why = (f: RaceVenue) => (fitPercent(f, ranked) > 0 ? `Qloo fit ${fitPercent(f, ranked)} in the city's data.` : `About ${Math.round(f.fans)} fans nearby in the simulation.`);
+        setScout({ working: false, reasons: new Map(top.map((f) => [f.slot, why(f)])), liveFits: new Map(), summary: "", steps: [], note: agentFallbackNote(r.error) });
       } else {
-        const picked = r.picks.flatMap((p) => { const f = ranked[Number(p.id.slice(1))]; return f ? [{ f, reason: p.reason }] : []; });
+        const picked = r.picks.flatMap((p) => { const f = ranked[Number(p.id.slice(1))]; return f ? [{ f, reason: p.reason, liveFit: p.liveFit }] : []; });
         choose(picked.map((p) => p.f));
-        setScout({ working: false, reasons: new Map(picked.map((p) => [p.f.slot, p.reason])), summary: r.summary, steps: r.steps.map((x) => x.text) });
+        setScout({ working: false, reasons: new Map(picked.map((p) => [p.f.slot, p.reason])), liveFits: new Map(picked.flatMap((p) => (p.liveFit === undefined ? [] : [[p.f.slot, p.liveFit] as [number, number]]))), summary: r.summary, steps: r.steps.map((x) => x.text) });
       }
     } catch (err) {
       if (generation === request.current) setError(errorText(err));
@@ -180,7 +201,7 @@ export function VenueRace({
       step: "result",
       artist: act?.label,
       artistNote: act?.note,
-      venues: r.hosts.map((h, k) => ({ letter: LETTERS[k], name: h.name, kind: h.kind, area: area(h.slot), qlooFit: fits[0] ? Math.round((100 * h.affinity) / fits[0].affinity) : 0, regulars: regulars(h.slot) })),
+      venues: r.hosts.map((h, k) => ({ letter: LETTERS[k], name: h.name, kind: h.kind, area: area(h.slot), qlooFit: fitPercent(h, fits), regulars: regulars(h.slot) })),
       race: {
         firstNight: WEEKDAYS[r.startTick % 7],
         nights: r.nights,
@@ -255,15 +276,15 @@ export function VenueRace({
           {act?.note && <p className="text-[11px] text-zinc-400">{act.note}</p>}
           <div aria-live="polite" className="rounded-lg border border-violet-400/25 bg-violet-500/10 px-2.5 py-1.5 text-[11px] text-zinc-300">
             {!scout || scout.working ? (
-              <p><span className="font-medium text-violet-200">Scout agent</span> is checking {act?.label}&apos;s fans in Qloo against {fits.length} venues that fit…</p>
+              <p><span className="font-medium text-violet-200">Scout agent</span> is checking {act?.label} in Qloo against {fits.length} venues in the city…</p>
             ) : scout.note ? (
               <p>{scout.note}</p>
             ) : (
               <details>
-                <summary className="cursor-pointer"><span className="font-medium text-violet-200">Scout agent:</span> {scout.summary || `picked ${hosts.length} of ${fits.length} Qloo matches.`}</summary>
+                <summary className="cursor-pointer"><span className="font-medium text-violet-200">Scout agent:</span> {scout.summary || `picked ${hosts.length} of ${fits.length} venues.`}</summary>
                 <ol className="mt-1 list-decimal space-y-0.5 pl-4 text-zinc-400">
                   {scout.steps.map((t, i) => <li key={i}>{t}</li>)}
-                  <li>Picked {hosts.length} of {fits.length} Qloo matches</li>
+                  <li>Picked {hosts.length} of the city&apos;s {fits.length} venues</li>
                 </ol>
               </details>
             )}
@@ -280,11 +301,11 @@ export function VenueRace({
                       if (pick) choose(hosts.map((x, j) => (j === k ? pick : x)));
                     }} className="max-w-20 shrink-0 rounded bg-zinc-900 px-1 py-0.5 text-[11px] text-zinc-200">
                       <option value={h.slot}>Swap…</option>
-                      {fits.filter((f) => !hosts.some((x) => x.slot === f.slot)).map((f) => <option key={f.slot} value={f.slot}>{f.name}</option>)}
+                      {fits.filter((f) => !hosts.some((x) => x.slot === f.slot)).slice(0, 12).map((f) => <option key={f.slot} value={f.slot}>{f.name}</option>)}
                     </select>
                   )}
                 </div>
-                <p className="truncate text-[11px] text-zinc-400">{h.kind} · {area(h.slot)} · {plural(regulars(h.slot), "regular")} · Qloo fit {Math.round((100 * h.affinity) / fits[0].affinity)}</p>
+                <p className="truncate text-[11px] text-zinc-400">{h.kind} · {area(h.slot)} · {plural(regulars(h.slot), "regular")} · {fitLabel(h)}</p>
                 {scout && !scout.working && <p className="text-[11px] leading-snug text-zinc-200">{scout.reasons.get(h.slot) ?? "Your pick."}</p>}
               </li>
             ))}

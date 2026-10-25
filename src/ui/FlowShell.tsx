@@ -126,6 +126,7 @@ function City({ world, layout, attribution, citySlug, onCityChange }: {
             onSpeed={sim.setSpeed}
             onHighlight={highlight}
             startRace={sim.startRace}
+            venueFans={sim.venueFans}
             endRace={sim.endRace}
           />
         )}

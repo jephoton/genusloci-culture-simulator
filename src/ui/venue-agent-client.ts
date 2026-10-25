@@ -30,7 +30,7 @@ export async function agentExplain(city: string, context: RaceContext, signal?: 
 
 /** Why the agent's picks were replaced by the top Qloo fits, in plain words. */
 export function agentFallbackNote(error: string): string {
-  if (error === "offline") return "The scout agent is offline here, so these are the three best Qloo fits.";
-  if (error === "slow") return "The scout agent took too long, so these are the three best Qloo fits.";
-  return "The scout agent couldn't answer just now, so these are the three best Qloo fits.";
+  if (error === "offline") return "The scout agent is offline here, so these are the three best matches by Qloo fit and fans nearby.";
+  if (error === "slow") return "The scout agent took too long, so these are the three best matches by Qloo fit and fans nearby.";
+  return "The scout agent couldn't answer just now, so these are the three best matches by Qloo fit and fans nearby.";
 }
