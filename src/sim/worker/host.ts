@@ -176,18 +176,33 @@ export class SimHost {
     const { run, hosts, seen } = this.race!;
     const built = buildFrame(run.baseline, RACE_TIMELINE, run.startTick, false, this.epoch);
     const group = new Int8Array(built.frame.attendance.length).fill(-1);
-    hosts.forEach((host, k) => {
-      const slot = run.eventSlot(k);
-      if (slot < 0) return;
-      const fork = run.fork(k);
-      for (let i = 0; i < group.length; i++) {
-        if (group[i] >= 0 || fork.attendance[i] !== slot) continue;
-        group[i] = k;
-        built.frame.attendance[i] = host;
-      }
-    });
-    for (let i = 0; i < group.length; i++) if (group[i] >= 0 && seen[i] < 0) seen[i] = group[i];
     const { tonight, total } = run.tallies();
+    // Many residents go to the event in several futures, but each has one dot. Place someone who
+    // went in only one future there; share the rest so every venue shows a fair share of its own.
+    const slots = hosts.map((_, k) => run.eventSlot(k));
+    const forks = hosts.map((_, k) => run.fork(k));
+    const shown = hosts.map(() => 0);
+    const shared: number[] = [];
+    for (let i = 0; i < group.length; i++) {
+      let only = -1;
+      let count = 0;
+      for (let k = 0; k < hosts.length; k++) if (slots[k] >= 0 && forks[k].attendance[i] === slots[k]) { only = k; count++; }
+      if (count === 1) {
+        group[i] = only;
+        shown[only]++;
+      } else if (count > 1) shared.push(i);
+    }
+    for (const i of shared) {
+      let pick = -1;
+      for (let k = 0; k < hosts.length; k++) {
+        if (slots[k] < 0 || forks[k].attendance[i] !== slots[k]) continue;
+        if (pick < 0 || shown[k] / tonight[k] < shown[pick] / tonight[pick]) pick = k;
+      }
+      group[i] = pick;
+      shown[pick]++;
+    }
+    for (let i = 0; i < group.length; i++) if (group[i] >= 0) built.frame.attendance[i] = hosts[group[i]];
+    for (let i = 0; i < group.length; i++) if (group[i] >= 0 && seen[i] < 0) seen[i] = group[i];
     const seenCopy = seen.slice();
     built.frame.race = { hosts: [...hosts], group, seen: seenCopy, tonight, total, night: run.elapsed, nights: run.ticks };
     return { frame: built.frame, transfer: [...built.transfer, group.buffer as ArrayBuffer, seenCopy.buffer as ArrayBuffer] };
