@@ -111,7 +111,7 @@ export function SceneLegend({
                 <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ background: css(sceneRgb(hues, s.id)) }} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm text-zinc-100">{named?.name ?? `Scene ${s.id}`}</span>
-                  {top && <span className="block truncate text-xs text-zinc-400">{top}</span>}
+                  {top && !named && <span className="block truncate text-xs text-zinc-400">{top}</span>}
                 </span>
                 <span className="shrink-0 text-xs tabular-nums text-zinc-300">{s.size} people</span>
               </button>
