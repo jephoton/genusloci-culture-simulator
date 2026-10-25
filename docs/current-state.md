@@ -22,7 +22,7 @@
 
 **Known limits:** each venue draws only about 5–15 simulated people per night (2,500 residents, 1.5 km reach), so races are small. Catchment rings were tried and dropped: 1.5 km covers most of the demo area, and fitting them pushed the camera into the fog. The production build and the public deploy have not been redone. The Next.js advisory is still open.
 
-**Next:** rehearse in a visible window. Decide whether to delete the unmounted legacy UI (`GameShell`, `LabChat`, planner, calendar, toolbar and so on). Publish the branch and rehearse on the public URL; then submit to Devpost.
+**Next:** rehearse in a visible window. Keep the unmounted legacy UI (`GameShell`, `LabChat`, planner, calendar, toolbar and so on) until the user has verified the new flow; they may port parts of it over before it is deleted. Publish the branch and rehearse on the public URL; then submit to Devpost.
 
 ## Planner restoration, judging audit and workspace evaluation (2026-10-23)
 
