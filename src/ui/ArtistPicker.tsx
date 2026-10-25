@@ -54,7 +54,7 @@ export function ArtistPicker({ value, onChange, artists, disabled, placeholder, 
       {expanded && (
         <div className="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-lg border border-white/15 bg-[#171820] shadow-xl">
           <p className="border-b border-white/5 px-3 py-2 text-[10px] uppercase tracking-widest text-zinc-500">Artists in this city</p>
-          <ul id={`${id}-list`} role="listbox" aria-label="Artist suggestions" className="max-h-28 overflow-y-auto py-1">
+          <ul id={`${id}-list`} role="listbox" aria-label="Artist suggestions" className="max-h-64 overflow-y-auto py-1">
             {matches.map((a) => <li key={a.i} role="presentation"><button id={`${id}-${a.i}`} role="option" aria-selected={active === a.i} tabIndex={-1} type="button"
               onMouseDown={(e) => e.preventDefault()} onClick={() => select(a.name)}
               className={`block w-full px-3 py-2 text-left text-xs transition ${active === a.i ? "bg-violet-500/25 text-violet-100" : "text-zinc-300 hover:bg-white/10 hover:text-zinc-50"}`}>{a.name}</button></li>)}
