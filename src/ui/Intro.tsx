@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 
-const SEEN_KEY = "genusloci.intro.v1";
+const SEEN_KEY = "genusloci.intro.v2";
 
-/** First-visit intro: what this is, how to read the map, and three things to try. Remembered per browser. */
+/** First-visit intro: the question, the flow, and what is real versus simulated. Remembered per browser. */
 export function Intro({ city, open, onClose }: { city: string; open: boolean; onClose: () => void }) {
   useEffect(() => {
     if (!open) return;
@@ -25,28 +25,29 @@ export function Intro({ city, open, onClose }: { city: string; open: boolean; on
         <header className="space-y-1">
           <h2 id="intro-title" className="text-lg font-medium text-zinc-50">Genus Loci</h2>
           <p className="text-zinc-300">
-            Find a venue for your artist in {city}. Choose an artist and simulation date, shortlist venues using Qloo taste data, then compare the event with the same nights without it.
+            Which venue in {city} would draw the biggest crowd for an artist? Pick the artist, and Qloo&apos;s taste data finds the three venues that fit best. Then they race: each venue hosts the artist in its own copy of the same simulated city, night by night.
           </p>
         </header>
-        <details className="space-y-1.5">
-          <summary className="cursor-pointer text-xs uppercase tracking-wide text-zinc-400">Reading the map</summary>
-          <ul className="space-y-1">
-            <li><span className="text-zinc-50">Dots</span> are residents, coloured by the scene they belong to. Each day they head out for the night and walk home.</li>
-            <li><span className="text-zinc-50">Lit landmarks</span> are real venues from Qloo. The sign shows tonight&apos;s crowd; a red pulse means a venue is struggling.</li>
-            <li><span className="text-zinc-50">Fidelity</span> checks the simulated city against Qloo heatmaps it was never fitted to.</li>
-          </ul>
-        </details>
         <div className="space-y-1.5">
-          <h3 className="text-xs uppercase tracking-wide text-zinc-400">Try this</h3>
+          <h3 className="text-xs uppercase tracking-wide text-zinc-400">How it works</h3>
           <ol className="list-decimal space-y-1 pl-5">
-            <li>Start in <span className="text-zinc-50">Plan event</span>: choose the artist and date.</li>
-            <li>Find matching venues, then <span className="text-zinc-50">Compare impact</span> to see the no-event baseline beside each option.</li>
-            <li>Review one venue and schedule in the simulation. <span className="text-zinc-50">Explore city</span> contains the secondary sandbox tools.</li>
+            <li><span className="text-zinc-50">Artist:</span> anyone in the city&apos;s data, or any artist Qloo knows.</li>
+            <li><span className="text-zinc-50">Venues A, B, C:</span> each glows in its own colour, along with its regulars.</li>
+            <li><span className="text-zinc-50">Race:</span> watch each venue&apos;s event visitors walk there and the tallies climb. The result checks the winner against two more futures with different luck.</li>
+            <li><span className="text-zinc-50">Change the setup</span> (venues, first night, nights, artist) and race again.</li>
           </ol>
         </div>
+        <details className="space-y-1.5">
+          <summary className="cursor-pointer text-xs uppercase tracking-wide text-zinc-400">What&apos;s real and what&apos;s simulated</summary>
+          <ul className="space-y-1">
+            <li><span className="text-zinc-50">Real:</span> the venues, their taste tags and artist affinities (Qloo), and the streets (OpenStreetMap).</li>
+            <li><span className="text-zinc-50">Simulated:</span> the residents, their nights out and how tastes spread. The numbers are visits by simulated people, not ticket sales.</li>
+            <li>Racing never changes the live city.</li>
+          </ul>
+        </details>
         <div className="flex justify-end">
           <button type="button" onClick={onClose} autoFocus className="rounded-md bg-violet-500/80 px-4 py-1.5 text-sm text-white hover:bg-violet-500">
-            Start exploring
+            Start
           </button>
         </div>
       </section>
