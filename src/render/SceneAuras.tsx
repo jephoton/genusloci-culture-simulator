@@ -23,10 +23,10 @@ const RADIUS_BY_STRENGTH = 0.3;
  * share at most CELL_CAP between them. Both stay well under the bloom threshold (0.55) even through the
  * birth pulse, so the ground reads as tinted neighbourhoods, never a white wash.
  */
-const PEAK = 0.2;
-const CELL_CAP = 0.24;
+const PEAK = 0.1;
+const CELL_CAP = 0.12;
 /** The faintest a live hotspot gets, so a weak one still shows. */
-const FLOOR = 0.03;
+const FLOOR = 0.015;
 /** Time constant of the glide towards a new radius and brightness. */
 const GLIDE_S = 0.8;
 const FADE_IN_S = 0.8;
