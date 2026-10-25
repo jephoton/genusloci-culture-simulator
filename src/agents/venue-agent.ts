@@ -5,38 +5,51 @@ import { isInvalidSignal, QlooBudgetError } from "@/qloo/transport";
 import { type RaceContext, raceHelperInstructions } from "@/agents/race-helper";
 import type { QlooClient } from "@/qloo/client";
 
-// The race's agent. It picks which three venues race (from the Qloo shortlist the browser sends,
-// after checking the artist's taste in Qloo and the venues' own tags), and it explains the result.
-// It never runs the simulation or invents numbers: the race itself stays deterministic.
+// The race's agent. It picks which three venues race from the city's venues the browser sends
+// (ranked by the city's Qloo data, with fans nearby from the simulation), after checking the artist
+// in Qloo, asking Qloo live which venues the artist's fans like when the city's data is thin, and
+// reading venues' tags. It also explains the result. It never runs the simulation or invents numbers.
 
-export const MAX_CANDIDATES = 8;
+export const MAX_CANDIDATES = 150;
+/** Venues listed in the agent's instructions; the rest are reachable through its tools. */
+export const SHORTLIST = 8;
 export const PICKS = 3;
+/** Qloo place genres the race can host, so the live lookup skips landmarks, shops and restaurants. */
+const VENUE_TAGS = ["urn:tag:genre:place:night_club", "urn:tag:genre:place:music_venue", "urn:tag:genre:place:bar"];
 
 const CandidateSchema = z.object({
-  id: z.string().regex(/^v\d$/),
+  id: z.string().regex(/^v\d{1,3}$/),
+  /** Qloo entity id, to match live Qloo answers to the city's venues. */
+  qid: z.string().max(64),
   name: z.string().min(1).max(80),
   kind: z.string().max(40),
   area: z.string().max(80),
-  /** Qloo affinity relative to the best candidate, 0–100. */
+  /** Qloo affinity in the city's data, relative to the best candidate, 0–100 (0: no link). */
   qlooFit: z.number().min(0).max(100),
+  /** Taste-weighted simulated residents within an event's reach. */
+  fansNearby: z.number().min(0),
   /** Residents who went there in the last simulated week. */
   regulars: z.number().int().min(0),
   /** Readable Qloo tags for the venue. */
-  tags: z.array(z.string().max(60)).max(12),
+  tags: z.array(z.string().max(60)).max(8),
 });
 export type Candidate = z.infer<typeof CandidateSchema>;
 
 export const PickBodySchema = z.object({
   city: z.string().min(1).max(60),
+  /** Where to ask Qloo about (the city's centre and radius). */
+  near: z.object({ lat: z.number().min(-90).max(90), lon: z.number().min(-180).max(180), radiusM: z.number().min(100).max(20_000) }),
   artist: z.string().min(1).max(80),
   artistNote: z.string().max(300).optional(),
   /** The artist's Qloo tags from the city's data, if the city knows them. */
   artistTags: z.array(z.string().max(60)).max(20).optional(),
+  /** The city's eligible venues, best first. */
   candidates: z.array(CandidateSchema).min(1).max(MAX_CANDIDATES),
 });
 export type PickBody = z.infer<typeof PickBodySchema>;
 
-export type Pick = { id: string; reason: string };
+/** A chosen venue; `liveFit` is Qloo's live affinity (0–100) when the agent's live lookup returned it. */
+export type Pick = { id: string; reason: string; liveFit?: number };
 /** One thing the agent did, in plain words, for the panel. */
 export type Step = { text: string };
 export type PickResult = { picks: Pick[]; summary: string; steps: Step[] };
@@ -46,14 +59,15 @@ export const readableTag = (urn: string) => (urn.split(":").at(-1) ?? urn).repla
 
 export function pickInstructions(body: PickBody): string {
   return [
-    `You are the scout for a venue race in ${body.city}. The visitor wants to book ${body.artist}. Qloo's taste data has shortlisted the venues below; you choose ${Math.min(PICKS, body.candidates.length)} of them to race in a simulation of the city's residents.`,
-    "Work like a booker: first call artist_taste to learn the artist's genres and style; then call inspect_venue on the venues worth a closer look; then call choose_venues once.",
-    "Choose venues whose crowds plausibly share the artist's tastes. Prefer a mix that makes the race informative (for example a strong Qloo fit with few regulars against a weaker fit with many). Regulars are simulated residents, Qloo fit is real taste data.",
+    `You are the scout for a venue race in ${body.city}. The visitor wants to book ${body.artist}. You choose ${Math.min(PICKS, body.candidates.length)} of the city's ${body.candidates.length} music venues, clubs and bars to race in a simulation of the city's residents. The best ${Math.min(SHORTLIST, body.candidates.length)} by the city's Qloo data are listed below.`,
+    "Fields: qlooFit is Qloo affinity from the city's data (0 means the data links none, not that it's a bad fit). fansNearby is simulated residents within reach whose tastes lean towards the artist; it varies little, so use it to break ties. regulars is last week's simulated visitors.",
+    "Work like a booker: first call artist_taste to learn the artist's genres and style. If fewer than three listed venues have a qlooFit above 0, call qloo_rank_venues to ask Qloo live which of the city's venues the artist's fans like. Then call inspect_venue on the venues worth a closer look, and call choose_venues once. You may choose any venue returned by a tool, not only the listed ones.",
+    "Choose venues whose crowds plausibly share the artist's tastes. Prefer a mix that makes the race informative (for example a strong Qloo fit with few regulars against a weaker fit with many).",
     "Each reason is one plain sentence under 18 words that links the venue's crowd or ambience to the artist's style where the tags support it, or cites the Qloo fit or regulars. The summary is one sentence on how the three differ. Never invent numbers or tags.",
     body.artistNote ? `About the artist: ${body.artistNote}` : "",
     "",
     "Shortlist (JSON):",
-    JSON.stringify(body.candidates.map((c) => ({ id: c.id, name: c.name, kind: c.kind, area: c.area, qlooFit: c.qlooFit, regulars: c.regulars }))),
+    JSON.stringify(body.candidates.slice(0, SHORTLIST).map((c) => ({ id: c.id, name: c.name, kind: c.kind, area: c.area, qlooFit: c.qlooFit, fansNearby: Math.round(c.fansNearby), regulars: c.regulars }))),
   ].filter(Boolean).join("\n");
 }
 
@@ -75,12 +89,35 @@ function tools(body: PickBody, qloo: QlooClient | null) {
         return body.artistTags?.length ? { artist: body.artist, tags: body.artistTags } : { error: "No taste data for this artist; use the Qloo fit." };
       },
     }),
+    ...(qloo ? {
+      qloo_rank_venues: tool({
+        description: "Ask Qloo live which of the city's venues this artist's fans like most (beyond the city's stored data). Returns up to 8 of the city's venues with Qloo's live affinity, 0–100.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          try {
+            const [artist] = await qloo.search(body.artist, { types: ["urn:entity:artist"], take: 1 });
+            if (!artist) return { error: `Qloo doesn't know ${body.artist}.` };
+            const places = await qloo.places({ at: { lat: body.near.lat, lon: body.near.lon }, radiusM: body.near.radiusM, signalEntities: [artist.id], tags: VENUE_TAGS, take: 50 });
+            const byQid = new Map(body.candidates.map((c) => [c.qid, c]));
+            const top = Math.max(1e-9, ...places.map((p) => p.affinity ?? 0));
+            const hits = places.flatMap((p) => {
+              const c = byQid.get(p.id);
+              return c ? [{ id: c.id, name: c.name, kind: c.kind, area: c.area, liveQlooAffinity: Math.round((100 * (p.affinity ?? 0)) / top), fansNearby: Math.round(c.fansNearby), regulars: c.regulars }] : [];
+            }).slice(0, 8);
+            return hits.length ? { venues: hits } : { error: "Qloo's live answer matched none of the city's venues; use the listed ones." };
+          } catch (e) {
+            if (e instanceof QlooBudgetError || isInvalidSignal(e)) return { error: "Qloo can't answer that right now; use the listed venues." };
+            throw e;
+          }
+        },
+      }),
+    } : {}),
     inspect_venue: tool({
       description: "A shortlisted venue's Qloo tags (its crowd and ambience), plus its Qloo fit and simulated regulars.",
       inputSchema: z.object({ id: z.string() }),
       execute: async ({ id }) => {
         const c = byId.get(id);
-        return c ? { name: c.name, kind: c.kind, area: c.area, qlooFit: c.qlooFit, regulars: c.regulars, tags: c.tags } : { error: `No venue ${id} on the shortlist.` };
+        return c ? { name: c.name, kind: c.kind, area: c.area, qlooFit: c.qlooFit, fansNearby: Math.round(c.fansNearby), regulars: c.regulars, tags: c.tags } : { error: `No venue ${id} in this city.` };
       },
     }),
     choose_venues: tool({
@@ -97,10 +134,14 @@ function tools(body: PickBody, qloo: QlooClient | null) {
 /** Plain-words trace of a tool call, for the panel. */
 function describe(body: PickBody, name: string, input: unknown, output: unknown): string | null {
   const args = (input ?? {}) as { id?: string };
-  const out = (output ?? {}) as { tags?: string[]; error?: string };
+  const out = (output ?? {}) as { tags?: string[]; venues?: { name: string }[]; error?: string };
   if (name === "artist_taste") {
     if (out.error || !out.tags?.length) return `Looked up ${body.artist} in Qloo (no taste data)`;
     return `Looked up ${body.artist} in Qloo: ${out.tags.slice(0, 4).map(readableTag).join(", ")}`;
+  }
+  if (name === "qloo_rank_venues") {
+    if (out.error || !out.venues?.length) return `Asked Qloo live which venues ${possessive(body.artist)} fans like (no match in this city)`;
+    return `Asked Qloo live which venues ${possessive(body.artist)} fans like: ${out.venues.slice(0, 4).map((v) => v.name).join(", ")}`;
   }
   if (name === "inspect_venue") {
     const c = body.candidates.find((v) => v.id === args.id);
@@ -119,7 +160,7 @@ export function fallbackPicks(body: PickBody, taken: Pick[] = []): Pick[] {
   const out = [...taken];
   for (const c of body.candidates) {
     if (out.length >= Math.min(PICKS, body.candidates.length)) break;
-    if (!out.some((p) => p.id === c.id)) out.push({ id: c.id, reason: `Qloo fit ${Math.round(c.qlooFit)}, with ${c.regulars} regulars this week.` });
+    if (!out.some((p) => p.id === c.id)) out.push({ id: c.id, reason: c.qlooFit > 0 ? `Qloo fit ${Math.round(c.qlooFit)}, with ${c.regulars} regulars this week.` : `About ${Math.round(c.fansNearby)} fans nearby in the simulation, with ${c.regulars} regulars this week.` });
   }
   return out;
 }
@@ -143,11 +184,13 @@ export async function pickVenues(opts: {
   });
   const steps: Step[] = [];
   let choice: { picks: Pick[]; summary: string } | null = null;
+  const live = new Map<string, number>();
   for (const step of result.steps) {
     for (const r of step.toolResults) {
       if (!r) continue;
       if (r.toolName === "choose_venues") choice = r.input as { picks: Pick[]; summary: string };
       else {
+        if (r.toolName === "qloo_rank_venues") for (const v of (r.output as { venues?: { id: string; liveQlooAffinity: number }[] }).venues ?? []) live.set(v.id, v.liveQlooAffinity);
         const text = describe(body, r.toolName, r.input, r.output);
         if (text) steps.push({ text });
       }
@@ -156,10 +199,10 @@ export async function pickVenues(opts: {
   const ids = new Set(body.candidates.map((c) => c.id));
   const valid: Pick[] = [];
   for (const p of choice?.picks ?? []) {
-    if (ids.has(p.id) && !valid.some((v) => v.id === p.id) && p.reason.trim()) valid.push({ id: p.id, reason: clean(p.reason, 160) });
+    if (ids.has(p.id) && !valid.some((v) => v.id === p.id) && p.reason.trim()) valid.push({ id: p.id, reason: clean(p.reason, 160), ...(live.has(p.id) ? { liveFit: live.get(p.id) } : {}) });
   }
   const picks = fallbackPicks(body, valid);
-  if (valid.length < picks.length) steps.push({ text: valid.length ? "Filled the rest with the next best Qloo fits" : "Didn't settle on venues, so took the best Qloo fits" });
+  if (valid.length < picks.length) steps.push({ text: valid.length ? "Filled the rest with the next best matches" : "Didn't settle on venues, so took the best matches" });
   return { picks, summary: clean(choice?.summary ?? "", 220), steps };
 }
 
