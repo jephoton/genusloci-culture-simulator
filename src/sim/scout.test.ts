@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG } from "@/sim/config";
 import { hashState } from "@/sim/hash";
-import { demandByCell, pickCandidates, scoutCandidates } from "@/sim/scout";
+import { demandByCell, fansNearVenues, pickCandidates, scoutCandidates } from "@/sim/scout";
 import { initState } from "@/sim/state";
 import { step } from "@/sim/step";
 import { makeTinyWorld } from "@/world/fixtures/tiny-world";
@@ -111,4 +111,16 @@ describe("scoutCandidates over repeated runs", () => {
     expect(three.map((r) => r.cell).sort()).toEqual([0, 5]);
     for (const r of three) expect(r.score).toBeCloseTo(r.turnout + 3 * r.newFans - 0.5 * r.neighbourLoss, 6);
   });
+});
+
+it("counts taste-weighted fans within reach of each venue, and none beyond it", () => {
+  const world = makeTinyWorld();
+  const s = initState(world, { ...DEFAULT_CONFIG, nAgents: 200 }, 3);
+  const artist = world.entities.findIndex((e) => e.type === "artist");
+  const wide = fansNearVenues(s, { entity: artist }, 1000);
+  const none = fansNearVenues(s, { entity: artist }, -1);
+  expect(wide).toHaveLength(s.venueCell.length);
+  expect(wide.some((f) => f > 0)).toBe(true);
+  expect(none.every((f) => f === 0)).toBe(true);
+  expect(fansNearVenues(s, { entity: artist, profile: [{ entity: artist, weight: 2 }] }, 1000)).toEqual(wide);
 });

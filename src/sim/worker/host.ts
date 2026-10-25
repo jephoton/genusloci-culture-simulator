@@ -6,7 +6,7 @@ import { digest } from "@/sim/digest";
 import { buildFrame, type Frame } from "@/sim/frame";
 import { PairedEventRun, runEventCandidateRuns, type EventRunOptions } from "@/sim/events";
 import { runSeed } from "@/sim/whatif";
-import { demandByCell, pickCandidates, scoutCandidates } from "@/sim/scout";
+import { demandByCell, fansNearVenues, pickCandidates, scoutCandidates } from "@/sim/scout";
 import { MAX_WHATIF_WEEKS, whatIf } from "@/sim/whatif";
 import { residentProfile, typicalResident } from "@/sim/resident";
 import { BOOKING_RUNS, type BookingAct, bookActs } from "@/sim/booking";
@@ -323,6 +323,13 @@ export class SimHost {
         const demand = demandByCell(s, checkEntity(s, cmd.entity));
         const minKm = Math.max(MIN_CANDIDATE_KM, 1.2 * medianNearestCellKm(s));
         return { demand, candidates: pickCandidates(s, demand, CANDIDATES, minKm) };
+      }
+      case "venueFans": {
+        const s = this.timeline(cmd.timeline).state;
+        const entity = checkEntity(s, cmd.entity);
+        const profile: unknown = cmd.profile;
+        if (profile !== undefined && (!Array.isArray(profile) || profile.length > 50 || profile.some((p) => !isIndex(p?.entity, s.cw.nEntities) || !(Number.isFinite(p?.weight) && p.weight >= 0)))) throw new Error("bad profile");
+        return { fans: fansNearVenues(s, { entity, profile: cmd.profile }, SCOUT_DEFAULTS.reachKm) };
       }
       case "scout": {
         const s = this.timeline(cmd.timeline).state;

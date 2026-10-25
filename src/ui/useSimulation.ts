@@ -40,6 +40,8 @@ export type Simulation = {
   rewind(tick: number): Promise<boolean>;
   /** Per-cell demand for a headliner in the live city, plus up to 3 candidate cells. Rejects on failure. */
   demand(entity: number): Promise<CommandResults["demand"]>;
+  /** Per venue slot in the live city: taste-weighted residents within an event's reach. Rejects on failure. */
+  venueFans(entity: number, profile?: { entity: number; weight: number }[]): Promise<number[]>;
   /** Simulates a night for `entity` at each cell in forked futures (live city untouched). Rejects on failure. */
   scout(entity: number, cells: number[]): Promise<CommandResults["scout"]>;
   /** "What happens if…" on forked futures (live city untouched). Rejects on failure. */
@@ -306,6 +308,11 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
     } finally { releasingCase.current = false; }
   }, [clock, publishCase]);
 
+  const venueFans = useCallback(async (entity: number, profile?: { entity: number; weight: number }[]) => {
+    const client = clientRef.current;
+    if (!client) throw new Error("the simulation isn't running");
+    return (await client.venueFans(MAIN_TIMELINE, entity, profile)).fans;
+  }, []);
   const demand = useCallback((entity: number) => {
     const client = clientRef.current;
     return client ? client.demand(MAIN_TIMELINE, entity) : Promise.reject(new Error("the simulation isn't running"));
@@ -370,6 +377,6 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
   return {
     activeCase, caseReports, caseChanges, startCase, finishCase,
     status, error, playing, speed, frame, digest, frames, sceneHistory, play, pause, setSpeed, act, rewind, demand, scout, whatIf, book, resident, latestDigest, dismissError,
-    startRace, endRace, raceOutcomes,
+    startRace, endRace, raceOutcomes, venueFans,
   };
 }

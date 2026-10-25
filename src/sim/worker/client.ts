@@ -128,6 +128,11 @@ export class SimClient {
   frame(timeline: string) {
     return this.request<"frame">({ type: "frame", timeline });
   }
+  /** Per venue slot: taste-weighted residents within an event's reach of it. */
+  venueFans(timeline: string, entity: number, profile?: { entity: number; weight: number }[]) {
+    return this.request<"venueFans">({ type: "venueFans", timeline, entity, profile });
+  }
+
   /** Per-cell demand for `entity` plus up to 3 well-spaced candidate cells. */
   demand(timeline: string, entity: number) {
     return this.request<"demand">({ type: "demand", timeline, entity });

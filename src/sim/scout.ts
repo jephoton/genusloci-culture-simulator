@@ -37,6 +37,30 @@ export function demandByCell(s: SimState, entity: number): number[] {
   return out;
 }
 
+/**
+ * Per venue slot: how many residents within `reachKm` would want to see the act, as the sum of their
+ * taste affinity to it (an artist entity, or a weighted profile for an artist the city doesn't know).
+ * These are the people an event there can draw, since events carry no distance penalty within reach.
+ */
+export function fansNearVenues(s: SimState, act: { entity: number; profile?: { entity: number; weight: number }[] }, reachKm: number): number[] {
+  const parts = act.profile?.length ? act.profile : [{ entity: act.entity, weight: 1 }];
+  const total = parts.reduce((a, p) => a + p.weight, 0) || 1;
+  const byCell = new Float64Array(s.cw.nCells);
+  for (let i = 0; i < s.alive.length; i++) {
+    if (!s.alive[i]) continue;
+    let a = 0;
+    for (const p of parts) a += p.weight * affinityToEntity(s.genomes, i, s.cw, p.entity);
+    byCell[s.homeCell[i]] += a / total;
+  }
+  const out = new Array<number>(s.venueCell.length).fill(0);
+  for (let v = 0; v < out.length; v++) {
+    let sum = 0;
+    for (let c = 0; c < byCell.length; c++) if (byCell[c] > 0 && distKm(s.cw, c, s.venueCell[v]) <= reachKm) sum += byCell[c];
+    out[v] = Math.round(sum * 10) / 10;
+  }
+  return out;
+}
+
 /** The `count` highest-demand cells, each at least `minKm` from those already picked. */
 export function pickCandidates(s: SimState, demand: number[], count: number, minKm: number): number[] {
   const order = demand.map((d, c) => [d, c] as const).sort((a, b) => b[0] - a[0] || a[1] - b[1]);

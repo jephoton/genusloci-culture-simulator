@@ -57,6 +57,7 @@ export type WorkerCommand =
   | { type: "pause" }
   | { type: "frame"; timeline: string }
   | { type: "demand"; timeline: string; entity: number }
+  | { type: "venueFans"; timeline: string; entity: number; profile?: { entity: number; weight: number }[] }
   | { type: "scout"; timeline: string; entity: number; cells: number[]; weeks?: number }
   /** Compares `actions` on a fork against a no-action baseline fork; the timeline is untouched. */
   | { type: "whatIf"; timeline: string; actions: unknown[]; weeks: number }
@@ -84,6 +85,8 @@ export type CommandResults = {
   pause: { playing: false };
   frame: { frame: Frame };
   demand: { demand: number[]; candidates: number[] };
+  /** Per venue slot: taste-weighted residents within an event's reach (`SCOUT_DEFAULTS.reachKm`). */
+  venueFans: { fans: number[] };
   scout: { results: ScoutResult[]; baselineTick: number };
   whatIf: { result: WhatIfResult };
   resident: { profile: ResidentProfile | null };
