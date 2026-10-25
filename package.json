@@ -27,12 +27,12 @@
     "@react-three/postprocessing": "^3.1.3",
     "@vercel/blob": "2.8.0",
     "ai": "7.0.122",
-    "next": "16.4.0",
+    "next": "16.4.3",
     "postprocessing": "^6.39.5",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "three": "^0.186.1",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
@@ -41,11 +41,16 @@
     "@types/react-dom": "^19",
     "@types/three": "^0.186.0",
     "eslint": "^9",
-    "eslint-config-next": "16.4.0",
+    "eslint-config-next": "16.4.3",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "^5.0.3"
   },
-  "packageManager": "pnpm@10.30.3"
+  "packageManager": "pnpm@10.30.3",
+  "pnpm": {
+    "overrides": {
+      "@vercel/cli-config>zod": "^4.6.7"
+    }
+  }
 }
