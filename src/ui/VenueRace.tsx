@@ -146,23 +146,14 @@ export function VenueRace({
     }
   };
 
-  const backToSetup = async () => {
-    await endRace();
-    setRace(null);
-    setPhase("shortlist");
-    onHighlight(hosts.map((h) => h.slot));
-  };
-
-  const newArtist = async () => {
+  /** Show another step, leaving the race if one is playing; the artist and venues are kept. */
+  const goTo = async (next: Phase) => {
+    if (next === phase || busy) return;
+    if (next === "race") return run();
     request.current++;
     if (phase === "race") await endRace();
-    setRace(null);
-    setAct(null);
-    setHosts([]);
-    setFits([]);
-    setQuery("");
-    setPhase("artist");
-    onHighlight(null);
+    setPhase(next);
+    onHighlight(next === "shortlist" ? hosts.map((h) => h.slot) : null);
   };
 
   const live = raceFrame?.race;
@@ -187,22 +178,32 @@ export function VenueRace({
       } : undefined,
     } : undefined,
   };
+  const stepNote: Record<Phase, string> = {
+    artist: act?.label ?? "Pick one",
+    shortlist: act ? hosts.map((h) => h.name).join(", ") : "Then three venues",
+    race: phase === "race" && race ? (summary ? "Result" : live && live.night > 0 ? `Night ${live.night} of ${live.nights}` : "Starting") : act ? "Not run yet" : "Then the race",
+  };
   const maxTotal = Math.max(1, ...(live?.total ?? [0]), ...(race?.runs[0].map((r) => r.turnout) ?? [0]));
 
   return (
-    <section aria-label="Find the best venue" className="panel pointer-events-auto flex max-h-full flex-col gap-3 overflow-y-auto p-4 text-sm">
-      <ol aria-label="Steps" className="flex gap-1 text-[11px] uppercase tracking-wide">
-        {(["1 Artist", "2 Venues", "3 Race"] as const).map((label, i) => (
-          <li key={label} className={`flex-1 rounded px-2 py-1 text-center ${i === ["artist", "shortlist", "race"].indexOf(phase) ? "bg-violet-500/30 text-violet-100" : "text-zinc-500"}`}>{label}</li>
-        ))}
-      </ol>
+    <section aria-label="Find the best venue" className="panel pointer-events-auto flex max-h-full flex-col gap-2.5 overflow-y-auto p-3 text-sm sm:overflow-visible">
+      <nav aria-label="Steps" className="grid grid-cols-3 gap-1">
+        {([["artist", "1", "Artist"], ["shortlist", "2", "Venues"], ["race", "3", "Race"]] as const).map(([step, num, label]) => {
+          const enabled = step === "artist" || (act !== null && hosts.length > 0);
+          const current = step === phase;
+          return (
+            <button key={step} type="button" aria-current={current ? "step" : undefined} disabled={!enabled || (busy && !current)} onClick={() => void goTo(step)}
+              className={`min-w-0 rounded-lg border px-2 py-1 text-left transition ${current ? "border-violet-400/60 bg-violet-500/25" : "border-white/10 hover:bg-white/10 disabled:opacity-40 disabled:hover:bg-transparent"}`}>
+              <span className={`block text-[11px] font-medium ${current ? "text-violet-100" : "text-zinc-300"}`}>{num}. {label}</span>
+              <span className="block truncate text-[10px] text-zinc-400">{stepNote[step]}</span>
+            </button>
+          );
+        })}
+      </nav>
 
       {phase === "artist" && (
-        <form onSubmit={(e) => void findVenues(e)} className="space-y-3">
-          <div>
-            <h2 className="text-base font-medium text-zinc-50">Where should this artist play?</h2>
-            <p className="text-xs text-zinc-400">Pick an artist. Qloo finds the three venues whose crowds fit them best, then the simulation races them.</p>
-          </div>
+        <form onSubmit={(e) => void findVenues(e)} className="space-y-2">
+          <p className="text-xs text-zinc-400">Pick an artist. Qloo finds the three venues whose crowds fit them best, then the simulation races them.</p>
           <div className="flex gap-2">
             <ArtistPicker value={query} onChange={setQuery} artists={artists} disabled={busy || !liveFrame} placeholder="Artist name" outsideHint="Not in this city's data: Find venues looks them up in Qloo." />
             <button type="submit" disabled={busy || !query.trim() || !liveFrame} className="rounded-lg bg-violet-500/80 px-3 py-1.5 text-white hover:bg-violet-500 disabled:opacity-40">{busy ? "Finding…" : "Find venues"}</button>
@@ -218,121 +219,100 @@ export function VenueRace({
         </form>
       )}
 
-      {phase !== "artist" && act && (
-        <header className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="text-xs text-zinc-400">Artist</p>
-            <h2 className="truncate text-base font-medium text-zinc-50">{act.label}</h2>
-            {act.note && <p className="text-xs text-zinc-400">{act.note}</p>}
-          </div>
-          <button type="button" onClick={() => void newArtist()} className="shrink-0 rounded px-2 py-1 text-xs text-violet-200 hover:bg-white/10">Change artist</button>
-        </header>
-      )}
-
       {phase === "shortlist" && (
         <>
-          <p className="text-xs text-zinc-400">The best Qloo matches for {act?.label}. Each venue&apos;s regulars glow in its colour on the map.</p>
-          <ul className="space-y-2">
+          <p className="text-xs text-zinc-400">{act?.note ?? `The best Qloo matches for ${act?.label}.`} Each venue&apos;s regulars glow in its colour.</p>
+          <ul className="space-y-1.5">
             {hosts.map((h, k) => (
-              <li key={h.slot} className="rounded-lg border bg-white/5 p-2.5" style={{ borderColor: `${RACE_CSS[k]}80` }}>
+              <li key={h.slot} className="rounded-lg border bg-white/5 px-2.5 py-1.5" style={{ borderColor: `${RACE_CSS[k]}80` }}>
                 <div className="flex items-center gap-2">
-                  <span className="grid size-6 shrink-0 place-items-center rounded-full text-xs font-bold text-zinc-950" style={{ background: RACE_CSS[k] }}>{LETTERS[k]}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{h.name}</p>
-                    <p className="truncate text-xs text-zinc-400">{h.kind} · {area(h.slot)} · {plural(regulars(h.slot), "regular")} this week</p>
-                  </div>
-                </div>
-                <div className="mt-2 flex items-center gap-2 text-xs text-zinc-400">
-                  <span className="w-14 shrink-0">Qloo fit</span>
-                  <span className="h-1.5 flex-1 overflow-hidden rounded bg-white/10"><span className="block h-full rounded" style={{ width: `${Math.round((100 * h.affinity) / fits[0].affinity)}%`, background: RACE_CSS[k] }} /></span>
+                  <span className="grid size-5 shrink-0 place-items-center rounded-full text-[11px] font-bold text-zinc-950" style={{ background: RACE_CSS[k] }}>{LETTERS[k]}</span>
+                  <p className="min-w-0 flex-1 truncate font-medium">{h.name}</p>
                   {fits.length > hosts.length && (
                     <select aria-label={`Swap venue ${LETTERS[k]}`} value={h.slot} onChange={(e) => {
                       const pick = fits.find((f) => f.slot === Number(e.target.value));
                       if (pick) choose(hosts.map((x, j) => (j === k ? pick : x)));
-                    }} className="max-w-24 rounded bg-zinc-900 px-1 py-0.5 text-zinc-200">
+                    }} className="max-w-20 shrink-0 rounded bg-zinc-900 px-1 py-0.5 text-[11px] text-zinc-200">
                       <option value={h.slot}>Swap…</option>
                       {fits.filter((f) => !hosts.some((x) => x.slot === f.slot)).map((f) => <option key={f.slot} value={f.slot}>{f.name}</option>)}
                     </select>
                   )}
                 </div>
+                <p className="truncate text-[11px] text-zinc-400">{h.kind} · {area(h.slot)} · {plural(regulars(h.slot), "regular")} this week</p>
+                <div className="mt-1 flex items-center gap-2 text-[11px] text-zinc-400">
+                  <span className="shrink-0">Qloo fit</span>
+                  <span className="h-1.5 flex-1 overflow-hidden rounded bg-white/10"><span className="block h-full rounded" style={{ width: `${Math.round((100 * h.affinity) / fits[0].affinity)}%`, background: RACE_CSS[k] }} /></span>
+                </div>
               </li>
             ))}
           </ul>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <label className="space-y-1 text-zinc-400">First night
-              <select value={weekday} onChange={(e) => setWeekday(Number(e.target.value))} className="block w-full rounded bg-zinc-900 px-2 py-1.5 text-zinc-100">
+          <div className="flex items-end gap-2 text-xs">
+            <label className="flex-1 text-zinc-400">First night
+              <select value={weekday} onChange={(e) => setWeekday(Number(e.target.value))} className="mt-0.5 block w-full rounded bg-zinc-900 px-2 py-1 text-zinc-100">
                 {WEEKDAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}
               </select>
             </label>
-            <label className="space-y-1 text-zinc-400">Nights
-              <select value={nights} onChange={(e) => setNights(Number(e.target.value))} className="block w-full rounded bg-zinc-900 px-2 py-1.5 text-zinc-100">
+            <label className="flex-1 text-zinc-400">Nights
+              <select value={nights} onChange={(e) => setNights(Number(e.target.value))} className="mt-0.5 block w-full rounded bg-zinc-900 px-2 py-1 text-zinc-100">
                 {NIGHT_OPTIONS.map((x) => <option key={x} value={x}>{plural(x, "night")}</option>)}
               </select>
             </label>
+            <button type="button" onClick={() => void run()} disabled={busy || hosts.length === 0} className="flex-1 rounded-lg bg-violet-500/80 py-1.5 font-medium text-white hover:bg-violet-500 disabled:opacity-40">
+              {busy ? "Setting up…" : "Start race"}
+            </button>
           </div>
-          <button type="button" onClick={() => void run()} disabled={busy || hosts.length === 0} className="rounded-lg bg-violet-500/80 py-2 font-medium text-white hover:bg-violet-500 disabled:opacity-40">
-            {busy ? "Setting up…" : `Race ${hosts.length === 1 ? "it" : `these ${hosts.length}`}`}
-          </button>
           <p className="text-[11px] text-zinc-500">Each venue hosts {act?.label} in its own copy of the same city, from the same moment and luck. Your live city doesn&apos;t change.</p>
         </>
       )}
 
       {phase === "race" && race && (
         <>
-          <div className="flex items-baseline justify-between text-xs text-zinc-400">
-            <span>{summary ? "Race over" : live && live.night > 0 ? `Night ${live.night} of ${live.nights} · ${WEEKDAYS[(race.startTick + live.night - 1) % 7]}` : `${plural(race.nights, "night")} from ${WEEKDAYS[race.startTick % 7]}`}</span>
-            <span>Event visits</span>
-          </div>
           {summary ? (
-            <>
-              <div role="status" className="space-y-1 rounded-lg border border-white/15 bg-white/5 p-3">
-                <p className="font-medium text-zinc-50">
-                  {summary.winner === null ? "Too close to call: the top venues tied in the race you watched." : `${LETTERS[summary.winner]} · ${race.hosts[summary.winner].name} drew the most.`}
+            <div role="status" className="rounded-lg border border-white/15 bg-white/5 px-2.5 py-2">
+              <div className="flex items-start gap-2">
+                <p className="flex-1 font-medium text-zinc-50">
+                  {summary.winner === null ? "Too close to call: the top venues tied." : `${LETTERS[summary.winner]} · ${race.hosts[summary.winner].name} drew the most.`}
                 </p>
-                <p className="text-xs text-zinc-400">
-                  {summary.winner !== null && (summary.consistent ? `It also won in all ${summary.futures} futures with different luck, so the lead is clear in this model.` : `It won ${summary.rows[summary.winner].wins} of ${summary.futures} futures with different luck, so treat the lead as uncertain.`)}
-                  {" "}These are simulated residents built from Qloo taste data, not ticket sales.
-                </p>
+                <button type="button" onClick={() => void run()} disabled={busy} className="shrink-0 rounded bg-white/10 px-2 py-0.5 text-xs hover:bg-white/15">Watch again</button>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={() => void run()} disabled={busy} className="rounded-lg bg-white/10 px-3 py-1.5 hover:bg-white/15">Watch again</button>
-                <button type="button" onClick={() => void backToSetup()} className="rounded-lg bg-violet-500/80 px-3 py-1.5 text-white hover:bg-violet-500">Change the setup</button>
-              </div>
-            </>
+              <p className="text-[11px] text-zinc-400">
+                {summary.winner !== null && (summary.consistent ? `It also won all ${summary.futures} futures with different luck, so the lead is clear in this model.` : `It won ${summary.rows[summary.winner].wins} of ${summary.futures} futures with different luck, so the lead is uncertain.`)}
+                {" "}Simulated residents built from Qloo taste data, not ticket sales.
+              </p>
+            </div>
           ) : (
             <div className="flex items-center gap-2">
-              <button type="button" onClick={playing ? onPause : onPlay} className="rounded-lg bg-violet-500/80 px-4 py-1.5 text-white hover:bg-violet-500">{playing ? "Pause" : "Play"}</button>
+              <button type="button" onClick={playing ? onPause : onPlay} className="rounded-lg bg-violet-500/80 px-4 py-1 text-white hover:bg-violet-500">{playing ? "Pause" : "Play"}</button>
               <div role="group" aria-label="Speed" className="flex overflow-hidden rounded-lg border border-white/10 text-xs">
-                {SPEEDS.map((s) => <button key={s.value} type="button" aria-pressed={speed === s.value} onClick={() => onSpeed(s.value)} className={`px-2 py-1.5 ${speed === s.value ? "bg-white/15 text-zinc-50" : "text-zinc-400 hover:bg-white/10"}`}>{s.label}</button>)}
+                {SPEEDS.map((s) => <button key={s.value} type="button" aria-pressed={speed === s.value} onClick={() => onSpeed(s.value)} className={`px-2 py-1 ${speed === s.value ? "bg-white/15 text-zinc-50" : "text-zinc-400 hover:bg-white/10"}`}>{s.label}</button>)}
               </div>
-              <button type="button" onClick={() => void backToSetup()} className="ml-auto rounded px-2 py-1 text-xs text-zinc-400 hover:bg-white/10">Stop</button>
+              <span className="ml-auto text-[11px] text-zinc-400">{live && live.night > 0 ? WEEKDAYS[(race.startTick + live.night - 1) % 7] : `From ${WEEKDAYS[race.startTick % 7]}`}</span>
             </div>
           )}
-          <ul className="space-y-2">
+          <ul className="space-y-1.5">
             {race.hosts.map((h, k) => {
               const total = summary ? summary.rows[k].watched : live?.total[k] ?? 0;
               const win = summary ? summary.winner === k : !summary && live && live.night > 0 && leader === k;
+              const row = summary?.rows[k];
               return (
-                <li key={h.slot} className={`rounded-lg border p-2.5 ${win ? "bg-white/10" : "bg-white/5"}`} style={{ borderColor: `${RACE_CSS[k]}${win ? "ff" : "60"}` }}>
+                <li key={h.slot} className={`rounded-lg border px-2.5 py-1.5 ${win ? "bg-white/10" : "bg-white/5"}`} style={{ borderColor: `${RACE_CSS[k]}${win ? "ff" : "60"}` }}>
                   <div className="flex items-center gap-2">
-                    <span className="grid size-6 shrink-0 place-items-center rounded-full text-xs font-bold text-zinc-950" style={{ background: RACE_CSS[k] }}>{LETTERS[k]}</span>
+                    <span className="grid size-5 shrink-0 place-items-center rounded-full text-[11px] font-bold text-zinc-950" style={{ background: RACE_CSS[k] }}>{LETTERS[k]}</span>
                     <p className="min-w-0 flex-1 truncate font-medium">{h.name}</p>
+                    {!summary && live && live.night > 0 && <span className="text-[11px] text-zinc-400">+{n(live.tonight[k])} tonight</span>}
                     <span className="tabular-nums text-base font-semibold" style={{ color: RACE_CSS[k] }}>{n(total)}</span>
                   </div>
-                  <span className="mt-2 block h-2 overflow-hidden rounded bg-white/10"><span className="block h-full rounded transition-[width] duration-500" style={{ width: `${(100 * total) / maxTotal}%`, background: RACE_CSS[k] }} /></span>
-                  {!summary && live && live.night > 0 && <p className="mt-1 text-[11px] text-zinc-400">{n(live.tonight[k])} tonight</p>}
-                  {summary && (
-                    <dl className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] text-zinc-400">
-                      <dt>Across {summary.futures} futures</dt><dd className="text-right text-zinc-200">{summary.rows[k].min === summary.rows[k].max ? n(summary.rows[k].min) : `${n(summary.rows[k].min)}–${n(summary.rows[k].max)}`} · won {summary.rows[k].wins}</dd>
-                      <dt>Venue&apos;s usual nights</dt><dd className="text-right text-zinc-200">{n(summary.rows[k].usual)} → {n(summary.rows[k].withEvent)} with the event</dd>
-                      <dt>Taken from venues nearby</dt><dd className="text-right text-zinc-200">{n(summary.rows[k].neighbourLoss)}</dd>
-                    </dl>
+                  <span className="mt-1 block h-1.5 overflow-hidden rounded bg-white/10"><span className="block h-full rounded transition-[width] duration-500" style={{ width: `${(100 * total) / maxTotal}%`, background: RACE_CSS[k] }} /></span>
+                  {row && summary && (
+                    <p className="mt-1 text-[11px] leading-snug text-zinc-400">
+                      {summary.futures} futures: <span className="text-zinc-200">{row.min === row.max ? n(row.min) : `${n(row.min)}–${n(row.max)}`}</span>, won <span className="text-zinc-200">{row.wins}</span> · venue <span className="text-zinc-200">{n(row.usual)} → {n(row.withEvent)}</span> · nearby <span className="text-zinc-200">−{n(row.neighbourLoss)}</span>
+                    </p>
                   )}
                 </li>
               );
             })}
           </ul>
-          <p className="text-[11px] text-zinc-500">{summary ? "Glowing people went to an event, in its venue's colour." : "Bright: tonight's event visitors, walking to their venue. Faint: earlier nights' visitors. Everyone else is dimmed."}</p>
+          <p className="text-[11px] text-zinc-500">{summary ? "Venue: its visits on the same nights, without → with the event. Nearby: visits other venues lost." : "Bright: tonight's visitors walking to each venue. Faint: earlier nights'. Many residents would go wherever the artist plays, so those are shared out between the venues they'd visit."}</p>
         </>
       )}
 
