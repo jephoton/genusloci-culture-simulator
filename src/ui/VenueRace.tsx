@@ -312,7 +312,7 @@ export function VenueRace({
               );
             })}
           </ul>
-          <p className="text-[11px] text-zinc-500">{summary ? "Venue: its visits on the same nights, without → with the event. Nearby: visits other venues lost." : "Bright: tonight's visitors walking to each venue. Faint: earlier nights'. Many residents would go wherever the artist plays, so those are shared out between the venues they'd visit."}</p>
+          <p className="text-[11px] text-zinc-500">{summary ? "Venue: its visits on the same nights, without → with the event. Nearby: visits other venues lost." : "Bright: one dot per visit tonight, walking to each venue. Faint: earlier nights' visitors. Many residents would go wherever the artist plays, so one person can appear at more than one venue."}</p>
         </>
       )}
 

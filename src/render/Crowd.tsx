@@ -13,15 +13,15 @@ import { venueViewsOf } from "@/render/venues";
 import type { Frame } from "@/sim/frame";
 import type { World } from "@/world/schema";
 
-const FIGURE_Y = 0.6;
+export const FIGURE_Y = 0.6;
 const GLOW = 0.85;
 /** Time constant of the colour blend towards a new scene colour. */
 const BLEND_S = 0.35;
 /** Agents who stay in adopt their new colour at this phase of the week. */
 const STAY_COMMIT_AT = 0.5;
-const ease = (k: number) => k * k * (3 - 2 * k);
+export const ease = (k: number) => k * k * (3 - 2 * k);
 /** Fraction of a leg spent blending between the agent's own position (or home) and the street route. */
-const JOIN = 0.1;
+export const JOIN = 0.1;
 /** The route cache is dropped when it grows past this many routes; routes rebuild lazily. */
 const MAX_ROUTES = 20_000;
 /** Under a focus, agents outside it keep this fraction of their brightness. */
@@ -29,25 +29,25 @@ const UNFOCUSED_LIT = 0.025;
 /** Under a focus, agents in it are drawn this much larger. */
 const FOCUSED_SIZE = 1.3;
 /** In the venue race, the highlighted people are drawn this much larger, and everyone else this dim. */
-const RACE_SIZE = 4.5;
+export const RACE_SIZE = 4.5;
 const RACE_UNFOCUSED_LIT = 0.07;
 /** Earlier nights' event visitors stay lit at this brightness and emphasis (tonight's are at 1). */
 const RACE_PAST = 0.45;
 /** Race colours are pushed past the bloom threshold so the highlighted people glow. */
-const RACE_GLOW = 1.6;
+export const RACE_GLOW = 1.6;
 /** Time constant of the fade into and out of focus. */
 const FOCUS_S = 0.2;
 
-type Route = { poly: Float32Array; cum: Float32Array; total: number };
+export type Route = { poly: Float32Array; cum: Float32Array; total: number };
 /** One route book per layout, plus the street routes (home node → venue node) built on it. */
-type Streets = { graph: CityLayout["graph"]; book: RouteBook; routes: Map<string, Route> };
+export type Streets = { graph: CityLayout["graph"]; book: RouteBook; routes: Map<string, Route> };
 
 /**
  * Street route from the road node nearest home to the road node nearest the venue, shared by every
  * agent of the same block heading to the same venue (one shortest-path tree per venue). Each agent
  * walks on from its end to its own spot by the venue (see `alongRoute`).
  */
-function routeOf(streets: Streets, hx: number, hz: number, vx: number, vz: number): Route {
+export function routeOf(streets: Streets, hx: number, hz: number, vx: number, vz: number): Route {
   const g = streets.graph;
   const start = nearestNode(g, hx, hz);
   const end = nearestNode(g, vx, vz);
@@ -65,7 +65,7 @@ function routeOf(streets: Streets, hx: number, hz: number, vx: number, vz: numbe
 }
 
 /** Point at fraction f of the walk along `route` and then straight on to the spot (sx, sz), by arc length. */
-function alongRoute(route: Route, sx: number, sz: number, f: number): [number, number] {
+export function alongRoute(route: Route, sx: number, sz: number, f: number): [number, number] {
   const { poly } = route;
   const ex = poly[poly.length - 2];
   const ez = poly[poly.length - 1];

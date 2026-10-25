@@ -20,6 +20,7 @@ import type { CityLayout } from "@/render/layout";
 import { SceneAuras } from "@/render/SceneAuras";
 import { type ScoutPin, ScoutPins } from "@/render/ScoutPins";
 import { type RacePin, RacePins } from "@/render/RacePins";
+import { RaceWalkers } from "@/render/RaceWalkers";
 import { Streets } from "@/render/Streets";
 import { StreetLabels } from "@/render/StreetLabels";
 import type { ClosureRules } from "@/render/venues";
@@ -100,6 +101,7 @@ export function CityCanvas(props: CityCanvasProps) {
         <Landmarks world={props.world} layout={layout} frames={props.frames} frame={props.frame} selected={props.selectedVenue} focus={props.focus} rules={props.rules} onSelect={props.onVenueClick} />
         {props.racePins && <RacePins pins={props.racePins} />}
         <Crowd world={props.world} layout={layout} frames={props.frames} slots={props.agentSlots} tickMs={props.tickMs} focus={props.focus} />
+        {props.racePins && <RaceWalkers world={props.world} layout={layout} frames={props.frames} tickMs={props.tickMs} />}
         {props.ghost && <Ghost layout={layout} frames={props.frames} pointerRef={pointerRef} spec={props.ghost} />}
         <Effects world={props.world} layout={layout} frames={props.frames} shockwave={shockwave} rules={props.rules} onChanges={props.onFrameChanges} classify={props.classifyChange} muted={props.focus?.kind === "experiment" || props.focus?.kind === "race"} />
         <MapControls
