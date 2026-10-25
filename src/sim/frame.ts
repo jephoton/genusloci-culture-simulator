@@ -55,6 +55,8 @@ export type RaceFrame = {
   hosts: number[];
   /** Per agent slot: the candidate whose event it attended this night, or -1. */
   group: Int8Array;
+  /** Per agent slot: bit k is set if it attended candidate k's event this night (its own dot shows `group`). */
+  went: Uint8Array;
   /** Per agent slot: the candidate whose event it first attended on any night so far, or -1. */
   seen: Int8Array;
   tonight: number[];

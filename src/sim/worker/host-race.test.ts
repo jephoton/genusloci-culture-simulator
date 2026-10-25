@@ -53,7 +53,10 @@ it("plays a venue race night by night, matching future 1 of its forecast, withou
       const dots = r.group.filter((g) => g === k).length;
       expect(dots).toBeLessThanOrEqual(count);
       if (count > 0) expect(dots).toBeGreaterThan(0);
+      // Own dots plus extra walkers make exactly tonight's count.
+      expect(r.went.filter((bits) => bits & (1 << k)).length).toBe(count);
     });
+    for (let i = 0; i < r.group.length; i++) if (r.group[i] >= 0) expect(r.went[i] & (1 << r.group[i])).toBeTruthy();
     expect(r.group.filter((g) => g >= 0).length).toBeGreaterThan(0);
   }
   // Everyone who went on any night is remembered with the first venue they went to.
