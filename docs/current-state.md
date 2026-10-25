@@ -20,6 +20,12 @@
 
 **Camera (fixed 2026-10-25):** `render/camera-fit.ts` `fitView` projects the venues and their badges with a copy of the camera and solves for the look point and distance that fill 80% of the screen area beside (or above, on phones) the panel. It replaced a fixed `spread × 2.8` with a 60-unit minimum, which was too far out.
 
+**Inspection (restored 2026-10-25):** venues report hover from `Landmarks`; `FlowShell` shows a compact `VenueCard` by the pointer and a full card (status, red-ring explanation, regulars by taste scene, Qloo tags) on click. **Taste scenes** (bottom right) opens the old `SceneLegend`: hover highlights a scene, click pins it. Scene labels come from each scene's top artists and tastes (`sceneLabel`), since background naming is off. White flashes on dots are residents adopting a new scene colour (the pop in `Crowd`), now explained in the help.
+
+**Venue size:** neither Qloo popularity (saturated at 1.0 for most London venues) nor the world's capacity (simulation scale) gives real seat counts. The agent now gets the artist's Qloo popularity; at 0.95 or more it says the act normally plays arenas and that the race compares relative pull (checked with Kanye West).
+
+**Dependencies:** Next.js 16.4.0 → 16.4.3 (fixes the critical image-optimisation and `use cache` RCE advisories and the Server Actions DoS); zod 4.6.7, with a pnpm override for the copy under `@vercel/cli-config`; undici refreshed. `pnpm audit --prod` reports no known vulnerabilities, and `next build` passes.
+
 **A-Life's role:** the residents' taste genomes (seeded from Qloo heatmaps, spread by visits and scenes) decide who goes to each event, and they are what fans nearby and regulars read. The city now runs on the Artist step so this is visible; a caption explains the dots.
 
 **Scout agent (replaced the "Ask about this race" chat, 2026-10-25):** the hackathon requires an agentic component, and the chat was the only one, small and off to the side. The agent now does a step of the flow: it calls `artist_taste` (Qloo search restricted to artists, falling back to the city's tags), `qloo_rank_venues` when stored links are thin, `inspect_venue`, then `choose_venues`. When a race starts it also writes a two-sentence explanation (mode `explain`, from the forecast's result, shown at the end). Live check on London: for Wiley it picked Ain't Nothin' But, Ku Bar and Freedom Bar (not the top-3 Quaglino's), and its write-up matched the numbers after the instructions were tightened so it doesn't confuse venue visits with event visits.
@@ -28,7 +34,7 @@
 
 **Verification:** 663 tests across 120 files pass, and lint and tsc are clean. The browser run on London: Wiley gave Ain't Nothin' But, Quaglino's and Ku Bar. Ku Bar won with 34 against 24 and 17, and won 3/3 futures. The phone layout docks the panel at the bottom. **Caveat:** the in-app browser pane was hidden for part of the run, which throttles rAF to about 1 fps, so animation smoothness and timing were not judged there. Rehearse in a visible window.
 
-**Known limits:** each venue draws only about 5–15 simulated people per night (2,500 residents, 1.5 km reach), so races are small. Catchment rings were tried and dropped: 1.5 km covers most of the demo area, and fitting them pushed the camera into the fog. The production build and the public deploy have not been redone. The Next.js advisory is still open.
+**Known limits:** each venue draws only about 5–15 simulated people per night (2,500 residents, 1.5 km reach), so races are small. Catchment rings were tried and dropped: 1.5 km covers most of the demo area, and fitting them pushed the camera into the fog. The public deploy has not been redone.
 
 **Next:** rehearse in a visible window. Keep the unmounted legacy UI (`GameShell`, `LabChat`, planner, calendar, toolbar and so on) until the user has verified the new flow; they may port parts of it over before it is deleted. Publish the branch and rehearse on the public URL; then submit to Devpost.
 
