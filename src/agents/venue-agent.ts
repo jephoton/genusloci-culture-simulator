@@ -52,7 +52,8 @@ export type PickBody = z.infer<typeof PickBodySchema>;
 export type Pick = { id: string; reason: string; liveFit?: number };
 /** One thing the agent did, in plain words, for the panel. */
 export type Step = { text: string };
-export type PickResult = { picks: Pick[]; summary: string; steps: Step[] };
+/** `considered`: the venues the agent saw (live Qloo finds, then its shortlist), for swapping. */
+export type PickResult = { picks: Pick[]; summary: string; steps: Step[]; considered: string[] };
 
 /** "urn:tag:genre:music:uk_garage" → "uk garage". */
 export const readableTag = (urn: string) => (urn.split(":").at(-1) ?? urn).replace(/_/g, " ");
@@ -62,6 +63,7 @@ export function pickInstructions(body: PickBody): string {
     `You are the scout for a venue race in ${body.city}. The visitor wants to book ${body.artist}. You choose ${Math.min(PICKS, body.candidates.length)} of the city's ${body.candidates.length} music venues, clubs and bars to race in a simulation of the city's residents. The best ${Math.min(SHORTLIST, body.candidates.length)} by the city's Qloo data are listed below.`,
     "Fields: qlooFit is Qloo affinity from the city's data (0 means the data links none, not that it's a bad fit). fansNearby is simulated residents within reach whose tastes lean towards the artist; it varies little, so use it to break ties. regulars is last week's simulated visitors.",
     "Work like a booker: first call artist_taste to learn the artist's genres and style. If fewer than three listed venues have a qlooFit above 0, call qloo_rank_venues to ask Qloo live which of the city's venues the artist's fans like. Then call inspect_venue on the venues worth a closer look, and call choose_venues once. You may choose any venue returned by a tool, not only the listed ones.",
+    "Size: the simulation compares how many residents each venue would draw, not real capacity, and the city's data has no seat counts. If artist_taste gives a popularity of 0.95 or more, the artist normally plays arenas: say so plainly in the summary (this area's venues are far smaller, so the race compares their relative pull), and prefer music venues over small bars.",
     "Choose venues whose crowds plausibly share the artist's tastes. Prefer a mix that makes the race informative (for example a strong Qloo fit with few regulars against a weaker fit with many).",
     "Each reason is one plain sentence under 18 words that links the venue's crowd or ambience to the artist's style where the tags support it, or cites the Qloo fit or regulars. The summary is one sentence on how the three differ. Never invent numbers or tags.",
     body.artistNote ? `About the artist: ${body.artistNote}` : "",
@@ -81,7 +83,7 @@ function tools(body: PickBody, qloo: QlooClient | null) {
         if (qloo) {
           try {
             const [hit] = await qloo.search(body.artist, { types: ["urn:entity:artist"], take: 1 });
-            if (hit?.tags.length) return { artist: hit.name, tags: hit.tags.slice(0, 15).map((t) => t.name) };
+            if (hit?.tags.length) return { artist: hit.name, popularity: hit.popularity === undefined ? undefined : Math.round(hit.popularity * 100) / 100, tags: hit.tags.slice(0, 15).map((t) => t.name) };
           } catch (e) {
             if (!(e instanceof QlooBudgetError) && !isInvalidSignal(e)) throw e;
           }
@@ -203,7 +205,9 @@ export async function pickVenues(opts: {
   }
   const picks = fallbackPicks(body, valid);
   if (valid.length < picks.length) steps.push({ text: valid.length ? "Filled the rest with the next best matches" : "Didn't settle on venues, so took the best matches" });
-  return { picks, summary: clean(choice?.summary ?? "", 220), steps };
+  // Live Qloo finds first: the agent only asks when the city's stored links are thin.
+  const considered = [...new Set([...live.keys(), ...body.candidates.slice(0, SHORTLIST).map((c) => c.id)])];
+  return { picks, summary: clean(choice?.summary ?? "", 260), steps, considered };
 }
 
 /** A short explanation of a finished race, from its numbers (and Qloo, if asked). */

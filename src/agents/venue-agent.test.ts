@@ -84,5 +84,7 @@ describe("venue agent", () => {
     expect(asked).toMatchObject({ signalEntities: ["artist-q"], at: { lat: 51.5, lon: -0.13 }, radiusM: 2000 });
     expect(r.steps[0].text).toBe("Asked Qloo live which venues Test Artist's fans like: Room Four");
     expect(r.picks[0]).toEqual({ id: "v3", reason: "Qloo's live pick.", liveFit: 89 });
+    // Swap options: the live find first, then the listed shortlist.
+    expect(r.considered).toEqual(["v3", "v0", "v1", "v2"]);
   });
 });
