@@ -8,11 +8,12 @@ import type { EventOutcome } from "@/sim/events";
 import type { Frame } from "@/sim/frame";
 import type { RaceRequest } from "@/sim/worker/protocol";
 import type { RaceContext } from "@/agents/race-helper";
+import { type Candidate, readableTag } from "@/agents/venue-agent";
 import { ArtistPicker } from "@/ui/ArtistPicker";
 import type { BookingAct } from "@/ui/BookingPanel";
 import { rankArtistVenues, type VenueFit } from "@/ui/event-planning";
 import { fetchOutsideAct } from "@/ui/outside-act-client";
-import { RaceHelper } from "@/ui/RaceHelper";
+import { agentExplain, agentFallbackNote, agentPick } from "@/ui/venue-agent-client";
 import { LETTERS, NIGHT_OPTIONS, raceStartTick, summariseRace, WEEKDAYS } from "@/ui/venue-race";
 import { areaName, plural } from "@/ui/words";
 import type { World } from "@/world/schema";
@@ -20,6 +21,8 @@ import type { World } from "@/world/schema";
 type Phase = "artist" | "shortlist" | "race";
 /** Shown when the race stops; set from the forecast so the summary matches the futures run. */
 type Race = { runs: EventOutcome[][]; hosts: VenueFit[]; startTick: number; nights: number };
+/** The scout agent's pick: a reason per venue slot, what it looked up, and a fallback note if it couldn't pick. */
+type Scout = { working: true } | { working: false; reasons: Map<number, string>; summary: string; steps: string[]; note?: string };
 
 const SPEEDS = [{ value: 0.25, label: "Slow" }, { value: 0.5, label: "Normal" }, { value: 1, label: "Fast" }] as const;
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -62,6 +65,9 @@ export function VenueRace({
   const [race, setRace] = useState<Race | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [scout, setScout] = useState<Scout | null>(null);
+  /** The agent's write-up of a race, fetched when the race starts (its result is already known). */
+  const [explained, setExplained] = useState<{ race: Race; text: string | null; done: boolean } | null>(null);
   const request = useRef(0);
 
   // A few artists with three fitting venues, as one-click starting points (from the city as first shown).
@@ -119,9 +125,27 @@ export function VenueRace({
       if (ranked.length === 0) throw new Error(`Qloo links no music venue, club or bar in this city to ${next.label}. Try another artist.`);
       setAct(next);
       setFits(ranked);
-      choose(ranked.slice(0, 3));
+      setHosts([]);
+      onHighlight(null);
       setRace(null);
       setPhase("shortlist");
+      setScout({ working: true });
+      const candidates: Candidate[] = ranked.map((f, i) => ({
+        id: `v${i}`, name: f.name, kind: f.kind, area: area(f.slot),
+        qlooFit: Math.round((100 * f.affinity) / ranked[0].affinity), regulars: regulars(f.slot),
+        tags: world.entities[liveFrame.venueEntity[f.slot]].tags.filter((t) => !t.includes(":category:")).slice(0, 12).map(readableTag),
+      }));
+      const artistTags = next.profile ? undefined : world.entities[next.entity].tags.slice(0, 20).map(readableTag);
+      const r = await agentPick({ city: world.city.name, artist: next.label, artistNote: next.note, artistTags, candidates });
+      if (generation !== request.current) return;
+      if ("error" in r) {
+        choose(ranked.slice(0, 3));
+        setScout({ working: false, reasons: new Map(), summary: "", steps: [], note: agentFallbackNote(r.error) });
+      } else {
+        const picked = r.picks.flatMap((p) => { const f = ranked[Number(p.id.slice(1))]; return f ? [{ f, reason: p.reason }] : []; });
+        choose(picked.map((p) => p.f));
+        setScout({ working: false, reasons: new Map(picked.map((p) => [p.f.slot, p.reason])), summary: r.summary, steps: r.steps.map((x) => x.text) });
+      }
     } catch (err) {
       if (generation === request.current) setError(errorText(err));
     } finally {
@@ -136,7 +160,10 @@ export function VenueRace({
     try {
       const startTick = raceStartTick(liveFrame.tick, weekday);
       const { runs } = await startRace({ entity: act.entity, profile: act.profile, hosts: hosts.map((h) => h.slot), startTick, nights });
-      setRace({ runs, hosts, startTick, nights });
+      const next = { runs, hosts, startTick, nights };
+      setRace(next);
+      setExplained({ race: next, text: null, done: false });
+      void agentExplain(world.city.name, resultContext(next)).then((text) => setExplained((e) => (e?.race === next ? { race: next, text, done: true } : e)));
       setPhase("race");
       onPlay();
     } catch (err) {
@@ -144,6 +171,29 @@ export function VenueRace({
     } finally {
       setBusy(false);
     }
+  };
+
+  /** What the agent needs to explain a race: the venues and the result of the futures run. */
+  const resultContext = (r: Race): RaceContext => {
+    const sum = summariseRace(r.runs);
+    return {
+      step: "result",
+      artist: act?.label,
+      artistNote: act?.note,
+      venues: r.hosts.map((h, k) => ({ letter: LETTERS[k], name: h.name, kind: h.kind, area: area(h.slot), qlooFit: fits[0] ? Math.round((100 * h.affinity) / fits[0].affinity) : 0, regulars: regulars(h.slot) })),
+      race: {
+        firstNight: WEEKDAYS[r.startTick % 7],
+        nights: r.nights,
+        nightsPlayed: r.nights,
+        visits: sum.rows.map((x) => x.watched),
+        result: {
+          winner: sum.winner === null ? null : LETTERS[sum.winner],
+          futures: sum.futures,
+          consistent: sum.consistent,
+          rows: sum.rows.map((x, k) => ({ letter: LETTERS[k], min: x.min, max: x.max, wins: x.wins, hostVisitsWithoutEvent: Math.round(x.usual), hostVisitsWithEvent: Math.round(x.withEvent), visitsLostByVenuesNearby: Math.round(x.neighbourLoss) })),
+        },
+      },
+    };
   };
 
   /** Show another step, leaving the race if one is playing; the artist and venues are kept. */
@@ -159,28 +209,9 @@ export function VenueRace({
   const live = raceFrame?.race;
   const summary = race && raceDone ? summariseRace(race.runs) : null;
   const leader = live ? live.total.indexOf(Math.max(...live.total)) : -1;
-  const shown = race ? race.hosts : hosts;
-  const helperContext: RaceContext = {
-    step: phase === "artist" ? "artist" : phase === "shortlist" ? "venues" : summary ? "result" : "race",
-    artist: act?.label,
-    artistNote: act?.note,
-    venues: phase === "artist" ? [] : shown.map((h, k) => ({ letter: LETTERS[k], name: h.name, kind: h.kind, area: area(h.slot), qlooFit: fits[0] ? Math.round((100 * h.affinity) / fits[0].affinity) : 0, regulars: regulars(h.slot) })),
-    race: phase === "race" && race ? {
-      firstNight: WEEKDAYS[race.startTick % 7],
-      nights: race.nights,
-      nightsPlayed: summary ? race.nights : live?.night ?? 0,
-      visits: summary ? summary.rows.map((r) => r.watched) : live?.total ?? race.hosts.map(() => 0),
-      result: summary ? {
-        winner: summary.winner === null ? null : LETTERS[summary.winner],
-        futures: summary.futures,
-        consistent: summary.consistent,
-        rows: summary.rows.map((r, k) => ({ letter: LETTERS[k], min: r.min, max: r.max, wins: r.wins, hostVisitsWithoutEvent: Math.round(r.usual), hostVisitsWithEvent: Math.round(r.withEvent), visitsLostByVenuesNearby: Math.round(r.neighbourLoss) })),
-      } : undefined,
-    } : undefined,
-  };
   const stepNote: Record<Phase, string> = {
     artist: act?.label ?? "Pick one",
-    shortlist: act ? hosts.map((h) => h.name).join(", ") : "Then three venues",
+    shortlist: scout?.working ? "Agent picking…" : act ? hosts.map((h) => h.name).join(", ") : "Then three venues",
     race: phase === "race" && race ? (summary ? "Result" : live && live.night > 0 ? `Night ${live.night} of ${live.nights}` : "Starting") : act ? "Not run yet" : "Then the race",
   };
   const maxTotal = Math.max(1, ...(live?.total ?? [0]), ...(race?.runs[0].map((r) => r.turnout) ?? [0]));
@@ -221,14 +252,29 @@ export function VenueRace({
 
       {phase === "shortlist" && (
         <>
-          <p className="text-xs text-zinc-400">{act?.note ?? `The best Qloo matches for ${act?.label}.`} Each venue&apos;s regulars glow in its colour.</p>
+          {act?.note && <p className="text-[11px] text-zinc-400">{act.note}</p>}
+          <div aria-live="polite" className="rounded-lg border border-violet-400/25 bg-violet-500/10 px-2.5 py-1.5 text-[11px] text-zinc-300">
+            {!scout || scout.working ? (
+              <p><span className="font-medium text-violet-200">Scout agent</span> is checking {act?.label}&apos;s fans in Qloo against {fits.length} venues that fit…</p>
+            ) : scout.note ? (
+              <p>{scout.note}</p>
+            ) : (
+              <details>
+                <summary className="cursor-pointer"><span className="font-medium text-violet-200">Scout agent:</span> {scout.summary || `picked ${hosts.length} of ${fits.length} Qloo matches.`}</summary>
+                <ol className="mt-1 list-decimal space-y-0.5 pl-4 text-zinc-400">
+                  {scout.steps.map((t, i) => <li key={i}>{t}</li>)}
+                  <li>Picked {hosts.length} of {fits.length} Qloo matches</li>
+                </ol>
+              </details>
+            )}
+          </div>
           <ul className="space-y-1.5">
             {hosts.map((h, k) => (
               <li key={h.slot} className="rounded-lg border bg-white/5 px-2.5 py-1.5" style={{ borderColor: `${RACE_CSS[k]}80` }}>
                 <div className="flex items-center gap-2">
                   <span className="grid size-5 shrink-0 place-items-center rounded-full text-[11px] font-bold text-zinc-950" style={{ background: RACE_CSS[k] }}>{LETTERS[k]}</span>
                   <p className="min-w-0 flex-1 truncate font-medium">{h.name}</p>
-                  {fits.length > hosts.length && (
+                  {fits.length > hosts.length && hosts.length > 0 && (
                     <select aria-label={`Swap venue ${LETTERS[k]}`} value={h.slot} onChange={(e) => {
                       const pick = fits.find((f) => f.slot === Number(e.target.value));
                       if (pick) choose(hosts.map((x, j) => (j === k ? pick : x)));
@@ -238,11 +284,8 @@ export function VenueRace({
                     </select>
                   )}
                 </div>
-                <p className="truncate text-[11px] text-zinc-400">{h.kind} · {area(h.slot)} · {plural(regulars(h.slot), "regular")} this week</p>
-                <div className="mt-1 flex items-center gap-2 text-[11px] text-zinc-400">
-                  <span className="shrink-0">Qloo fit</span>
-                  <span className="h-1.5 flex-1 overflow-hidden rounded bg-white/10"><span className="block h-full rounded" style={{ width: `${Math.round((100 * h.affinity) / fits[0].affinity)}%`, background: RACE_CSS[k] }} /></span>
-                </div>
+                <p className="truncate text-[11px] text-zinc-400">{h.kind} · {area(h.slot)} · {plural(regulars(h.slot), "regular")} · Qloo fit {Math.round((100 * h.affinity) / fits[0].affinity)}</p>
+                {scout && !scout.working && <p className="text-[11px] leading-snug text-zinc-200">{scout.reasons.get(h.slot) ?? "Your pick."}</p>}
               </li>
             ))}
           </ul>
@@ -279,6 +322,11 @@ export function VenueRace({
                 {summary.winner !== null && (summary.consistent ? `It also won all ${summary.futures} futures with different luck, so the lead is clear in this model.` : `It won ${summary.rows[summary.winner].wins} of ${summary.futures} futures with different luck, so the lead is uncertain.`)}
                 {" "}Simulated residents built from Qloo taste data, not ticket sales.
               </p>
+              {explained?.race === race && (explained.text || !explained.done) && (
+                <p aria-live="polite" className="mt-1.5 border-t border-white/10 pt-1.5 text-[11px] leading-snug text-zinc-200">
+                  <span className="font-medium text-violet-200">Agent: </span>{explained.text ?? "writing up why…"}
+                </p>
+              )}
             </div>
           ) : (
             <div className="flex items-center gap-2">
@@ -317,7 +365,6 @@ export function VenueRace({
       )}
 
       {error && <p role="alert" className="text-xs text-rose-300">{error}</p>}
-      <RaceHelper city={city} context={helperContext} />
     </section>
   );
 }
