@@ -13,7 +13,7 @@ Qloo supplies the venues, taste tags, artist affinities and geographic heatmaps.
 ## The experience
 
 1. **Artist.** While you choose, the city runs live: residents go out, and taste scenes form and spread. Pick a suggested artist or type any name. An artist the city doesn't know is looked up live in Qloo, and their fans' tastes stand in for them.
-2. **Venues A, B, C.** The scout agent picks three of the city's venues and says why. It asks Qloo live which venues the artist's fans like when the city's stored data is thin. They appear on the map in three colours. Each venue's regulars glow in its colour and everyone else dims. Swap a venue, or choose the first night and how many nights.
+2. **Venues A, B, C.** The scout agent picks three of the city's venues and says why. It asks Qloo live which venues the artist's fans like when the city's stored data is thin. They appear on the map in three colours. Each venue's regulars glow in its colour and everyone else dims. Swap a venue, or choose how many nights (races start on a Friday).
 3. **Race.** Each night, each venue's event visitors walk there, bright in its colour. Earlier nights' visitors stay faintly lit. Play, Pause and speed are yours.
 4. **Result.** The result names who drew the most and whether it also won the other futures, with ranges. It also shows usual nights versus with the event, and visits taken from venues nearby.
 5. **Tweak.** Click the step tabs (Artist, Venues, Race) to change anything and race again, or watch the same race again.

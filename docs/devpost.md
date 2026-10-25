@@ -20,7 +20,7 @@ Where should an artist play? A chat model can name venues that sound right, but 
 
 Pick an artist. Qloo's taste data shortlists the three existing venues in the city whose crowds fit best: A, B and C, each in its own colour, with their regulars glowing on the map. Then they race. Each venue hosts the artist in its own copy of the same simulated city, from the same moment and the same luck, night by night. Each night the people who go walk to their venue in its colour, and the tallies climb.
 
-The result names who drew the most and checks the winner against two more futures with different luck. It also shows the range of visits, the venue's usual nights versus with the event, and how many visits it took from venues nearby. Change the venues, the first night, the number of nights or the artist, and race again. A scout agent picks the venues (after checking the artist in Qloo and the venues' tags, with a reason for each) and writes up why the winner won.
+The result names who drew the most and checks the winner against two more futures with different luck. It also shows the range of visits, the venue's usual nights versus with the event, and how many visits it took from venues nearby. Change the venues, the number of nights or the artist, and race again. A scout agent picks the venues (after checking the artist in Qloo and the venues' tags, with a reason for each) and writes up why the winner won.
 
 Artists the city doesn't know are looked up live in Qloo: who their fans also like becomes the event's taste.
 
