@@ -288,7 +288,7 @@ export function VenueRace({
               ))}
             </p>
           )}
-          <p className="text-[11px] leading-snug text-zinc-500">The city is live. Each dot is a simulated resident, coloured by their taste scene. Scenes form, spread and split as people go out and pass tastes on. Picking an artist freezes this moment, and the race starts from it.</p>
+          <p className="text-[11px] leading-snug text-zinc-500">The city is live: each dot is a resident, coloured by taste scene. Picking an artist freezes this moment for the race.</p>
         </form>
       )}
 
@@ -341,7 +341,7 @@ export function VenueRace({
               {busy ? "Setting up…" : "Start race"}
             </button>
           </div>
-          <p className="text-[11px] text-zinc-500">Each venue hosts {act?.label} in its own copy of the same city, from the same moment and luck. Your live city doesn&apos;t change.</p>
+          <p className="text-[11px] text-zinc-500">Each venue hosts {act?.label} in its own copy of the city, from this moment, with the same luck.</p>
         </>
       )}
 
@@ -397,7 +397,7 @@ export function VenueRace({
               );
             })}
           </ul>
-          <p className="text-[11px] text-zinc-500">{summary ? "Venue: its visits on the same nights, without → with the event. Nearby: visits other venues lost." : "Bright: one dot per visit tonight, walking to each venue. Faint: earlier nights' visitors. Many residents would go wherever the artist plays, so one person can appear at more than one venue."}</p>
+          <p className="text-[11px] text-zinc-500">{summary ? "Venue: its visits on the same nights, without → with the event. Nearby: visits other venues lost." : "One bright dot per visit tonight; faint dots went on earlier nights. Someone who'd go to more than one venue appears at each."}</p>
         </>
       )}
 
