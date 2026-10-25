@@ -36,6 +36,8 @@ export type CityCanvasProps = {
   tickMs: number;
   selectedVenue: number | null;
   onVenueClick: (slot: number) => void;
+  /** The pointer moved onto (slot) or off (null) a venue. */
+  onVenueHover?: (slot: number | null) => void;
   onGroundClick: (x: number, z: number) => void;
   cursor: string;
   /** What the active placement tool would place, previewed under the cursor; null when not placing. */
@@ -98,7 +100,7 @@ export function CityCanvas(props: CityCanvasProps) {
         <SceneAuras world={props.world} layout={layout} frames={props.frames} frame={props.frame} focus={props.focus} dimmed={!!props.scout} />
         {props.scout?.demand && <DemandGlow frames={props.frames} layout={layout} demand={props.scout.demand} />}
         {props.scout && <ScoutPins frames={props.frames} layout={layout} pins={props.scout.pins} highlighted={props.scout.highlighted} best={props.scout.best} />}
-        <Landmarks world={props.world} layout={layout} frames={props.frames} frame={props.frame} selected={props.selectedVenue} focus={props.focus} rules={props.rules} onSelect={props.onVenueClick} />
+        <Landmarks world={props.world} layout={layout} frames={props.frames} frame={props.frame} selected={props.selectedVenue} focus={props.focus} rules={props.rules} onSelect={props.onVenueClick} onHover={props.onVenueHover} />
         {props.racePins && <RacePins pins={props.racePins} />}
         <Crowd world={props.world} layout={layout} frames={props.frames} slots={props.agentSlots} tickMs={props.tickMs} focus={props.focus} />
         {props.racePins && <RaceWalkers world={props.world} layout={layout} frames={props.frames} tickMs={props.tickMs} />}

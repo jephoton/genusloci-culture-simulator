@@ -179,7 +179,7 @@ export function Body({ kind, mats: { neon, body, band, roof = body, window = ban
 }
 
 function Landmark({
-  frames, epoch, view, hues, selected, inFocus, struggling, onSelect, emphasized = false, beaconRgb,
+  frames, epoch, view, hues, selected, inFocus, struggling, onSelect, onHover, emphasized = false, beaconRgb,
 }: {
   /** Holds the pausable animation clock every pulse and spring runs on. */
   frames: RefObject<FrameStore>;
@@ -196,6 +196,8 @@ function Landmark({
   /** False when a focus is active and this venue is outside it: it dims. */
   inFocus: boolean;
   onSelect: (slot: number) => void;
+  /** The pointer moved onto (slot) or off (null) this venue. */
+  onHover?: (slot: number | null) => void;
 }) {
   const [x, z] = view.position;
   // The sign shows tonight's crowd (its dominant scene); the body and roof band show the venue's own
@@ -351,7 +353,12 @@ function Landmark({
     onSelect(view.slot);
   };
   return (
-    <group position={[x, 0, z]} onClick={onClick}>
+    <group
+      position={[x, 0, z]}
+      onClick={onClick}
+      onPointerOver={(e) => { e.stopPropagation(); document.body.style.cursor = "pointer"; onHover?.(view.slot); }}
+      onPointerOut={() => { document.body.style.cursor = ""; onHover?.(null); }}
+    >
       {/* Springs in height and pops in scale (see useFrame); starts below ground until the first frame. */}
       <group ref={bodyRef} position-y={BURIED * view.scale} scale={view.scale}>
         <Body kind={view.kind} mats={mats} />
@@ -411,7 +418,7 @@ function Landmark({
 }
 
 export function Landmarks({
-  world, layout, frames, frame, selected, focus, rules, onSelect,
+  world, layout, frames, frame, selected, focus, rules, onSelect, onHover,
 }: {
   world: World;
   frames: RefObject<FrameStore>;
@@ -422,13 +429,14 @@ export function Landmarks({
   selected: number | null;
   focus: Focus;
   onSelect: (slot: number) => void;
+  onHover?: (slot: number | null) => void;
 }) {
   const views = useMemo(() => (frame ? venueViewsOf(frame, layout, world) : []), [frame, layout, world]);
   const hues = useMemo(() => (frame ? sceneHuesOf(frame.lineageParents) : new Float32Array(0)), [frame]);
   return (
     <group>
       {views.map((v) => (
-        <Landmark key={v.slot} frames={frames} epoch={frame?.epoch ?? -1} view={v} hues={hues} selected={selected === v.slot} emphasized={(focus?.kind === "experiment" && focus.targets.has(v.slot)) || (focus?.kind === "race" && focus.hosts.includes(v.slot))} beaconRgb={focus?.kind === "race" && focus.hosts.includes(v.slot) ? RACE_RGB[focus.hosts.indexOf(v.slot)] as Rgb : undefined} inFocus={venueInFocus(focus, v)} struggling={venueInFocus(focus, v) && !!frame && isStruggling(frame, v.slot, rules)} onSelect={(slot) => { if (canInspectVenue(focus, slot)) onSelect(slot); }} />
+        <Landmark key={v.slot} frames={frames} epoch={frame?.epoch ?? -1} view={v} hues={hues} selected={selected === v.slot} emphasized={(focus?.kind === "experiment" && focus.targets.has(v.slot)) || (focus?.kind === "race" && focus.hosts.includes(v.slot))} beaconRgb={focus?.kind === "race" && focus.hosts.includes(v.slot) ? RACE_RGB[focus.hosts.indexOf(v.slot)] as Rgb : undefined} inFocus={venueInFocus(focus, v)} struggling={venueInFocus(focus, v) && !!frame && isStruggling(frame, v.slot, rules)} onSelect={(slot) => { if (canInspectVenue(focus, slot)) onSelect(slot); }} onHover={onHover} />
       ))}
     </group>
   );
