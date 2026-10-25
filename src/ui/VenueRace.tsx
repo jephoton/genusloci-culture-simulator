@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useMemo, useRef, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { RACE_CSS } from "@/render/focus";
 import type { CityLayout } from "@/render/layout";
 import { venueViewsOf } from "@/render/venues";
@@ -125,6 +125,8 @@ export function VenueRace({
     const generation = ++request.current;
     setBusy(true);
     setError(null);
+    // Freeze the city: the venues' numbers and the race all start from this moment.
+    onPause();
     try {
       const local = artists.find((a) => a.name.toLowerCase() === name.trim().toLowerCase());
       let next: BookingAct;
@@ -168,7 +170,10 @@ export function VenueRace({
         setScout({ working: false, reasons: new Map(picked.map((p) => [p.f.slot, p.reason])), liveFits: new Map(picked.flatMap((p) => (p.liveFit === undefined ? [] : [[p.f.slot, p.liveFit] as [number, number]]))), summary: r.summary, steps: r.steps.map((x) => x.text) });
       }
     } catch (err) {
-      if (generation === request.current) setError(errorText(err));
+      if (generation === request.current) {
+        setError(errorText(err));
+        onPlay();
+      }
     } finally {
       if (generation === request.current) setBusy(false);
     }
@@ -225,7 +230,15 @@ export function VenueRace({
     if (phase === "race") await endRace();
     setPhase(next);
     onHighlight(next === "shortlist" ? hosts.map((h) => h.slot) : null);
+    // Back at the start the city lives on; elsewhere it stays frozen at the moment the venues were picked.
+    if (next === "artist") onPlay();
+    else onPause();
   };
+
+  // The city is live while you choose an artist.
+  useEffect(() => {
+    onPlay();
+  }, [onPlay]);
 
   const live = raceFrame?.race;
   const summary = race && raceDone ? summariseRace(race.runs) : null;
@@ -255,7 +268,7 @@ export function VenueRace({
 
       {phase === "artist" && (
         <form onSubmit={(e) => void findVenues(e)} className="space-y-2">
-          <p className="text-xs text-zinc-400">Pick an artist. Qloo finds the three venues whose crowds fit them best, then the simulation races them.</p>
+          <p className="text-xs text-zinc-400">Pick an artist. A scout agent uses Qloo to choose three venues that fit, then the simulation races them.</p>
           <div className="flex gap-2">
             <ArtistPicker value={query} onChange={setQuery} artists={artists} disabled={busy || !liveFrame} placeholder="Artist name" outsideHint="Not in this city's data: Find venues looks them up in Qloo." />
             <button type="submit" disabled={busy || !query.trim() || !liveFrame} className="rounded-lg bg-violet-500/80 px-3 py-1.5 text-white hover:bg-violet-500 disabled:opacity-40">{busy ? "Finding…" : "Find venues"}</button>
@@ -268,6 +281,7 @@ export function VenueRace({
               ))}
             </p>
           )}
+          <p className="text-[11px] leading-snug text-zinc-500">The city is live. Each dot is a simulated resident, coloured by their taste scene. Scenes form, spread and split as people go out and pass tastes on. Picking an artist freezes this moment, and the race starts from it.</p>
         </form>
       )}
 
