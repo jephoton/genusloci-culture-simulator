@@ -32,6 +32,11 @@ export function raceGroup(focus: RaceFocus, frame: Frame, agent: number): number
   return frame.race ? frame.race.group[agent] ?? -1 : focus.groups[agent] ?? -1;
 }
 
+/** In a race, the candidate whose event an agent went to on an earlier night (-1 for none). */
+export function raceSeen(frame: Frame, agent: number): number {
+  return frame.race?.seen[agent] ?? -1;
+}
+
 /** Recorded visitors over the same rolling activity cycle used for venue ranking. */
 export function recentVenueVisitors(frame: Frame, targets: ReadonlySet<number>): Set<number> {
   const agents = new Set<number>();

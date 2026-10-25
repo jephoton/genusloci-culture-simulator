@@ -3,7 +3,7 @@
 import { useFrame } from "@react-three/fiber";
 import { type RefObject, useEffect, useLayoutEffect, useRef } from "react";
 import * as THREE from "three";
-import { agentInFocus, type Focus, RACE_RGB, raceGroup } from "@/render/focus";
+import { agentInFocus, type Focus, RACE_RGB, raceGroup, raceSeen } from "@/render/focus";
 import { markVisualComplete, type FrameStore } from "@/render/frame-store";
 import { agentHomePosition, type CityLayout, hash01, LANDMARK_RADIUS } from "@/render/layout";
 import { outingPhase, staggerOf } from "@/render/outing-path";
@@ -29,8 +29,10 @@ const UNFOCUSED_LIT = 0.025;
 /** Under a focus, agents in it are drawn this much larger. */
 const FOCUSED_SIZE = 1.3;
 /** In the venue race, the highlighted people are drawn this much larger, and everyone else this dim. */
-const RACE_SIZE = 2.6;
+const RACE_SIZE = 4.5;
 const RACE_UNFOCUSED_LIT = 0.07;
+/** Earlier nights' event visitors stay lit at this brightness and emphasis (tonight's are at 1). */
+const RACE_PAST = 0.45;
 /** Race colours are pushed past the bloom threshold so the highlighted people glow. */
 const RACE_GLOW = 1.6;
 /** Time constant of the fade into and out of focus. */
@@ -326,10 +328,13 @@ export function Crowd({
       const since = now - m.changedAt[i];
       const pop = 1 + 1.2 * Math.exp(-since / 220);
       const flash = 1.5 * Math.exp(-since / 160);
-      const group = f?.kind === "race" ? raceGroup(f, frame, i) : -1;
-      const member = f?.kind === "race" ? group >= 0 : agentInFocus(f, frame.scene[i], frame.attendance[i], i);
-      m.lit[i] += ((member ? 1 : f?.kind === "race" ? RACE_UNFOCUSED_LIT : UNFOCUSED_LIT) - m.lit[i]) * focusBlend;
-      m.emphasis[i] += ((f && member ? 1 : 0) - m.emphasis[i]) * focusBlend;
+      const race = f?.kind === "race";
+      const tonight = race ? raceGroup(f, frame, i) : -1;
+      const group = tonight >= 0 ? tonight : race ? raceSeen(frame, i) : -1;
+      const weight = tonight >= 0 ? 1 : group >= 0 ? RACE_PAST : 0;
+      const member = race ? group >= 0 : agentInFocus(f, frame.scene[i], frame.attendance[i], i);
+      m.lit[i] += ((race ? Math.max(weight, RACE_UNFOCUSED_LIT) : member ? 1 : UNFOCUSED_LIT) - m.lit[i]) * focusBlend;
+      m.emphasis[i] += ((race ? weight : f && member ? 1 : 0) - m.emphasis[i]) * focusBlend;
       const lit = m.lit[i];
       if (group >= 0) {
         const [r, g, b] = RACE_RGB[group];

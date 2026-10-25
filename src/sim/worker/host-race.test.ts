@@ -46,6 +46,8 @@ it("plays a venue race night by night, matching future 1 of its forecast, withou
   expect(expected.some((t) => t > 0)).toBe(true);
   expect(last.race!.total).toEqual(expected);
   expect(last.race!.group.some((g) => g >= 0)).toBe(true);
+  // Everyone who went on any night is remembered with the first venue they went to.
+  for (const m of f.frames) for (let i = 0; i < m.frame.race!.group.length; i++) if (m.frame.race!.group[i] >= 0) expect(last.race!.seen[i]).toBeGreaterThanOrEqual(0);
   expect(f.complete[0].outcomes.map((r) => r.turnout)).toEqual(expected);
   // Each candidate's visitors are drawn at its host venue.
   for (let i = 0; i < last.race!.group.length; i++) if (last.race!.group[i] >= 0) expect(last.attendance[i]).toBe(race.hosts[last.race!.group[i]]);

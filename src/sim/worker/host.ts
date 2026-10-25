@@ -86,7 +86,7 @@ export class SimHost {
   private epoch = 0;
   private player: Player | null = null;
   private activeCase: { timeline: string; monitor: CaseMonitor } | null = null;
-  private race: { run: PairedEventRun; hosts: number[] } | null = null;
+  private race: { run: PairedEventRun; hosts: number[]; seen: Int8Array } | null = null;
 
   constructor(private readonly io: HostIO = NO_IO) {}
 
@@ -173,7 +173,7 @@ export class SimHost {
 
   /** The baseline city, with each candidate's event visitors (from its own future) sent to its host. */
   private raceFrame(): { frame: Frame; transfer: ArrayBuffer[] } {
-    const { run, hosts } = this.race!;
+    const { run, hosts, seen } = this.race!;
     const built = buildFrame(run.baseline, RACE_TIMELINE, run.startTick, false, this.epoch);
     const group = new Int8Array(built.frame.attendance.length).fill(-1);
     hosts.forEach((host, k) => {
@@ -186,9 +186,11 @@ export class SimHost {
         built.frame.attendance[i] = host;
       }
     });
+    for (let i = 0; i < group.length; i++) if (group[i] >= 0 && seen[i] < 0) seen[i] = group[i];
     const { tonight, total } = run.tallies();
-    built.frame.race = { hosts: [...hosts], group, tonight, total, night: run.elapsed, nights: run.ticks };
-    return { frame: built.frame, transfer: [...built.transfer, group.buffer as ArrayBuffer] };
+    const seenCopy = seen.slice();
+    built.frame.race = { hosts: [...hosts], group, seen: seenCopy, tonight, total, night: run.elapsed, nights: run.ticks };
+    return { frame: built.frame, transfer: [...built.transfer, group.buffer as ArrayBuffer, seenCopy.buffer as ArrayBuffer] };
   }
 
   handle(req: WorkerRequest): WorkerResponse {
@@ -369,7 +371,7 @@ export class SimHost {
         const o: EventRunOptions = { weeks: 1, duration: 1, startTick: r.startTick, durationDays: r.nights, reachKm, capacity, nearbyKm, runs: RACE_RUNS };
         const runs = runEventCandidateRuns(s, candidates, o);
         if (this.player?.timeline === RACE_TIMELINE) this.stopPlaying();
-        this.race = { run: new PairedEventRun(s, candidates, o, runSeed(s, 0)), hosts: hosts as number[] };
+        this.race = { run: new PairedEventRun(s, candidates, o, runSeed(s, 0)), hosts: hosts as number[], seen: new Int8Array(s.alive.length).fill(-1) };
         return { runs, frame: this.raceFrame().frame };
       }
       case "endRace":

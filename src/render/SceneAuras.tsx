@@ -228,7 +228,7 @@ export function SceneAuras({
       if (!mesh || !tint || i >= MAX_AURAS) continue;
       const pulse = 1 + BIRTH_PULSE * Math.exp(-(sceneAge.get(a.scene) ?? Infinity) / BIRTH_DECAY_S);
       const breath = 1 + BREATH_DEPTH * Math.sin(t * BREATH_HZ * Math.PI * 2 + a.scene * 1.7);
-      const k = focus?.kind === "experiment" ? 0 : a.level * a.opacity * a.focus * pulse * breath * dim;
+      const k = focus?.kind === "experiment" || focus?.kind === "race" ? 0 : a.level * a.opacity * a.focus * pulse * breath * dim;
       mesh.setMatrixAt(i, scratch.makeScale(a.r, 1, a.r).setPosition(a.x, AURA_Y, a.z));
       tint.setXYZ(i, a.rgb[0] * k, a.rgb[1] * k, a.rgb[2] * k);
       i++;
