@@ -20,7 +20,7 @@ Where should an artist play? A chat model can name venues that sound right, but 
 
 Pick an artist. Qloo's taste data shortlists the three existing venues in the city whose crowds fit best: A, B and C, each in its own colour, with their regulars glowing on the map. Then they race. Each venue hosts the artist in its own copy of the same simulated city, from the same moment and the same luck, night by night. Each night the people who go walk to their venue in its colour, and the tallies climb.
 
-The result names who drew the most and checks the winner against two more futures with different luck. It also shows the range of visits, the venue's usual nights versus with the event, and how many visits it took from venues nearby. Change the venues, the first night, the number of nights or the artist, and race again. An optional guide explains the result from the race's numbers and can consult Qloo.
+The result names who drew the most and checks the winner against two more futures with different luck. It also shows the range of visits, the venue's usual nights versus with the event, and how many visits it took from venues nearby. Change the venues, the first night, the number of nights or the artist, and race again. A scout agent picks the venues (after checking the artist in Qloo and the venues' tags, with a reason for each) and writes up why the winner won.
 
 Artists the city doesn't know are looked up live in Qloo: who their fans also like becomes the event's taste.
 
@@ -28,7 +28,7 @@ Artists the city doesn't know are looked up live in Qloo: who their fans also li
 
 Qloo is used throughout. Place insights supply the venues and their tags. Artist recommendations build the taste graph, and the A/B/C shortlist ranks venues by Qloo affinity to the artist. Heatmaps seed where each taste lives, which decides who is within reach of each venue. A separate held-out heatmap gives a limited spatial check, not forecasting validation.
 
-Outside artists use live Qloo calls (search, recommendations and tag affinities). The guide has server-side Qloo search and taste tools through the Vercel AI SDK, and answers from the race's own numbers rather than inventing outcomes.
+Outside artists use live Qloo calls (search, recommendations and tag affinities). The scout agent runs on the server through the Vercel AI SDK: it calls Qloo for the artist's taste, inspects shortlisted venues' Qloo tags, and commits its choice through a tool; the browser validates it against the shortlist. Its write-up uses the race's own numbers rather than inventing outcomes.
 
 A generic simulator would still run without Qloo, but would not retain the same city-specific taste relationships. Qloo supplies the cultural grounding; the simulation's rules and parameters are our assumptions. We do not claim a measured win over an LLM-only baseline.
 
@@ -37,7 +37,7 @@ A generic simulator would still run without Qloo, but would not retain the same 
 - A deterministic TypeScript simulation in a Web Worker covers sparse taste genomes, nights out, exposure and adoption, drift, decay, venue health and discovered scenes.
 - The venue race steps a no-event baseline and one forked future per venue in lock-step from the same seed. The race on screen is exactly future 1 of the three-future forecast, which a test checks.
 - The city is a React Three Fiber scene with real OpenStreetMap streets and Qloo venue landmarks. Residents walk the streets to their venue, coloured by the venue they chose.
-- The Vercel AI SDK powers the guide, with Gemini first and Groq as backup, plus server-side Qloo tools.
+- The Vercel AI SDK powers the scout agent, with Gemini first and Groq as backup, plus server-side Qloo tools.
 - Qloo access is cached, validated and budgeted. Generated Qloo worlds stay out of the public repository and are served privately.
 
 ## Challenges and lessons
