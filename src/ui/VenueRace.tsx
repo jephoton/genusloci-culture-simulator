@@ -19,7 +19,8 @@ import { LETTERS, NIGHT_OPTIONS, raceStartTick, summariseRace, WEEKDAYS } from "
 import { areaName, plural } from "@/ui/words";
 import type { World } from "@/world/schema";
 
-type Phase = "artist" | "shortlist" | "race";
+const PHASES = ["artist", "shortlist", "race"] as const;
+type Phase = (typeof PHASES)[number];
 /** Shown when the race stops; set from the forecast so the summary matches the futures run. */
 type Race = { runs: EventOutcome[][]; hosts: VenueFit[]; startTick: number; nights: number };
 /** The scout agent's pick: a reason per venue slot, what it looked up, and a fallback note if it couldn't pick. */
@@ -229,10 +230,12 @@ export function VenueRace({
     };
   };
 
-  /** Show another step, leaving the race if one is playing; the artist and venues are kept. */
+  /**
+   * Go back to an earlier step, leaving the race if one is playing; the artist and venues are kept.
+   * Steps only move forward through their own buttons (Find venues, Start race), which set them up.
+   */
   const goTo = async (next: Phase) => {
-    if (next === phase || busy) return;
-    if (next === "race") return run();
+    if (busy || PHASES.indexOf(next) >= PHASES.indexOf(phase)) return;
     request.current++;
     if (phase === "race") await endRace();
     setPhase(next);
@@ -261,7 +264,7 @@ export function VenueRace({
     <section aria-label="Find the best venue" className="panel pointer-events-auto flex max-h-full flex-col gap-2.5 overflow-y-auto p-3 text-sm sm:overflow-visible">
       <nav aria-label="Steps" className="grid grid-cols-3 gap-1">
         {([["artist", "1", "Artist"], ["shortlist", "2", "Venues"], ["race", "3", "Race"]] as const).map(([step, num, label]) => {
-          const enabled = step === "artist" || (act !== null && hosts.length > 0);
+          const enabled = PHASES.indexOf(step) < PHASES.indexOf(phase);
           const current = step === phase;
           return (
             <button key={step} type="button" aria-current={current ? "step" : undefined} disabled={!enabled || (busy && !current)} onClick={() => void goTo(step)}
