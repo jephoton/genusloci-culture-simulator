@@ -28,7 +28,7 @@ Artists the city doesn't know are looked up live in Qloo: who their fans also li
 
 Qloo is used throughout. Place insights supply the venues and their tags. Artist recommendations build the taste graph, and the A/B/C shortlist ranks venues by Qloo affinity to the artist. Heatmaps seed where each taste lives, which decides who is within reach of each venue. A separate held-out heatmap gives a limited spatial check, not forecasting validation.
 
-Outside artists use live Qloo calls (search, recommendations and tag affinities). The scout agent runs on the server through the Vercel AI SDK: it calls Qloo for the artist's taste, inspects shortlisted venues' Qloo tags, and commits its choice through a tool; the browser validates it against the shortlist. Its write-up uses the race's own numbers rather than inventing outcomes.
+Outside artists use live Qloo calls (search, recommendations and tag affinities). The scout agent runs on the server through the Vercel AI SDK: it calls Qloo for the artist's taste, asks Qloo live which of the city's nightclubs, music venues and bars the artist's fans like (when the stored links are thin), inspects venues' Qloo tags, and commits its choice through a tool; the browser validates it against the shortlist. Its write-up uses the race's own numbers rather than inventing outcomes.
 
 A generic simulator would still run without Qloo, but would not retain the same city-specific taste relationships. Qloo supplies the cultural grounding; the simulation's rules and parameters are our assumptions. We do not claim a measured win over an LLM-only baseline.
 
