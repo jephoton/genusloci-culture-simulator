@@ -7,10 +7,12 @@ import { venueViewsOf } from "@/render/venues";
 import type { EventOutcome } from "@/sim/events";
 import type { Frame } from "@/sim/frame";
 import type { RaceRequest } from "@/sim/worker/protocol";
+import type { RaceContext } from "@/agents/race-helper";
 import { ArtistPicker } from "@/ui/ArtistPicker";
 import type { BookingAct } from "@/ui/BookingPanel";
 import { rankArtistVenues, type VenueFit } from "@/ui/event-planning";
 import { fetchOutsideAct } from "@/ui/outside-act-client";
+import { RaceHelper } from "@/ui/RaceHelper";
 import { LETTERS, NIGHT_OPTIONS, raceStartTick, summariseRace, WEEKDAYS } from "@/ui/venue-race";
 import { areaName, plural } from "@/ui/words";
 import type { World } from "@/world/schema";
@@ -166,6 +168,25 @@ export function VenueRace({
   const live = raceFrame?.race;
   const summary = race && raceDone ? summariseRace(race.runs) : null;
   const leader = live ? live.total.indexOf(Math.max(...live.total)) : -1;
+  const shown = race ? race.hosts : hosts;
+  const helperContext: RaceContext = {
+    step: phase === "artist" ? "artist" : phase === "shortlist" ? "venues" : summary ? "result" : "race",
+    artist: act?.label,
+    artistNote: act?.note,
+    venues: phase === "artist" ? [] : shown.map((h, k) => ({ letter: LETTERS[k], name: h.name, kind: h.kind, area: area(h.slot), qlooFit: fits[0] ? Math.round((100 * h.affinity) / fits[0].affinity) : 0, regulars: regulars(h.slot) })),
+    race: phase === "race" && race ? {
+      firstNight: WEEKDAYS[race.startTick % 7],
+      nights: race.nights,
+      nightsPlayed: summary ? race.nights : live?.night ?? 0,
+      visits: summary ? summary.rows.map((r) => r.watched) : live?.total ?? race.hosts.map(() => 0),
+      result: summary ? {
+        winner: summary.winner === null ? null : LETTERS[summary.winner],
+        futures: summary.futures,
+        consistent: summary.consistent,
+        rows: summary.rows.map((r, k) => ({ letter: LETTERS[k], min: r.min, max: r.max, wins: r.wins, hostVisitsWithoutEvent: Math.round(r.usual), hostVisitsWithEvent: Math.round(r.withEvent), visitsLostByVenuesNearby: Math.round(r.neighbourLoss) })),
+      } : undefined,
+    } : undefined,
+  };
   const maxTotal = Math.max(1, ...(live?.total ?? [0]), ...(race?.runs[0].map((r) => r.turnout) ?? [0]));
 
   return (
@@ -316,6 +337,7 @@ export function VenueRace({
       )}
 
       {error && <p role="alert" className="text-xs text-rose-300">{error}</p>}
+      <RaceHelper city={city} context={helperContext} />
     </section>
   );
 }
