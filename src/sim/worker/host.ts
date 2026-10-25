@@ -3,7 +3,9 @@ import { CaseMonitor, type CaseReport } from "@/sim/case";
 import { parseAction } from "@/sim/actions/schema";
 import { DEFAULT_CONFIG, parseConfigOverrides } from "@/sim/config";
 import { digest } from "@/sim/digest";
-import { buildFrame } from "@/sim/frame";
+import { buildFrame, type Frame } from "@/sim/frame";
+import { PairedEventRun, runEventCandidateRuns, type EventRunOptions } from "@/sim/events";
+import { runSeed } from "@/sim/whatif";
 import { demandByCell, pickCandidates, scoutCandidates } from "@/sim/scout";
 import { MAX_WHATIF_WEEKS, whatIf } from "@/sim/whatif";
 import { residentProfile, typicalResident } from "@/sim/resident";
@@ -23,6 +25,12 @@ import {
   MAX_TICKS_PER_RUN,
   MAX_TICKS_PER_SECOND,
   MIN_TICKS_PER_SECOND,
+  MAX_RACE_NIGHTS,
+  MAX_RACE_VENUES,
+  RACE_RUNS,
+  RACE_TIMELINE,
+  type RaceCompleteMessage,
+  type RaceRequest,
   SCOUT_DEFAULTS,
   type StoppedMessage,
   type WorkerCommand,
@@ -62,7 +70,7 @@ function medianNearestCellKm(s: SimState): number {
 
 /** Side effects the host needs for streaming; injected so tests can drive the loop by hand. */
 export type HostIO = {
-  emit(message: FrameMessage | StoppedMessage | CaseCompleteMessage, transfer: ArrayBuffer[]): void;
+  emit(message: FrameMessage | StoppedMessage | CaseCompleteMessage | RaceCompleteMessage, transfer: ArrayBuffer[]): void;
   schedule(fn: () => void, ms: number): unknown;
   cancel(handle: unknown): void;
 };
@@ -78,6 +86,7 @@ export class SimHost {
   private epoch = 0;
   private player: Player | null = null;
   private activeCase: { timeline: string; monitor: CaseMonitor } | null = null;
+  private race: { run: PairedEventRun; hosts: number[] } | null = null;
 
   constructor(private readonly io: HostIO = NO_IO) {}
 
@@ -110,6 +119,10 @@ export class SimHost {
   /** One play-loop tick for `p`; a callback left over from a stopped or replaced player does nothing. */
   private loop(p: Player): void {
     if (this.player !== p) return;
+    if (p.timeline === RACE_TIMELINE) {
+      this.raceLoop(p);
+      return;
+    }
     const t = this.timelines.get(p.timeline);
     if (!t) {
       this.stopPlaying();
@@ -134,6 +147,50 @@ export class SimHost {
     p.handle = this.io.schedule(() => this.loop(p), p.intervalMs);
   }
 
+  /** One night of the race; stops (and reports) after the last one. */
+  private raceLoop(p: Player): void {
+    const race = this.race;
+    if (!race || race.run.done) {
+      this.stopPlaying();
+      return;
+    }
+    try {
+      race.run.step();
+      const { frame, transfer } = this.raceFrame();
+      this.io.emit({ kind: "frame", frame }, transfer);
+      if (race.run.done) {
+        this.stopPlaying();
+        this.io.emit({ kind: "race-complete", outcomes: race.run.outcomes() }, []);
+        return;
+      }
+    } catch (e) {
+      this.stopPlaying();
+      this.io.emit({ kind: "stopped", timeline: RACE_TIMELINE, error: e instanceof Error ? e.message : String(e) }, []);
+      return;
+    }
+    p.handle = this.io.schedule(() => this.loop(p), p.intervalMs);
+  }
+
+  /** The baseline city, with each candidate's event visitors (from its own future) sent to its host. */
+  private raceFrame(): { frame: Frame; transfer: ArrayBuffer[] } {
+    const { run, hosts } = this.race!;
+    const built = buildFrame(run.baseline, RACE_TIMELINE, run.startTick, false, this.epoch);
+    const group = new Int8Array(built.frame.attendance.length).fill(-1);
+    hosts.forEach((host, k) => {
+      const slot = run.eventSlot(k);
+      if (slot < 0) return;
+      const fork = run.fork(k);
+      for (let i = 0; i < group.length; i++) {
+        if (group[i] >= 0 || fork.attendance[i] !== slot) continue;
+        group[i] = k;
+        built.frame.attendance[i] = host;
+      }
+    });
+    const { tonight, total } = run.tallies();
+    built.frame.race = { hosts: [...hosts], group, tonight, total, night: run.elapsed, nights: run.ticks };
+    return { frame: built.frame, transfer: [...built.transfer, group.buffer as ArrayBuffer] };
+  }
+
   handle(req: WorkerRequest): WorkerResponse {
     try {
       return { id: req.id, ok: true, result: this.execute(req) };
@@ -155,6 +212,7 @@ export class SimHost {
         this.completeCase("interrupted");
         this.stopPlaying();
         this.timelines.clear();
+        this.race = null;
         this.forks = 0;
         this.epoch++;
         this.timelines.set(MAIN_TIMELINE, t);
@@ -224,6 +282,12 @@ export class SimHost {
       }
       case "play": {
         this.checkSpeed(cmd.ticksPerSecond);
+        if (cmd.timeline === RACE_TIMELINE) {
+          if (!this.race) throw new Error("no race to play");
+          this.completeCase("interrupted");
+          this.startPlaying(RACE_TIMELINE, cmd.ticksPerSecond);
+          return { playing: true };
+        }
         this.timeline(cmd.timeline);
         if (this.activeCase && this.activeCase.timeline !== cmd.timeline) this.completeCase("interrupted");
         this.startPlaying(cmd.timeline, cmd.ticksPerSecond);
@@ -286,6 +350,32 @@ export class SimHost {
         });
         return { results: bookActs(s, cmd.venue, acts, { weeks: cmd.weeks, startTick: cmd.startTick, durationDays: cmd.durationDays, runs: BOOKING_RUNS, reachKm, capacity, nearbyKm }), baselineTick: s.tick };
       }
+      case "startRace": {
+        const s = this.timeline(cmd.timeline).state;
+        const r = cmd.race as RaceRequest;
+        const entity = checkEntity(s, r?.entity);
+        const hosts: unknown = r.hosts;
+        if (!Array.isArray(hosts) || hosts.length < 1 || hosts.length > MAX_RACE_VENUES || new Set(hosts).size !== hosts.length) throw new Error(`hosts must list 1 to ${MAX_RACE_VENUES} different venues`);
+        for (const h of hosts) if (!isIndex(h, s.nVenues) || !s.venueOpen[h] || s.venueExpires[h] >= 0) throw new Error(`venue ${String(h)} isn't open`);
+        if (!Number.isInteger(r.nights) || r.nights < 1 || r.nights > MAX_RACE_NIGHTS) throw new Error(`nights must be 1 to ${MAX_RACE_NIGHTS}`);
+        const { reachKm, capacity, nearbyKm } = SCOUT_DEFAULTS;
+        const candidates = (hosts as number[]).map((host) => {
+          const action = parseAction({ type: "scheduleEvent", entity, profile: r.profile, cell: s.venueCell[host], duration: 1, startTick: r.startTick, durationDays: r.nights, hostVenue: host, reachKm, capacity });
+          if (action.type !== "scheduleEvent") throw new Error("bad race");
+          const error = validateAction(s, action);
+          if (error) throw new Error(error);
+          return { entity, cell: action.cell, hostVenue: host, profile: action.profile };
+        });
+        const o: EventRunOptions = { weeks: 1, duration: 1, startTick: r.startTick, durationDays: r.nights, reachKm, capacity, nearbyKm, runs: RACE_RUNS };
+        const runs = runEventCandidateRuns(s, candidates, o);
+        if (this.player?.timeline === RACE_TIMELINE) this.stopPlaying();
+        this.race = { run: new PairedEventRun(s, candidates, o, runSeed(s, 0)), hosts: hosts as number[] };
+        return { runs, frame: this.raceFrame().frame };
+      }
+      case "endRace":
+        if (this.player?.timeline === RACE_TIMELINE) this.stopPlaying();
+        this.race = null;
+        return { ended: true };
       case "resident": {
         const s = this.timeline(cmd.timeline).state;
         const skip = cmd.skip ?? 0;

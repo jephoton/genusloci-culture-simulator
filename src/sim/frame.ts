@@ -42,6 +42,24 @@ export type Frame = {
   /** Per venue slot: lineage id of the live scene its taste profile best matches (its identity), or -1. */
   venueScene: Int32Array;
   digest?: SimDigest;
+  /** Venue race frames only (see RACE_TIMELINE). */
+  race?: RaceFrame;
+};
+
+/**
+ * A venue race night. The city drawn is the no-event baseline, except that each candidate's event
+ * visitors (from that candidate's own future) are shown going to its host venue.
+ */
+export type RaceFrame = {
+  /** Host venue slot per candidate. */
+  hosts: number[];
+  /** Per agent slot: the candidate whose event it attended this night, or -1. */
+  group: Int8Array;
+  tonight: number[];
+  total: number[];
+  /** Nights played so far, and in all. */
+  night: number;
+  nights: number;
 };
 
 /** Per venue slot: the live scene whose centroid has the highest cosine with the venue's profile, or -1. */
