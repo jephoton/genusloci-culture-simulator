@@ -8,7 +8,7 @@ import type { EventOutcome } from "@/sim/events";
 import type { Frame } from "@/sim/frame";
 import type { RaceRequest } from "@/sim/worker/protocol";
 import type { RaceContext } from "@/agents/race-helper";
-import { type Candidate, MAX_CANDIDATES, readableTag } from "@/agents/venue-agent";
+import { type Candidate, MAX_CANDIDATES, readableTag, SHORTLIST } from "@/agents/venue-agent";
 import { ArtistPicker } from "@/ui/ArtistPicker";
 import type { BookingAct } from "@/ui/BookingPanel";
 import { rankArtistVenues, type RaceVenue, rankRaceVenues, type VenueFit } from "@/ui/event-planning";
@@ -25,6 +25,10 @@ type Race = { runs: EventOutcome[][]; hosts: VenueFit[]; startTick: number; nigh
 /** The scout agent's pick: a reason per venue slot, what it looked up, and a fallback note if it couldn't pick. */
 type Scout = { working: true } | { working: false; reasons: Map<number, string>; liveFits: Map<number, number>; summary: string; steps: string[]; note?: string };
 
+/** Races start on a Friday, the start of the weekend, when residents go out most (see weekdayWeights). */
+const FIRST_NIGHT = 4;
+/** Alternatives offered in each venue's Swap list. */
+const MAX_SWAPS = 6;
 const SPEEDS = [{ value: 0.25, label: "Slow" }, { value: 0.5, label: "Normal" }, { value: 1, label: "Fast" }] as const;
 /** Qloo affinity in the city's data as a percentage of the best venue's (0 where there's no link). */
 const fitPercent = (v: VenueFit, all: readonly VenueFit[]) => {
@@ -69,7 +73,8 @@ export function VenueRace({
   /** Every eligible venue for the current artist, best first. */
   const [fits, setFits] = useState<RaceVenue[]>([]);
   const [hosts, setHosts] = useState<VenueFit[]>([]);
-  const [weekday, setWeekday] = useState(4);
+  /** Venues offered in each card's Swap list: the agent's considered venues, or the top of the ranking. */
+  const [swapPool, setSwapPool] = useState<number[]>([]);
   const [nights, setNights] = useState<number>(3);
   const [race, setRace] = useState<Race | null>(null);
   const [busy, setBusy] = useState(false);
@@ -162,11 +167,13 @@ export function VenueRace({
       if ("error" in r) {
         const top = ranked.slice(0, 3);
         choose(top);
+        setSwapPool(ranked.slice(0, SHORTLIST).map((f) => f.slot));
         const why = (f: RaceVenue) => (fitPercent(f, ranked) > 0 ? `Qloo fit ${fitPercent(f, ranked)} in the city's data.` : `About ${Math.round(f.fans)} fans nearby in the simulation.`);
         setScout({ working: false, reasons: new Map(top.map((f) => [f.slot, why(f)])), liveFits: new Map(), summary: "", steps: [], note: agentFallbackNote(r.error) });
       } else {
         const picked = r.picks.flatMap((p) => { const f = ranked[Number(p.id.slice(1))]; return f ? [{ f, reason: p.reason, liveFit: p.liveFit }] : []; });
         choose(picked.map((p) => p.f));
+        setSwapPool(r.considered.flatMap((id) => { const f = ranked[Number(id.slice(1))]; return f ? [f.slot] : []; }));
         setScout({ working: false, reasons: new Map(picked.map((p) => [p.f.slot, p.reason])), liveFits: new Map(picked.flatMap((p) => (p.liveFit === undefined ? [] : [[p.f.slot, p.liveFit] as [number, number]]))), summary: r.summary, steps: r.steps.map((x) => x.text) });
       }
     } catch (err) {
@@ -184,7 +191,7 @@ export function VenueRace({
     setBusy(true);
     setError(null);
     try {
-      const startTick = raceStartTick(liveFrame.tick, weekday);
+      const startTick = raceStartTick(liveFrame.tick, FIRST_NIGHT);
       const { runs } = await startRace({ entity: act.entity, profile: act.profile, hosts: hosts.map((h) => h.slot), startTick, nights });
       const next = { runs, hosts, startTick, nights };
       setRace(next);
@@ -309,13 +316,13 @@ export function VenueRace({
                 <div className="flex items-center gap-2">
                   <span className="grid size-5 shrink-0 place-items-center rounded-full text-[11px] font-bold text-zinc-950" style={{ background: RACE_CSS[k] }}>{LETTERS[k]}</span>
                   <p className="min-w-0 flex-1 truncate font-medium">{h.name}</p>
-                  {fits.length > hosts.length && hosts.length > 0 && (
+                  {swapPool.some((slot) => !hosts.some((x) => x.slot === slot)) && (
                     <select aria-label={`Swap venue ${LETTERS[k]}`} value={h.slot} onChange={(e) => {
                       const pick = fits.find((f) => f.slot === Number(e.target.value));
                       if (pick) choose(hosts.map((x, j) => (j === k ? pick : x)));
                     }} className="max-w-20 shrink-0 rounded bg-zinc-900 px-1 py-0.5 text-[11px] text-zinc-200">
                       <option value={h.slot}>Swap…</option>
-                      {fits.filter((f) => !hosts.some((x) => x.slot === f.slot)).slice(0, 12).map((f) => <option key={f.slot} value={f.slot}>{f.name}</option>)}
+                      {swapPool.filter((slot) => !hosts.some((x) => x.slot === slot)).slice(0, MAX_SWAPS).flatMap((slot) => fits.filter((f) => f.slot === slot)).map((f) => <option key={f.slot} value={f.slot}>{f.name}</option>)}
                     </select>
                   )}
                 </div>
@@ -325,12 +332,7 @@ export function VenueRace({
             ))}
           </ul>
           <div className="flex items-end gap-2 text-xs">
-            <label className="flex-1 text-zinc-400">First night
-              <select value={weekday} onChange={(e) => setWeekday(Number(e.target.value))} className="mt-0.5 block w-full rounded bg-zinc-900 px-2 py-1 text-zinc-100">
-                {WEEKDAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}
-              </select>
-            </label>
-            <label className="flex-1 text-zinc-400">Nights
+            <label className="flex-1 text-zinc-400">Nights, from Friday
               <select value={nights} onChange={(e) => setNights(Number(e.target.value))} className="mt-0.5 block w-full rounded bg-zinc-900 px-2 py-1 text-zinc-100">
                 {NIGHT_OPTIONS.map((x) => <option key={x} value={x}>{plural(x, "night")}</option>)}
               </select>
