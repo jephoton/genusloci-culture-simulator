@@ -42,7 +42,7 @@ export function Intro({ city, open, onClose }: { city: string; open: boolean; on
           <ul className="list-disc space-y-1 pl-5">
             <li>Dots are residents, coloured by taste scene. A white flash is someone joining a different scene.</li>
             <li>A red ring marks a venue drawing too few visitors for its size. If that lasts, it closes.</li>
-            <li>Hover or click a venue for details. <span className="text-zinc-50">Taste scenes</span> lists the scenes.</li>
+            <li>Hover or click a venue for details. <span className="text-zinc-50">Taste scenes</span> (top left) lists the scenes.</li>
           </ul>
         </div>
         <details className="space-y-1.5">

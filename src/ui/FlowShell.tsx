@@ -136,6 +136,10 @@ function City({ world, layout, attribution, citySlug, onCityChange }: {
           <select aria-label="City" value={citySlug} onChange={(e) => onCityChange(e.target.value)} className="rounded bg-zinc-900 px-2 py-1 text-xs text-zinc-100">
             {CITY_OPTIONS.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
           </select>
+          <button type="button" aria-expanded={scenesOpen} disabled={sim.status !== "ready"} onClick={() => { setScenesOpen((o) => !o); setHoverScene(null); setPinnedScene(null); }}
+            className={`hidden rounded-full border px-2.5 py-1 text-xs sm:block ${scenesOpen ? "border-violet-400/60 bg-violet-500/25 text-violet-100" : "border-white/15 text-zinc-200 hover:bg-white/10"}`}>
+            Taste scenes
+          </button>
           <button type="button" onClick={intro.show} aria-label="How this works" title="How this works" className="grid size-7 place-items-center rounded-full border border-white/15 text-sm text-zinc-300 hover:text-zinc-50">?</button>
         </header>
         {sim.status === "ready" && (
@@ -164,26 +168,22 @@ function City({ world, layout, attribution, citySlug, onCityChange }: {
           <p className="panel max-w-64 px-3 py-2 text-xs text-amber-200">Synthetic stand-in city: no Qloo world is built for {world.city.name}, so these venues and tastes are made up.</p>
         )}
         {openVenue !== null && shown && <VenueCard world={world} frame={shown} digest={sim.digest} slot={openVenue} area={areaOf(openVenue)} rules={CLOSURE_RULES} raceLetter={letterOf(openVenue)} onClose={() => setOpenVenue(null)} />}
-        {scenesOpen && (
-          <div className="pointer-events-auto flex min-h-0 w-72 flex-col">
-            <SceneLegend
-              digest={sim.digest}
-              frame={liveFrame}
-              names={sceneNames}
-              pinned={pinnedScene}
-              focused={pinnedScene !== null}
-              onHover={setHoverScene}
-              onPin={(id) => setPinnedScene((p) => (p === id ? null : id))}
-              onClear={() => { setPinnedScene(null); setHoverScene(null); }}
-            />
-          </div>
-        )}
       </div>
-      {sim.status === "ready" && (
-        <button type="button" aria-expanded={scenesOpen} onClick={() => { setScenesOpen((o) => !o); setHoverScene(null); setPinnedScene(null); }}
-          className="panel pointer-events-auto absolute bottom-8 right-3 hidden px-3 py-1.5 text-xs text-zinc-200 hover:bg-white/10 sm:block">
-          {scenesOpen ? "Hide scenes" : "Taste scenes"}
-        </button>
+      {scenesOpen && (
+        <div className="pointer-events-auto absolute left-[24.5rem] top-3 hidden max-h-[calc(100dvh-5rem)] w-72 flex-col sm:flex">
+          <SceneLegend
+            digest={sim.digest}
+            frame={liveFrame}
+            names={sceneNames}
+            pinned={pinnedScene}
+            focused={pinnedScene !== null}
+            onHover={setHoverScene}
+            onPin={(id) => setPinnedScene((p) => (p === id ? null : id))}
+            onClear={() => { setPinnedScene(null); setHoverScene(null); }}
+            familyTree={false}
+            description="Groups of residents with similar tastes, named after the two artists or tastes they share most. Hover to light one up; click to keep it lit."
+          />
+        </div>
       )}
       {hoverVenue !== null && hoverVenue !== openVenue && shown && (
         <div className="pointer-events-none fixed z-20" style={{ left: pointer.x + 14, top: pointer.y + 14 }}>
