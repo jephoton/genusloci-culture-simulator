@@ -89,7 +89,8 @@ export function parseOverpass(json: unknown, centre: LatLon, radiusM: number): G
       const kind = MAJOR.has(highway) ? "major" : MINOR.has(highway) ? "minor" : null;
       if (kind) {
         for (const piece of clipPolyline(simplify(points, SIMPLIFY_M.road), rect)) {
-          roads.push({ kind, points: piece.map(round) });
+          const name = tags.name?.trim();
+          roads.push({ kind, ...(name ? { name } : {}), points: piece.map(round) });
         }
         continue;
       }

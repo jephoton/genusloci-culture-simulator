@@ -53,6 +53,11 @@ describe("buildOverpassQuery", () => {
 describe("parseOverpass", () => {
   const geo = parseOverpass(response, centre, radiusM);
 
+  it("preserves real street names when simplifying and clipping roads", () => {
+    const named = parseOverpass({ elements: [{ type: "way", id: 7, tags: { highway: "primary", name: "  Test Street  " }, geometry: [at(-2000, 0), at(500, 0)] }] }, centre, radiusM);
+    expect(named.roads[0].name).toBe("Test Street");
+  });
+
   it("bounds the square around the centre", () => {
     expect(geo.bounds).toEqual({ minX: -1000, minY: -1000, maxX: 1000, maxY: 1000 });
   });

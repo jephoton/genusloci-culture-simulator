@@ -2,11 +2,16 @@
 
 import { useFrame, useThree } from "@react-three/fiber";
 import { type RefObject, useEffect, useRef, useState } from "react";
-import type * as THREE from "three";
+import * as THREE from "three";
+import { fitView, type ScreenBox } from "@/render/camera-fit";
 import { prefersReducedMotion } from "@/render/motion";
 
-/** A camera flight request: look at (x, 0, z). `at` (performance.now ms) identifies the request. */
-export type FlyTo = { x: number; z: number; at: number };
+/**
+ * A camera flight request: look at (x, 0, z), optionally from `distance` away (same viewing angle),
+ * or, with `fit`, from wherever frames those points inside that part of the screen.
+ * `at` (performance.now ms) identifies the request.
+ */
+export type FlyTo = { x: number; z: number; at: number; distance?: number; fit?: { points: [number, number, number][]; box: ScreenBox } };
 
 /** The parts of drei's MapControls this needs (it is the default controls, so `useThree` has it). */
 type Controls = THREE.EventDispatcher<{ start: object }> & { target: THREE.Vector3 };
@@ -14,11 +19,11 @@ type Controls = THREE.EventDispatcher<{ start: object }> & { target: THREE.Vecto
 const FLY_MS = 900;
 const ease = (k: number) => (k < 0.5 ? 4 * k * k * k : 1 - (-2 * k + 2) ** 3 / 2);
 
-type Flight = { at: number; fromX: number; fromZ: number; dx: number; dz: number; camX: number; camZ: number; target: number };
+type Flight = { at: number; fromX: number; fromZ: number; dx: number; dz: number; offset: THREE.Vector3; from: number; to: number; target: number };
 
 /**
  * Flies the view to the latest `flyTo` request over about 900 ms: eases the MapControls target to the
- * point and moves the camera by the same amount, so the viewing angle and distance stay the same.
+ * point and moves the camera with it, keeping the viewing angle (and the distance, unless one is asked for).
  * Starting a drag cancels the flight.
  */
 export function CameraDirector({ flyTo }: { flyTo: RefObject<FlyTo | null> }) {
@@ -44,14 +49,23 @@ export function CameraDirector({ flyTo }: { flyTo: RefObject<FlyTo | null> }) {
     if (req && req.at !== handled.current) {
       handled.current = req.at;
       const t = controls.target;
+      const offset = camera.position.clone().sub(t).normalize();
+      let { x, z } = req;
+      let to = req.distance ?? camera.position.distanceTo(t);
+      if (req.fit?.points.length && camera instanceof THREE.PerspectiveCamera) {
+        const view = fitView(camera, offset, req.fit.points.map(([px, py, pz]) => new THREE.Vector3(px, py, pz)), req.fit.box);
+        ({ x, z } = view);
+        to = view.distance;
+      }
       flight.current = {
         at: performance.now(),
         fromX: t.x,
         fromZ: t.z,
-        dx: req.x - t.x,
-        dz: req.z - t.z,
-        camX: camera.position.x - t.x,
-        camZ: camera.position.z - t.z,
+        dx: x - t.x,
+        dz: z - t.z,
+        offset,
+        from: camera.position.distanceTo(t),
+        to,
         target: t.y,
       };
     }
@@ -64,7 +78,8 @@ export function CameraDirector({ flyTo }: { flyTo: RefObject<FlyTo | null> }) {
     const z = f.fromZ + f.dz * e;
     // Ease the target's height to the ground too, carrying the camera with it.
     const y = f.target * (1 - e);
-    camera.position.set(x + f.camX, camera.position.y - (controls.target.y - y), z + f.camZ);
+    const d = f.from + (f.to - f.from) * e;
+    camera.position.set(x + f.offset.x * d, y + f.offset.y * d, z + f.offset.z * d);
     controls.target.set(x, y, z);
     if (k >= 1) flight.current = null;
   });

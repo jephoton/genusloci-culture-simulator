@@ -31,7 +31,7 @@ export function InterviewPanel({ persona, onAnother, onClose }: { persona: Perso
     send(input);
   };
   return (
-    <aside aria-label={`Interview with ${persona.name}`} className="panel pointer-events-auto absolute left-2 right-2 top-28 bottom-[4.75rem] sm:bottom-24 sm:left-4 sm:right-auto sm:top-24 sm:w-80 flex flex-col">
+    <aside id="workspace-drawer" aria-label={`Interview with ${persona.name}`} className="panel pointer-events-auto absolute left-2 right-2 top-36 bottom-24 z-[5] sm:left-auto sm:right-4 sm:w-80 md:top-24 flex flex-col">
       <header className="space-y-1 border-b border-white/10 px-3 py-2">
         <div className="flex items-start justify-between gap-2">
           <div>
@@ -41,7 +41,7 @@ export function InterviewPanel({ persona, onAnother, onClose }: { persona: Perso
             </h2>
             {persona.scene && <p className="text-xs text-zinc-400">{persona.scene}</p>}
           </div>
-          <button type="button" onClick={onClose} aria-label="End the interview" className="rounded px-1.5 text-zinc-400 hover:bg-white/5 hover:text-zinc-100">
+          <button data-drawer-close type="button" onClick={onClose} aria-label="End the interview" className="rounded px-1.5 text-zinc-400 hover:bg-white/5 hover:text-zinc-100">
             ×
           </button>
         </div>

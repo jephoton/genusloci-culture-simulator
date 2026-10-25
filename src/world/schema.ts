@@ -64,7 +64,7 @@ const point = z.tuple([z.number(), z.number()]);
 /** City geometry in local metres relative to `city` (x east, y north). From OpenStreetMap in real worlds. */
 export const GeoSchema = z.object({
   bounds: z.object({ minX: z.number(), minY: z.number(), maxX: z.number(), maxY: z.number() }),
-  roads: z.array(z.object({ kind: z.enum(["major", "minor"]), points: z.array(point).min(2) })),
+  roads: z.array(z.object({ kind: z.enum(["major", "minor"]), name: z.string().optional(), points: z.array(point).min(2) })),
   water: z.array(z.array(point).min(3)),
   parks: z.array(z.array(point).min(3)),
 });

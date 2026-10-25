@@ -68,6 +68,7 @@ function migrate(s: SimState, a: MigrateAction, rng: Rng): number {
     s.energy[i] = 0.5 + 0.5 * rng.next();
     s.curiosity[i] = rng.next();
     s.attendance[i] = -1;
+    s.attendanceHistory.fill(-1, i * s.config.ticksPerWeek, (i + 1) * s.config.ticksPerWeek);
     placed.push(i);
   }
   const byCell = agentsByCell(s, s.cw.nCells);

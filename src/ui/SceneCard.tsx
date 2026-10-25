@@ -27,7 +27,7 @@ export function SceneCard({
   splitInto: number[];
   colour: string;
   onPin: (scene: number) => void;
-  onTalk: (scene: number) => void;
+  onTalk?: (scene: number) => void;
 }) {
   // Different Qloo tags can share a name (e.g. "Historic" as decor and as a neighbourhood trait).
   const unique = (names: string[]) => [...new Set(names)];
@@ -104,9 +104,9 @@ export function SceneCard({
           )}
         </div>
       )}
-      <button type="button" onClick={() => onTalk(info.scene)} className="w-full rounded-lg bg-white/10 py-1.5 text-sm hover:bg-white/15">
+      {onTalk && <button type="button" onClick={() => onTalk(info.scene)} className="w-full rounded-lg bg-white/10 py-1.5 text-sm hover:bg-white/15">
         Talk to someone from this scene
-      </button>
+      </button>}
     </aside>
   );
 }

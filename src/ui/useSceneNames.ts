@@ -16,7 +16,7 @@ export function scenesToName(digest: SimDigest | null, names: ReadonlyMap<number
 }
 
 /** Preserve names of surviving ancestors; reject naming work from discarded simulation branches. */
-export function useSceneNames(city: string, digest: SimDigest | null, describe: (id: number) => SceneToName | null, frame: Frame | null, frames: RefObject<FrameStore>): ReadonlyMap<number, SceneName> {
+export function useSceneNames(city: string, digest: SimDigest | null, describe: (id: number) => SceneToName | null, frame: Frame | null, frames: RefObject<FrameStore>, enabled = true): ReadonlyMap<number, SceneName> {
   const [names, setNames] = useState<ReadonlyMap<number, SceneName>>(new Map());
   const [cache] = useState(() => new SceneNameCache());
   const describeRef = useRef(describe);
@@ -33,7 +33,7 @@ export function useSceneNames(city: string, digest: SimDigest | null, describe: 
   }, [cache, frame]);
   const epoch = frame?.epoch;
   useEffect(() => {
-    if (offline.current) return;
+    if (!enabled || offline.current) return;
     const current = frames.current.current;
     // A digest from before a rewind must not propose IDs that do not exist on the new branch.
     if (!current || !digest || digest.tick > current.tick) return;
@@ -65,6 +65,6 @@ export function useSceneNames(city: string, digest: SimDigest | null, describe: 
       }).catch(() => {});
     }, DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [cache, city, digest, epoch, frames]);
+  }, [cache, city, digest, epoch, frames, enabled]);
   return names;
 }

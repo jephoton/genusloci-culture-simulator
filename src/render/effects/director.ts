@@ -7,6 +7,8 @@ export const MAX_WAVES = 4;
 export const MAX_AUTO_WAVES = 2;
 /** Strength of an automatic opening's wave, relative to a player's (1). */
 export const AUTO_WAVE = 0.3;
+/** Overall strength of waves and shakes (0.7: toned down 30% after user feedback that they were too strong). */
+export const EFFECT_SCALE = 0.7;
 
 /** Who caused a change: the player (a placement or closure they made) or the simulation itself. */
 export type Origin = "player" | "auto";
@@ -57,9 +59,9 @@ export class EffectsDirector {
         const player = originOf(c) === "player";
         if (c.kind !== "eventEnded" && (player || autoWaves < MAX_AUTO_WAVES)) {
           if (!player) autoWaves++;
-          const strength = opening ? (player ? 1 : AUTO_WAVE) : -0.7;
+          const strength = EFFECT_SCALE * (opening ? (player ? 1 : AUTO_WAVE) : -0.7);
           this.addWave({ x: p[0], z: p[1], start: now, duration: opening ? (player ? 1200 : 1000) : 900, strength });
-          if (player) this.kick(now, opening ? 0.006 : 0.004, opening ? 380 : 280);
+          if (player) this.kick(now, EFFECT_SCALE * (opening ? 0.006 : 0.004), opening ? 380 : 280);
         }
         this.ripples.push({
           x: p[0], z: p[1], start: now,

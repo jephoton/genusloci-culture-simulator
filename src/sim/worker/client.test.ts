@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SimClient, type WorkerLike } from "@/sim/worker/client";
 import { SimHost } from "@/sim/worker/host";
-import type { WorkerRequest, WorkerResponse } from "@/sim/worker/protocol";
+import type { WorkerMessage, WorkerRequest, WorkerResponse } from "@/sim/worker/protocol";
 import { makeTinyWorld } from "@/world/fixtures/tiny-world";
 
 type FakeWorker = WorkerLike & { emit(type: "error" | "messageerror", message?: string): void };
@@ -27,6 +27,30 @@ function fakeWorker(): FakeWorker {
 }
 
 describe("SimClient", () => {
+  it("round-trips case commands and independently subscribes to completion", async () => {
+    const host = new SimHost();
+    const listeners: ((e: MessageEvent<WorkerMessage>) => void)[] = [];
+    const worker: WorkerLike = {
+      postMessage: (message) => queueMicrotask(() => {
+        const response = host.handle(message as WorkerRequest);
+        listeners.forEach((listener) => listener({ data: response } as MessageEvent<WorkerMessage>));
+      }),
+      addEventListener: ((type: string, listener: (e: MessageEvent<WorkerMessage>) => void) => {
+        if (type === "message") listeners.push(listener);
+      }) as WorkerLike["addEventListener"],
+      terminate: () => {},
+    };
+    const client = new SimClient(worker);
+    await client.init(makeTinyWorld(), 1, { nAgents: 20, agentReserve: 0 });
+    await expect(client.startCase("main", { id: "test", startTick: 0, maxTicks: 5, venueSlots: [], agentSlots: [] }, 4)).resolves.toEqual({ started: true });
+    await expect(client.finishCase("main")).resolves.toEqual({ finished: true });
+    const seen: string[] = [];
+    const unsubscribe = client.onCaseComplete((message) => seen.push(message.report.id));
+    const report = { id: "completed", startTick: 0, endTick: 5, reason: "limit" as const, observedTicks: 5, visits: 0, uniqueVisitors: 0, cohortOutings: 0, venues: [], settledHeuristic: false };
+    const emit = () => listeners.forEach((listener) => listener(new MessageEvent<WorkerMessage>("message", { data: { kind: "case-complete", timeline: "main", report } })));
+    emit(); unsubscribe(); emit();
+    expect(seen).toEqual(["completed"]);
+  });
   it("round-trips commands through the worker protocol", async () => {
     const client = new SimClient(fakeWorker());
     const init = await client.init(makeTinyWorld(), 1, { nAgents: 200, agentReserve: 0 });

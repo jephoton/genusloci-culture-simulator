@@ -4,7 +4,7 @@ import { createGroq } from "@ai-sdk/groq";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { defaultSettingsMiddleware, type LanguageModel, wrapLanguageModel } from "ai";
 
-// Provider-agnostic LLM access (decision 0003): DeepSeek first, then free tiers. Server-side only.
+// Server-side provider registry. Chat policy: Gemini, Groq, then local parsing.
 
 export type Model = Exclude<LanguageModel, string>;
 export type Tier = "copilot" | "small";
@@ -38,7 +38,13 @@ export const PROVIDERS: ProviderSpec[] = [
     keyVar: "GROQ_API_KEY",
     prefix: "GROQ",
     models: { copilot: "openai/gpt-oss-120b", small: "llama-3.1-8b-instant" },
-    create: (apiKey, id) => createGroq({ apiKey })(id),
+    create: (apiKey, id) => {
+      const model = createGroq({ apiKey })(id);
+      return id.startsWith("openai/gpt-oss-") ? wrapLanguageModel({
+        model,
+        middleware: defaultSettingsMiddleware({ settings: { providerOptions: { groq: { reasoningEffort: "low" } } } }),
+      }) : model;
+    },
   },
   {
     name: "cerebras",
@@ -58,14 +64,17 @@ export const PROVIDERS: ProviderSpec[] = [
     name: "gemini",
     keyVar: "GOOGLE_GENERATIVE_AI_API_KEY",
     prefix: "GEMINI",
-    models: { copilot: "gemini-3.5-flash", small: "gemini-3.5-flash-lite" },
+    models: { copilot: "gemini-3.5-flash-lite", small: "gemini-3.5-flash-lite" },
     create: (apiKey, id) => createGoogleGenerativeAI({ apiKey })(id),
   },
 ];
 
+/** Other registered vendors remain available to explicit probes, never automatic chat fallback. */
+export const CHAT_PROVIDERS = ["gemini", "groq"].map((name) => PROVIDERS.find((p) => p.name === name)!);
+
 /** The configured chain for a tier: providers with a key, in priority order, with any model overrides. */
 export function providerChain(tier: Tier, env: Env = process.env): { name: string; modelId: string; model: Model }[] {
-  return PROVIDERS.flatMap((p) => {
+  return CHAT_PROVIDERS.flatMap((p) => {
     const key = env[p.keyVar]?.trim();
     if (!key) return [];
     const modelId = env[`${p.prefix}_${tier === "small" ? "SMALL_MODEL" : "MODEL"}`]?.trim() || p.models[tier];
@@ -80,13 +89,13 @@ const isAbort = (e: unknown) => e instanceof Error && e.name === "AbortError";
 
 /**
  * One model over a chain: a call that fails before streaming anything (rate limit, outage, bad key)
- * moves on to the next model. Errors after a stream has started are not retried.
+ * moves on to the next model. Initial metadata/error chunks are buffered; after
+ * user-visible text or a tool call begins, the request is never replayed.
  */
 export function fallbackModel(models: Model[], onFallback?: (failed: number, error: unknown) => void): WrappedModel {
   if (models.length === 0) throw new Error("fallbackModel needs at least one model");
   const [first, ...rest] = models;
-  if (rest.length === 0) return wrapLanguageModel({ model: first, middleware: [] });
-  const next = fallbackModel(rest, onFallback && ((i, e) => onFallback(i + 1, e)));
+  const next = rest.length ? fallbackModel(rest, onFallback && ((i, e) => onFallback(i + 1, e))) : null;
   return wrapLanguageModel({
     model: first,
     middleware: {
@@ -94,16 +103,42 @@ export function fallbackModel(models: Model[], onFallback?: (failed: number, err
         try {
           return await doGenerate();
         } catch (e) {
-          if (isAbort(e)) throw e;
+          if (isAbort(e) || !next) throw e;
           onFallback?.(0, e);
           return next.doGenerate(params);
         }
       },
       wrapStream: async ({ doStream, params }) => {
         try {
-          return await doStream();
+          const response = await doStream();
+          const reader = response.stream.getReader();
+          type Part = typeof response.stream extends ReadableStream<infer T> ? T : never;
+          const buffered: Part[] = [];
+          try {
+            while (true) {
+              const chunk = await reader.read();
+              if (chunk.done) throw new Error("Provider returned no usable stream output.");
+              if (chunk.value.type === "error") throw chunk.value.error;
+              if (chunk.value.type === "finish") throw new Error("Provider finished without usable output.");
+              buffered.push(chunk.value);
+              if ((chunk.value.type === "text-delta" && chunk.value.delta.length > 0) || chunk.value.type === "tool-input-start" || chunk.value.type === "tool-call") break;
+            }
+          } catch (error) {
+            await reader.cancel().catch(() => {});
+            throw error;
+          }
+          return { ...response, stream: new ReadableStream<Part>({
+            start(controller) { for (const part of buffered) controller.enqueue(part); },
+            async pull(controller) {
+              try {
+                const chunk = await reader.read();
+                if (chunk.done) controller.close(); else controller.enqueue(chunk.value);
+              } catch (error) { controller.error(error); }
+            },
+            cancel(reason) { return reader.cancel(reason); },
+          }) };
         } catch (e) {
-          if (isAbort(e)) throw e;
+          if (isAbort(e) || !next) throw e;
           onFallback?.(0, e);
           return next.doStream(params);
         }
@@ -118,6 +153,6 @@ export function modelFor(tier: Tier, env: Env = process.env): WrappedModel | nul
   if (chain.length === 0) return null;
   return fallbackModel(
     chain.map((c) => c.model),
-    (i, e) => console.warn(`[agents] ${chain[i].name} failed; falling back:`, e instanceof Error ? e.message : e),
+    (i) => console.warn(`[agents] ${chain[i].name} failed; trying the next configured provider.`),
   );
 }

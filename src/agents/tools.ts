@@ -105,3 +105,29 @@ export const CLIENT_TOOLS = {
 
 export type ClientToolName = keyof typeof CLIENT_TOOLS;
 export const CLIENT_TOOL_NAMES = Object.keys(CLIENT_TOOLS) as ClientToolName[];
+
+/**
+ * Compact wire schema avoids repeating six complete action variants in both tools.
+ * Execution always validates against CopilotActionSchema above, including conditional requirements.
+ */
+const ModelActionSchema = z.object({
+  do: z.enum(["close_venue", "cancel_event", "open_venue", "throw_event", "rent_pressure", "migrate"]),
+  venue: id.optional(), event: id.optional(), kind: z.enum(VENUE_KINDS).optional(),
+  area: z.object({ near_venue: id.optional(), name: z.string().optional() }).optional(),
+  place: id.optional(), artist: id.optional(), outside_artist: z.string().max(80).optional(),
+  weeks: z.number().int().min(1).max(8).optional(), start_tick: id.optional(),
+  nights: z.number().int().min(1).max(28).optional(), magnitude: z.number().min(0.1).max(2).optional(),
+  count: z.number().int().min(10).max(1000).optional(), like_scene: id.optional(),
+});
+const actionHelp = "Actions: close_venue requires venue; cancel_event requires event; open_venue requires kind,area; throw_event requires artist OR outside_artist,area; rent_pressure requires area,magnitude; migrate requires count,area,like_scene. area needs name OR near_venue. Use looked-up ids.";
+export const MODEL_CLIENT_TOOLS = {
+  ...CLIENT_TOOLS,
+  what_if: {
+    description: `Compare a simulated change against no change; live city unchanged. ${actionHelp}`,
+    inputSchema: z.object({ actions: z.array(ModelActionSchema).min(1).max(3), weeks: z.number().int().min(1).max(26).optional() }),
+  },
+  apply: {
+    description: `Change the live city ONLY on explicit user instruction. ${actionHelp}`,
+    inputSchema: z.object({ actions: z.array(ModelActionSchema).min(1).max(3) }),
+  },
+} as const;

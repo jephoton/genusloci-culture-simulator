@@ -90,7 +90,7 @@ export type CityLayout = {
     h: Float32Array;
     seed: Float32Array;
   };
-  roads: { kind: "major" | "minor"; points: XZ[] }[];
+  roads: { kind: "major" | "minor"; name?: string; points: XZ[] }[];
   water: XZ[][];
   parks: XZ[][];
   /** Routable street network built from `roads` (largest connected component only). */
@@ -722,7 +722,7 @@ export function buildLayout(world: World, seed = 1): CityLayout {
         minZ: Math.min(...cellZ) - spacing / 2,
         maxZ: Math.max(...cellZ) + spacing / 2,
       };
-  const roads = (geo?.roads ?? []).map((r) => ({ kind: r.kind, points: r.points.map(([x, y]) => toScene(x, y)) }));
+  const roads = (geo?.roads ?? []).map((r) => ({ kind: r.kind, ...(r.name ? { name: r.name } : {}), points: r.points.map(([x, y]) => toScene(x, y)) }));
   const water = (geo?.water ?? []).map((ring) => ring.map(([x, y]) => toScene(x, y)));
   const parks = (geo?.parks ?? []).map((ring) => ring.map(([x, y]) => toScene(x, y)));
 

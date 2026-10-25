@@ -13,7 +13,7 @@ function fakeIo() {
   const io: HostIO = {
     emit: (message) => {
       if (message.kind === "frame") frames.push(message);
-      else stopped.push(message);
+      else if (message.kind === "stopped") stopped.push(message);
     },
     schedule: (fn, ms) => {
       const handle = next++;

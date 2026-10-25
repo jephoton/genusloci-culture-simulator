@@ -14,7 +14,7 @@ const css = ([r, g, b]: [number, number, number]) => `rgb(${Math.round(r * 255)}
  * and flies there. Scenes show their name once named, else "Scene N".
  */
 export function SceneLegend({
-  digest, frame, names, pinned, focused, onHover, onPin, onClear, onTalk,
+  digest, frame, names, pinned, focused, onHover, onPin, onClear, onTalk, familyTree = true, description = "Groups of people with shared taste. Hover to highlight one; click to follow it.",
 }: {
   digest: SimDigest | null;
   /** Scene names by lineage id, as they arrive. */
@@ -29,6 +29,9 @@ export function SceneLegend({
   onClear: () => void;
   /** Opens an interview with a typical member of the scene. */
   onTalk?: (scene: number) => void;
+  /** Offer the family-tree view (it only differs from the list once scenes have split or faded). */
+  familyTree?: boolean;
+  description?: string;
 }) {
   const hues = useMemo(() => (frame ? sceneHuesOf(frame.lineageParents) : new Float32Array(0)), [frame]);
   const scenes = (digest?.scenes ?? []).slice(0, MAX_ROWS);
@@ -45,8 +48,8 @@ export function SceneLegend({
           </button>
         )}
       </div>
-      <p className="text-xs text-zinc-400">Groups of people with shared taste. Hover to highlight one; click to follow it.</p>
-      {scenes.length > 0 && (
+      <p className="text-xs text-zinc-400">{description}</p>
+      {familyTree && scenes.length > 0 && (
         <div role="group" aria-label="Scenes view" className="flex gap-1 text-xs">
           {(
             [
@@ -111,7 +114,7 @@ export function SceneLegend({
                 <span aria-hidden className="size-3 shrink-0 rounded-full" style={{ background: css(sceneRgb(hues, s.id)) }} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm text-zinc-100">{named?.name ?? `Scene ${s.id}`}</span>
-                  {top && <span className="block truncate text-xs text-zinc-400">{top}</span>}
+                  {top && !named && <span className="block truncate text-xs text-zinc-400">{top}</span>}
                 </span>
                 <span className="shrink-0 text-xs tabular-nums text-zinc-300">{s.size} people</span>
               </button>

@@ -29,7 +29,10 @@ export function VenuePanel({
         </div>
         <button type="button" onClick={onDismiss} aria-label="Close panel" className="rounded px-2 text-zinc-400 hover:bg-white/10">×</button>
       </div>
-      <dl className="grid grid-cols-2 gap-y-1 text-sm">
+      <p className="text-sm text-zinc-400">{open ? "Open" : "Closed"} · {frame.venueAttendance[slot]} visitors {frame.ticksPerWeek === 1 ? "this week" : "tonight"}</p>
+      <details>
+      <summary className="cursor-pointer py-1 text-xs text-zinc-400">Venue performance</summary>
+      <dl className="mt-2 grid grid-cols-2 gap-y-1 text-sm">
         <dt className="text-zinc-400">Status</dt>
         <dd>{open ? "Open" : "Closed"}</dd>
         <dt className="text-zinc-400">Health</dt>
@@ -43,6 +46,8 @@ export function VenuePanel({
         <dt className="text-zinc-400">Rent multiplier</dt>
         <dd className="font-mono tabular-nums">{rent.toFixed(2)}×</dd>
       </dl>
+      </details>
+      <details className="text-xs text-zinc-500"><summary className="cursor-pointer py-1">About modeled openings</summary><p className="mt-2">Automatic openings fill underserved scenes using the closest taste profile in the city&apos;s place catalogue. Its name and type are reused as a model template. This does not mean that real business is opening at the simulated location.</p></details>
       {closure && <p className="text-sm text-zinc-300">{closureExplanation(closure)}</p>}
       {open && !isEvent && onPlan && (
         <button
@@ -53,7 +58,8 @@ export function VenuePanel({
           Plan a night here
         </button>
       )}
-      {open && !isEvent && (
+      {open && !isEvent && <details>
+        <summary className="cursor-pointer py-1 text-xs text-zinc-400">Venue actions</summary>
         <button
           type="button"
           onClick={() => onCloseVenue(slot)}
@@ -61,7 +67,7 @@ export function VenuePanel({
         >
           Close venue
         </button>
-      )}
+      </details>}
     </aside>
   );
 }

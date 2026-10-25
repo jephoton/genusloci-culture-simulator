@@ -6,7 +6,8 @@ import type { FlyTo } from "@/render/CameraDirector";
 import { CityCanvas, type ScoutOverlay } from "@/render/CityCanvas";
 import type { FrameChange } from "@/render/effects/diff";
 import type { Origin } from "@/render/effects/director";
-import type { Focus } from "@/render/focus";
+import { experimentFocus, followExperiment, venueFocus, type Focus } from "@/render/focus";
+import { canInspectVenue } from "@/render/case-view";
 import type { GhostSpec } from "@/render/Ghost";
 import { type CityLayout, nearestCell, type XZ } from "@/render/layout";
 import { chooseVenueEntity } from "@/render/placement";
@@ -25,7 +26,7 @@ import { pinLetter } from "@/ui/scout-words";
 import { TimelineBar } from "@/ui/TimelineBar";
 import { type Toast, Toasts } from "@/ui/Toasts";
 import { isPlacing, type Tool, Toolbar } from "@/ui/Toolbar";
-import type { ToolDeps } from "@/agents/run-tool";
+import { clearComparison, type ToolDeps } from "@/agents/run-tool";
 import { CopilotPanel } from "@/ui/CopilotPanel";
 import { personaOf, sceneInfo } from "@/agents/city";
 import type { Persona } from "@/agents/interview";
@@ -41,6 +42,15 @@ import { useSceneNames } from "@/ui/useSceneNames";
 import { plannerSnapshot, samePlannerSnapshot, type PlannerSnapshot } from "@/ui/timeline-state";
 import { useSimulation } from "@/ui/useSimulation";
 import { VenuePanel } from "@/ui/VenuePanel";
+import { VenueDirectory } from "@/ui/VenueDirectory";
+import { EventPlanner } from "@/ui/EventPlanner";
+import { EventPlanningWorkspace, type PlanningView } from "@/ui/EventPlanningWorkspace";
+import { prepareEventPlanning } from "@/ui/event-planner-session";
+import { WorkspaceNav, type WorkspacePanel } from "@/ui/WorkspaceNav";
+import { useAgentAvailability } from "@/ui/useAgentAvailability";
+import { LabChat } from "@/ui/LabChat";
+import { VenueInspection } from "@/ui/VenueInspection";
+import { caseLabel, caseSummary } from "@/ui/case-summary";
 import type { World } from "@/world/schema";
 import { Attribution } from "@/ui/Attribution";
 import { useCityWorld } from "@/ui/useCityWorld";
@@ -152,6 +162,7 @@ function Game({
   onCityChange: (slug: string) => void;
 }) {
   const sim = useSimulation(world, DEMO_SEED, DEMO_CONFIG);
+  const aiConfigured = useAgentAvailability();
   const { act, frames, play, pause, playing, demand: fetchDemand, scout: simulateScout, latestDigest, whatIf } = sim;
   const liveDigest = sim.digest;
   const [tool, setTool] = useState<Tool>({ kind: "select" });
@@ -187,9 +198,9 @@ function Game({
 
   // The co-pilot and scene namer call back into the city at arbitrary times; they read the latest
   // values through this ref, so their callbacks can be created once.
-  const latest = useRef({ world, layout, act, latestDigest, whatIf, flyTo, liveDigest, frames, citySlug });
+  const latest = useRef({ world, layout, act, latestDigest, whatIf, flyTo, liveDigest, frames, citySlug, play, pause, startCase: sim.startCase, finishCase: sim.finishCase, activeCase: sim.activeCase, pinned });
   useEffect(() => {
-    latest.current = { world, layout, act, latestDigest, whatIf, flyTo, liveDigest, frames, citySlug };
+    latest.current = { world, layout, act, latestDigest, whatIf, flyTo, liveDigest, frames, citySlug, play, pause, startCase: sim.startCase, finishCase: sim.finishCase, activeCase: sim.activeCase, pinned };
   });
   const [describeScene] = useState(() => (id: number) => {
     const L = latest.current;
@@ -199,7 +210,7 @@ function Game({
     if ("error" in info) return null;
     return { id, tastes: info.tastes.map((t) => t.name), homes: info.homes, parentId: info.splitFrom };
   });
-  const sceneNames = useSceneNames(world.city.name, liveDigest, describeScene, sim.frame, frames);
+  const sceneNames = useSceneNames(world.city.name, liveDigest, describeScene, sim.frame, frames, false);
   const sceneNamesRef = useRef(sceneNames);
   useEffect(() => {
     sceneNamesRef.current = sceneNames;
@@ -225,10 +236,36 @@ function Game({
   );
 
   const intro = useIntro();
-  /** Phones show one panel at a time, picked from a tab row under the HUD (ignored from the sm breakpoint). */
-  const [mobileTab, setMobileTab] = useState<"tools" | "scenes" | null>(null);
-  const [copilotOpen, setCopilotOpen] = useState(false);
+  /** The same single-drawer navigation on every screen size. */
+  const [panel, setPanel] = useState<WorkspacePanel | null>(null);
+  const [planningView, setPlanningView] = useState<PlanningView | null>(null);
+  const [planningBusy, setPlanningBusy] = useState(false);
+  const planningRequest = useRef(false);
+  const navigationRef = useRef<HTMLElement>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const closeDrawer = useCallback(() => {
+    setPanel(null);
+    if (pinned?.kind === "experiment") { setSelected(null); return; }
+    clearFocus();
+    navigationRef.current?.querySelector<HTMLElement>('[data-workspace-active="true"]')?.focus();
+  }, [clearFocus, pinned]);
   const [copilotDeps] = useState<ToolDeps>(() => ({
+    comparison: { current: null },
+    deferComparisonSummary: true,
+    isCaseActive: () => latest.current.activeCase !== null,
+    beforeChange: async () => { await latest.current.finishCase(); clearFocus(); },
+    onInspectVenue: (slot, ctx) => {
+      const L = latest.current;
+      if (L.pinned?.kind === "experiment") {
+        const current = followExperiment(L.pinned, ctx.frame);
+        if (!current || !canInspectVenue(current, slot)) return;
+      } else {
+        L.pause(); setHovered(null); setPinned(venueFocus(ctx.frame, slot));
+      }
+      setSelected(slot);
+      L.flyTo([L.layout.cellX[ctx.frame.venueCell[slot]], L.layout.cellZ[ctx.frame.venueCell[slot]]]);
+    },
+    onComparisonCleared: () => { if (!latest.current.activeCase) clearFocus(); },
     context: (d) => {
       const L = latest.current;
       const f = L.frames.current.current;
@@ -237,18 +274,31 @@ function Game({
       return { world: L.world, frame: f, digest: d, layout: L.layout, sceneNames: names };
     },
     latestDigest: () => latest.current.latestDigest(),
-    whatIf: (actions, weeks) => latest.current.whatIf(actions, weeks),
-    act: (action) => latest.current.act(action),
+    whatIf: (actions, weeks) => { latest.current.pause(); return latest.current.whatIf(actions, weeks); },
+    act: (action) => { latest.current.pause(); return latest.current.act(action); },
     outsideAct: (name) => fetchOutsideAct(latest.current.citySlug, name, latest.current.world),
-    onApplied: (actions) => {
+    onCompared: (actions, before) => {
+      setHovered(null); setSelected(null);
+      setPinned(experimentFocus(before.frame, actions));
+      const first = actions[0];
+      const cell = first.type === "closeVenue" ? before.frame.venueCell[first.venue] : "cell" in first ? first.cell : "cells" in first ? first.cells[0] : undefined;
+      if (cell !== undefined) latest.current.flyTo([latest.current.layout.cellX[cell], latest.current.layout.cellZ[cell]]);
+    },
+    onApplied: async (actions, before, plan) => {
       const L = latest.current;
-      const f = L.frames.current.current;
+      const f = before.frame;
+      setHovered(null); setSelected(null);
+      const experiment = experimentFocus(f, actions);
+      setPinned(experiment);
       const a = actions[0];
       const cell = a.type === "closeVenue" ? f?.venueCell[a.venue] : "cell" in a ? a.cell : "cells" in a ? a.cells[0] : undefined;
       if (cell !== undefined) L.flyTo([L.layout.cellX[cell], L.layout.cellZ[cell]]);
+      await L.startCase({ id: crypto.randomUUID(), startTick: f.tick, maxTicks: (plan?.weeks ?? 8) * f.ticksPerWeek, venueSlots: [...experiment.targets], agentSlots: [...experiment.agents], locations: actions.flatMap((action) => action.type === "openVenue" || action.type === "scheduleEvent" ? [{ entity: action.entity, cell: action.cell }] : []) }, caseLabel(actions, f, L.world));
     },
   }));
-  const copilot = useCopilot(world.city.name, copilotDeps);
+  // The local command layer owns explicit mutations. AI interpretation may inspect
+  // and compare, but a failed stream cannot leave a mutation eligible for replay.
+  const copilot = useCopilot(world.city.name, { ...copilotDeps, act: async () => false });
 
   /** Leaves scout mode with nothing booked; `resume` restarts play if scouting paused it. */
   const exitScout = useCallback(
@@ -352,11 +402,11 @@ function Game({
       if (e.key !== "Escape") return;
       if (scouting) exitScout(true);
       setTool({ kind: "select" });
-      clearFocus();
+      if (pinned?.kind !== "experiment") clearFocus();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [clearFocus, exitScout, scouting]);
+  }, [clearFocus, exitScout, scouting, pinned]);
 
   const onScoutHover = useCallback(
     (cell: number | null) => {
@@ -394,6 +444,36 @@ function Game({
   const planSnapshot = useRef<PlannerSnapshot | null>(null);
   const forecast = useRef<{ snapshot: PlannerSnapshot; acts: BookingAct[]; weeks: number; date: BookingDate } | null>(null);
   const book = sim.book;
+  const compareEvent = useCallback(async (slot: number, a: BookingAct, date: BookingDate) => {
+    const before = plannerSnapshot(latest.current.frames.current.current, slot);
+    if (!before) throw new Error("That venue is no longer open. Refresh the plan.");
+    const { results } = await book(slot, [{ entity: a.entity, profile: a.profile }], 1, date);
+    if (!samePlannerSnapshot(before, latest.current.frames.current.current, slot)) throw new Error("The city changed during comparison. Refresh the plan and try again.");
+    return results[0];
+  }, [book]);
+  const previewEventVenue = useCallback((slot: number) => {
+    const f = latest.current.frames.current.current;
+    if (!f || slot >= f.nVenues) return;
+    if (pinned?.kind === "experiment") {
+      const current = followExperiment(pinned, f);
+      if (!current || !canInspectVenue(current, slot)) return;
+      setSelected(slot);
+      flyTo([layout.cellX[f.venueCell[slot]], layout.cellZ[f.venueCell[slot]]]);
+      return;
+    }
+      setPinned(venueFocus(f, slot)); setSelected(slot);
+    flyTo([layout.cellX[f.venueCell[slot]], layout.cellZ[f.venueCell[slot]]]);
+  }, [flyTo, layout, pinned]);
+  const schedulePlannedEvent = useCallback(async (slot: number, a: BookingAct, date: BookingDate, snapshot: string) => {
+    pause();
+    const f = latest.current.frames.current.current;
+    if (!f || `${f.epoch}:${f.tick}` !== snapshot || !f.venueOpen[slot] || f.venueExpires[slot] >= 0) return false;
+    const cell = f.venueCell[slot];
+    const { reachKm, capacity } = SCOUT_DEFAULTS;
+    const ok = await act({ type: "scheduleEvent", entity: a.entity, cell, hostVenue: slot, startTick: date.startTick, durationDays: date.durationDays, duration: 1, reachKm, capacity, label: a.label, ...(a.profile ? { profile: a.profile } : {}) });
+    if (ok) notify(`Scheduled ${a.label} at ${world.entities[f.venueEntity[slot]].name}`, [layout.cellX[cell], layout.cellZ[cell]]);
+    return ok;
+  }, [act, layout, notify, pause, world]);
   const startPlan = useCallback(
     (slot: number) => {
       const snapshot = plannerSnapshot(latest.current.frames.current.current, slot);
@@ -403,7 +483,7 @@ function Game({
       planWasPlaying.current = playing;
       if (playing) pause();
       setPlanVenue(slot);
-      setMobileTab(null);
+      setPanel("venues");
     },
     [pause, playing],
   );
@@ -417,6 +497,19 @@ function Game({
     },
     [play],
   );
+  useEffect(() => {
+    const escape = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      endPlan(true);
+      setInterview(null);
+      closeDrawer();
+    };
+    window.addEventListener("keydown", escape);
+    return () => window.removeEventListener("keydown", escape);
+  }, [closeDrawer, endPlan]);
+  useEffect(() => {
+    workspaceRef.current?.querySelector<HTMLButtonElement>("#workspace-drawer button[data-drawer-close]")?.focus();
+  }, [panel, selected, planVenue, scouting, aiConfigured, interview]);
   const comparePlan = useCallback(
     async (acts: BookingAct[], weeks: number, date: BookingDate) => {
       const snapshot = planSnapshot.current;
@@ -468,20 +561,61 @@ function Game({
     const info = sceneInfo({ world, frame: sim.frame, digest: sim.digest, layout, sceneNames: new Map([...sceneNames].map(([id, n]) => [id, n.name])) }, pinnedLive.id);
     return "error" in info ? null : info;
   }, [pinnedLive, sim.frame, sim.digest, world, layout, sceneNames]);
-  const focus = useMemo<Focus>(() => (hovered !== null ? { kind: "scene", id: hovered } : pinnedLive), [hovered, pinnedLive]);
+  const focus = useMemo<Focus>(() => {
+    if (pinnedLive?.kind === "experiment") return sim.frame ? followExperiment(pinnedLive, sim.frame) : null;
+      if (pinnedLive?.kind === "venue" && pinnedLive.epoch !== undefined && pinnedLive.epoch !== sim.frame?.epoch) return null;
+    return hovered !== null ? { kind: "scene", id: hovered } : pinnedLive;
+  }, [hovered, pinnedLive, sim.frame]);
+  const finishCase = async () => {
+    await sim.finishCase();
+    clearFocus();
+    clearComparison(copilotDeps);
+  };
+  const openPlanning = async (view: PlanningView) => {
+    if (planningRequest.current) return;
+    if (planningView) { setPlanningView(view); return; }
+    planningRequest.current = true;
+    setPlanningBusy(true);
+    try {
+      await prepareEventPlanning({ pause, finishCase: sim.finishCase, clearView: () => {
+        clearFocus();
+        clearComparison(copilotDeps);
+        endPlan(false);
+        exitScout(false);
+        setInterview(null);
+        setTool({ kind: "select" });
+        setPanel(null);
+      }, open: () => setPlanningView(view) });
+    } catch (error) { notify(`Could not open the planner: ${errorText(error)}`); }
+    finally { planningRequest.current = false; setPlanningBusy(false); }
+  };
+  const closePlanning = () => {
+    pause();
+    clearFocus();
+    setPlanningView(null);
+    requestAnimationFrame(() => document.getElementById("event-planner-entry")?.focus());
+  };
+  const caseComplete = !!sim.activeCase && sim.caseReports.some((item) => item.report.id === sim.activeCase?.id);
+  const caseMessages = useMemo(() => sim.caseReports.map(({ report, at }) => ({ id: report.id, at, text: caseSummary(report, sim.caseChanges.find((change) => change.id === report.id)?.label ?? "Applied change", world) })), [sim.caseReports, sim.caseChanges, world]);
 
   const onVenueClick = useCallback(
     (slot: number) => {
+      if (!canInspectVenue(focus, slot)) return;
+      if (focus?.kind === "experiment") { setSelected(slot); return; }
       // Scouting, a venue is just a place on the map: try the spot it stands on.
       if (scouting) {
         const frame = latest.current.frames.current.current;
         if (frame && slot < frame.nVenues) tryOwnSpot(frame.venueCell[slot]);
         return;
       }
+      if (planVenue !== null) endPlan(true);
       setSelected(slot);
-      setPinned({ kind: "venue", slot });
+        const frame = latest.current.frames.current.current;
+        setPinned(frame ? venueFocus(frame, slot) : { kind: "venue", slot });
+      setPanel("venues");
+      setInterview(null);
     },
-    [scouting, tryOwnSpot],
+    [endPlan, planVenue, scouting, tryOwnSpot, focus],
   );
 
   const onPinScene = useCallback(
@@ -527,7 +661,7 @@ function Game({
             announce(`${view.name} is playing tonight`, view.position);
           } else {
             const scene = homeScene(frame, frame.venueCell[c.slot]);
-            announce(scene >= 0 ? `${view.name} opened (demand from ${sceneTitle(scene)})` : `${view.name} opened`, view.position);
+            announce(scene >= 0 ? `Modeled opening: ${view.name} (demand from ${sceneTitle(scene)})` : `Modeled opening: ${view.name}`, view.position);
           }
         } else if (c.kind === "venueStruggling") {
           const view = views[c.slot];
@@ -554,7 +688,7 @@ function Game({
         setTool({ kind: "select" });
         placed.current.add(key);
         void act({ type: "openVenue", entity, cell }).then((ok) => {
-          if (ok) notify(`Opened a ${kindWord(world.entities[entity].kind ?? "other")} in ${areaName(layout, x, z, world)}`, anchor);
+          if (ok) notify(`Modeled opening: ${kindWord(world.entities[entity].kind ?? "other")} in ${areaName(layout, x, z, world)}`, anchor);
           else placed.current.delete(key);
         });
       } else if (tool.kind === "event" && tool.entity !== null) {
@@ -583,11 +717,11 @@ function Game({
         });
       } else if (tool.kind === "scout") {
         tryOwnSpot(cell);
-      } else if (tool.kind === "select") {
+      } else if (tool.kind === "select" && pinned?.kind !== "experiment") {
         clearFocus();
       }
     },
-    [act, clearFocus, layout, liveDigest, notify, sceneTitle, tool, tryOwnSpot, world],
+    [act, clearFocus, layout, liveDigest, notify, sceneTitle, tool, tryOwnSpot, world, pinned],
   );
 
   const shownFrame = sim.frame;
@@ -633,7 +767,7 @@ function Game({
   const scoutStale = !!scout && scout.tick !== null && !scout.loading && sim.frame !== null && sim.frame.tick !== scout.tick;
 
   return (
-    <div className="relative h-dvh w-full overflow-hidden bg-[#07080b] text-zinc-100">
+    <div ref={workspaceRef} className="relative h-dvh w-full overflow-hidden bg-[#07080b] text-zinc-100">
       <CityCanvas
         world={world}
         layout={layout}
@@ -653,6 +787,18 @@ function Game({
         rules={CLOSURE_RULES}
         scout={scoutOverlay}
       />
+      <LabChat city={world.city.name} citySlug={citySlug} cities={CITY_OPTIONS} onCityChange={onCityChange}
+        deps={copilotDeps} ai={copilot} configured={aiConfigured === true} frame={sim.frame} qlooGrounded={world.meta?.source === "qloo"}
+        planning={planningView !== null} planningBusy={planningBusy} onPlanning={(view) => void openPlanning(view)}
+        onPause={pause} onRewind={sim.rewind} onFocusVenue={previewEventVenue} caseMessages={caseMessages} caseStatus={sim.activeCase ? caseComplete ? "complete" : "running" : null} />
+      {planningView && <EventPlanningWorkspace world={world} city={citySlug} frame={sim.frame} sceneTitle={sceneTitle} compare={compareEvent} schedule={schedulePlannedEvent} onPreview={previewEventVenue} view={planningView} onView={setPlanningView} onClose={closePlanning} onCancel={(event) => { pause(); void act({ type: "cancelEvent", event }); }} />}
+      {!planningView && selected !== null && sim.frame && canInspectVenue(focus, selected) && <VenueInspection world={world} frame={sim.frame} slot={selected} onClose={() => setSelected(null)} />}
+      <TimelineBar tick={sim.frame?.tick ?? 0} ticksPerWeek={sim.frame?.ticksPerWeek ?? 1} earliest={sim.frame?.earliestTick ?? 0} playing={sim.playing} speed={sim.speed} onPlay={play} onPause={pause} onSpeed={sim.setSpeed} onRewind={(tick) => void sim.rewind(tick)} caseComplete={caseComplete} changes={sim.caseChanges} />
+      {focus?.kind === "experiment" && <div className="panel absolute left-3 top-32 z-10 max-w-64 space-y-1 px-3 py-2 text-xs text-zinc-300"><p>{sim.activeCase ? caseComplete ? "Case complete · paused" : sim.playing ? "Case playing" : "Case paused" : "Case prepared"} · {focus.agents.size} observed visitors.</p>{sim.activeCase && <progress aria-label="Case playback progress" max={sim.activeCase.maxTicks} value={Math.max(0, (sim.frame?.tick ?? sim.activeCase.startTick) - sim.activeCase.startTick)} className="h-1 w-full accent-cyan-300" />}<p className="text-[10px] text-zinc-400">Target beacons follow the closest taste scene; signs follow the current crowd. Click Play/Pause below to control playback. Exit case/view leaves this highlight.</p><button type="button" onClick={() => void finishCase()} className="mt-1 rounded border border-white/20 px-3 py-1 text-xs hover:bg-white/10">Exit case/view</button></div>}
+      {focus && focus.kind !== "experiment" && <button type="button" onClick={() => void finishCase()} className="panel absolute left-3 top-32 z-10 px-3 py-2 text-xs hover:bg-white/10">Exit case/view</button>}{attribution && <Attribution qloo={world.meta?.source === "qloo"} />}
+      {/* Legacy sandbox workspaces stay dormant. The chat and separate planner
+          above own the visible entry points. */}
+      <div hidden>
       <Hud
         city={world.city.name}
         digest={sim.digest}
@@ -662,6 +808,16 @@ function Game({
         citySlug={citySlug}
         onCityChange={onCityChange}
       />
+      <WorkspaceNav panel={panel} navigationRef={navigationRef} onOpen={(key) => {
+            const next = panel === key ? null : key;
+            setInterview(null);
+            if (planVenue !== null) endPlan(true);
+            if (scouting) exitScout(true);
+            if (key === "plan") pause();
+            setTool({ kind: "select" });
+            clearFocus();
+            setPanel(next);
+      }} />
       {interview ? (
         <InterviewPanel
           key={`${interview.scene}:${interview.skip}`}
@@ -669,7 +825,7 @@ function Game({
           onAnother={() => talkTo(interview.scene, interview.skip + 1)}
           onClose={() => setInterview(null)}
         />
-      ) : copilotOpen ? (
+      ) : panel === "copilot" && aiConfigured === true ? (
         <CopilotPanel
           city={world.city.name}
           messages={copilot.messages}
@@ -677,68 +833,27 @@ function Game({
           error={copilot.error}
           onSend={(text) => void copilot.sendMessage({ text })}
           onStop={() => void copilot.stop()}
-          onClose={() => setCopilotOpen(false)}
+          onReset={copilot.resetChat}
+          cooldownUntil={copilot.cooldownUntil}
+          onClose={closeDrawer}
         />
-      ) : (
-        <>
-          <Toolbar
-            world={world}
-            digest={sim.digest}
-            tool={tool}
-            onTool={(t) => {
-              onTool(t);
-              // On phones, get the panel out of the way once there's something to place on the map.
-              if (isPlacing(t)) setMobileTab(null);
-            }}
-            sceneTitle={sceneTitle}
-            mobileOpen={mobileTab === "tools"}
-          />
-          <button
-            type="button"
-            onClick={() => setCopilotOpen(true)}
-            className="panel pointer-events-auto absolute bottom-24 left-4 hidden w-64 px-3 py-2 text-left text-sm hover:bg-white/5 sm:block"
-          >
-            <span className="block">Ask the co-pilot</span>
-            <span className="block text-xs text-zinc-400">“What happens if this club closes?”</span>
-          </button>
-        </>
-      )}
-      <nav aria-label="Panels" className="pointer-events-auto absolute left-2 right-2 top-[4.6rem] flex gap-2 sm:hidden">
-        {(
-          [
-            ["tools", "Tools"],
-            ["scenes", "Scenes"],
-            ["copilot", "Co-pilot"],
-          ] as const
-        ).map(([key, label]) => {
-          const active = key === "copilot" ? copilotOpen && !interview : mobileTab === key && !copilotOpen && !interview;
-          return (
-            <button
-              key={key}
-              type="button"
-              aria-pressed={active}
-              onClick={() => {
-                setInterview(null);
-                if (key === "copilot") {
-                  setCopilotOpen(!active);
-                  setMobileTab(null);
-                } else {
-                  setCopilotOpen(false);
-                  setMobileTab(active ? null : key);
-                }
-              }}
-              className={`panel flex-1 py-1.5 text-sm ${active ? "bg-violet-500/25 text-violet-100 ring-1 ring-violet-400/50" : "text-zinc-200"}`}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </nav>
+      ) : null}
       <div
-        className={`pointer-events-none absolute left-2 right-2 top-28 ${
-          scout || selected !== null || planVenue !== null || (mobileTab === "scenes" && !copilotOpen && !interview) ? "flex" : "hidden"
-        } max-h-[calc(100dvh-13rem)] flex-col gap-3 sm:left-auto sm:right-4 sm:top-24 sm:flex sm:max-h-[calc(100dvh-12rem)] ${scout ? "sm:w-80" : "sm:w-72"}`}
+        id={interview || (panel === "copilot" && aiConfigured === true) ? undefined : "workspace-drawer"}
+        className={`panel pointer-events-auto absolute left-2 right-2 top-36 bottom-24 z-[5] ${
+          !interview && (scout || planVenue !== null || (panel && !(panel === "copilot" && aiConfigured === true))) ? "flex" : "hidden"
+        } flex-col overflow-hidden sm:left-auto sm:right-4 sm:w-80 md:top-24`}
       >
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
+          <h2 className="text-sm font-medium">{scout ? "Scout a location" : planVenue !== null ? "Plan a night" : panel === "plan" ? "Plan an event" : selected !== null ? "Your venue" : panel === "venues" ? "Your venues" : panel === "scenes" ? "Discover scenes" : panel === "tools" ? "City sandbox" : "Co-pilot"}</h2>
+          <button data-drawer-close type="button" aria-label="Close workspace" className="rounded px-2 py-1 text-zinc-400 hover:bg-white/10" onClick={() => {
+            if (planVenue !== null) endPlan(true);
+            if (scouting) exitScout(true);
+            setTool({ kind: "select" });
+            closeDrawer();
+          }}>×</button>
+        </div>
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
         {scout ? (
           <ScoutPanel
             headliner={world.entities[scout.entity].name}
@@ -770,8 +885,26 @@ function Game({
           />
         ) : (
           <>
-            {sim.frame && <EventCalendar frame={sim.frame} world={world} onCancel={(event) => void act({ type: "cancelEvent", event })} />}
-            {pinnedScene && selected === null && sim.frame && (
+            {panel === "plan" && (sim.frame ? <EventPlanner world={world} city={citySlug} frame={sim.frame} sceneTitle={sceneTitle} compare={compareEvent} schedule={schedulePlannedEvent} onPreview={previewEventVenue} onCalendar={() => { clearFocus(); setPanel("venues"); }} /> : <p role="status" className="text-sm text-zinc-400">Preparing the city for event planning…</p>)}
+            {panel === "copilot" && <div className="space-y-3 text-sm text-zinc-300">
+              <p>{aiConfigured === false ? "The co-pilot is unavailable because no language model is configured." : "AI availability could not yet be confirmed. You can continue with the venue tools."}</p>
+              <p className="text-zinc-400">You can compare acts, scout locations and book nights without the co-pilot.</p>
+              <button type="button" className="rounded-lg bg-violet-500/25 px-3 py-2 text-violet-100" onClick={() => { pause(); setPanel("plan"); }}>Plan an event</button>
+              {aiConfigured === false && <details><summary className="cursor-pointer text-xs text-zinc-400">Local setup</summary><p className="mt-2 text-xs text-zinc-400">Configure a supported provider key in .env.local and restart the server. See .env.example. Scene naming and resident interviews also need a provider.</p></details>}
+            </div>}
+            {panel === "tools" && <Toolbar world={world} digest={sim.digest} tool={tool} sceneTitle={sceneTitle} onTool={(t) => {
+              onTool(t);
+              if (isPlacing(t)) setPanel(null);
+            }} />}
+            {panel === "venues" && selected === null && <>
+              {sim.frame && <EventCalendar frame={sim.frame} world={world} onCancel={(event) => void act({ type: "cancelEvent", event })} />}
+              <VenueDirectory world={world} frame={sim.frame} onSelect={(slot) => {
+                onVenueClick(slot);
+                if (sim.frame) flyTo([layout.cellX[sim.frame.venueCell[slot]], layout.cellZ[sim.frame.venueCell[slot]]]);
+              }} />
+            </>}
+            {selected !== null && panel === "venues" && <button type="button" className="rounded px-2 py-1 text-xs text-violet-200 hover:bg-white/10" onClick={clearFocus}>← All venues</button>}
+            {panel === "scenes" && pinnedScene && selected === null && sim.frame && (
               <SceneCard
                 key={pinnedScene.scene}
                 info={pinnedScene}
@@ -781,50 +914,40 @@ function Game({
                 colour={rgbCss(sceneRgb(sceneHuesOf(sim.frame.lineageParents), pinnedScene.scene))}
                 ticksPerWeek={sim.frame.ticksPerWeek}
                 onPin={onPinScene}
-                onTalk={(scene) => {
-                  setMobileTab(null);
-                  talkTo(scene);
-                }}
+                onTalk={aiConfigured === true ? (scene) => talkTo(scene) : undefined}
               />
             )}
-            <VenuePanel
+            {panel === "venues" && <VenuePanel
               world={world}
               frame={sim.frame}
               slot={selected}
               onCloseVenue={onCloseVenue}
               onDismiss={clearFocus}
               onPlan={startPlan}
-            />
-            <SceneLegend
+            />}
+            {panel === "scenes" && <SceneLegend
               digest={sim.digest}
               names={sceneNames}
-              onTalk={(scene) => {
-                setMobileTab(null);
-                talkTo(scene);
-              }}
+              onTalk={aiConfigured === true ? (scene) => talkTo(scene) : undefined}
               frame={sim.frame}
               pinned={pinnedLive?.kind === "scene" ? pinnedLive.id : null}
               focused={focus !== null}
               onHover={setHovered}
               onPin={onPinScene}
               onClear={clearFocus}
-            />
+            />}
           </>
         )}
+        </div>
       </div>
-      <TimelineBar
-        tick={sim.frame?.tick ?? 0}
-        ticksPerWeek={sim.frame?.ticksPerWeek ?? 1}
-        earliest={sim.frame?.earliestTick ?? 0}
-        playing={sim.playing}
-        speed={sim.speed}
-        onPlay={sim.play}
-        onPause={sim.pause}
-        onSpeed={sim.setSpeed}
-        onRewind={(t) => void sim.rewind(t)}
-      />
+      {!panel && !scout && planVenue === null && !interview && !isPlacing(tool) && <div className="pointer-events-none absolute bottom-28 left-4 right-4 flex justify-center">
+        <button type="button" onClick={() => { pause(); setPanel("plan"); }} className="panel pointer-events-auto px-5 py-3 text-sm text-violet-100 hover:bg-white/10">Plan an event <span aria-hidden className="ml-3">↗</span></button>
+      </div>}
+      {isPlacing(tool) && !scout && <div role="status" className="panel pointer-events-auto absolute bottom-28 left-1/2 flex w-[min(28rem,calc(100%-2rem))] -translate-x-1/2 items-center justify-between gap-4 px-4 py-3 text-sm">
+        <span>Click the map to {tool.kind === "open" ? "open this venue" : tool.kind === "event" ? "place this event" : tool.kind === "migrate" ? "bring in newcomers" : "raise rents here"}.</span>
+        <button type="button" onClick={() => setTool({ kind: "select" })} className="rounded px-2 py-1 text-violet-200 hover:bg-white/10">Cancel</button>
+      </div>}
       <Toasts toasts={toasts} onSelect={(t) => t.anchor && flyTo(t.anchor)} />
-      {attribution && <Attribution qloo={world.meta?.source === "qloo"} />}
       <button
         type="button"
         onClick={intro.show}
@@ -835,6 +958,7 @@ function Game({
         ?
       </button>
       <Intro city={world.city.name} open={intro.open} onClose={intro.close} />
+      </div>
       {sim.status === "loading" && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center text-zinc-400">Growing the city…</div>
       )}

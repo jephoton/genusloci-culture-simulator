@@ -2,7 +2,15 @@
 
 <!-- generated: maintained by agents; keep in sync with the spec -->
 
+The artist-first comparison is restored as a separate **Plan an event** workspace, with an accessible event calendar and return to the same mounted chat. Its explicit entry ends any focused observation and pauses before planning; schedule/cancel actions preserve manual playback. The comparison engine is reused, including snapshot guards and host baseline accounting. [Comparison-first workspace evaluation](comparison-workspace-evaluation.md) recommends a future hierarchy change but does not implement replacement of the main case view.
+
+Current rendering/playback policy: `CityCanvas` omits placeholder background buildings while retaining actual venue landmarks, roads and labels. Applied cases are armed paused through worker `startCase.autoplay=false`; the bottom Play button starts observation and Pause retains it. Chat playback/exit requests produce button guidance rather than calling controls. Case endpoint stopping and operational pauses for inspection/application/rewind remain. See the current walkthrough.
+
 ## Simulation scheduling and world builds
+
+The visible interface now uses live applied cases and named change checkpoints instead of numbered weeks. `sim/case.ts` monitors bounded actual playback in the worker, preserving pause/resume/speed and emitting one completion report. `useSimulation` delays automatic completion presentation until the final crowd outing has animated, then pauses and publishes observed outcomes. `GameShell` preserves a relevant-only experiment focus during inspection; `LabChat` releases it explicitly through finish/resume. Bottom playback and `TimelineBar` expose session-local change history and snapshot rewind. Internal cycle cadence, scheduling and legacy tool units remain engine details. See [decision 0008](decisions/0008-live-cases-and-change-history.md).
+
+Valid replacement interventions now finish the previous monitor before refreshing/revalidating context; applied changes remain in the city. Exit case/view also releases focus and pauses. `attendanceHistory` stores one rolling activity cycle per resident in snapshot-safe typed arrays; tally writes it, resident replacement/event slot recycling clears stale attribution, and frames expose independent copies for recent-visitor highlighting. Raw expired-event attendance is preserved for final-turnout accounting, while render frames filter invalid reused lifetimes. Venue/body beacon colours use the closest live taste scene, not a fixed case colour.
 
 The deferred-features batch adds simulation closure evidence (`sim/closures.ts`), snapshot-safe event scheduling (`sim/scheduling.ts`, action schema, worker, booking previews), and optional seeded residential movement/turnover (`sim/steps/ecology.ts`, clustering, config). General ecology defaults remain disabled; the demo enables turnover and the split check, while residential moves remain off after real-city fidelity measurements. Closure evidence and event labels/calendar metadata travel in frames; recent transmitted history is bounded while state retains history. Booking forecasts preserve calendar insertion order and count attendance by candidate lifetime, including final attendance when its venue slot is reused.
 
@@ -10,7 +18,9 @@ The operator-authenticated `/api/world-builds` route uses a private Blob compare
 
 Transient planning and naming state is tied to simulation timeline identity. Planning closes if its tick, epoch or host changes, and callbacks guard against stale comparisons. Naming prunes discarded lineages and rejects results from abandoned generations. Outside-artist HTTP responses contain stable Qloo IDs; `ui/outside-act-client.ts` matches those IDs to the caller's actual World, avoiding numeric-index mismatches after world publication.
 
-**Goal:** a god-game sandbox of a real city's cultural ecosystem, grounded in Qloo's taste graph, built for the Qloo Agentic Hackathon (deadline 2026-10-31 11:45 GMT+8).
+**Goal:** answer one question with a race you can watch: which venue would draw the biggest crowd for this artist? Qloo's taste graph shortlists the venues and seeds the city; parallel seeded futures race them; the result separates model behaviour from real-world forecasts. The engine keeps its wider ecosystem mechanisms (closures, rent, scenes), which the interface no longer exposes. See [pitch and demo](pitch-and-demo.md).
+
+**Current interaction boundary:** `LabChat` routes known commands through `agents/offline-chat.ts` and canonical `runCityTool`; deterministic evidence formatting is separate from interpretation. Optional LLM assistance supports inspection/comparisons and receives recent local evidence, but live actions remain explicit local commands. `useCopilot` retains cooldown/deduplication; local commands need no inference. Background naming is disabled. Former workspace components remain hidden compatibility code, not additional visible entry points.
 
 **Full design:** [superpowers/specs/2026-10-09-genusloci-design.md](superpowers/specs/2026-10-09-genusloci-design.md)
 
@@ -46,12 +56,13 @@ Transient planning and naming state is tied to simulation timeline identity. Pla
   - pure, tested prep: `layout.ts` (cells, landmark pads, procedural buildings that avoid roads, water, parks and pads), `palette.ts` (scene hues by lineage), `venues.ts` (per-slot landmark views), `geometry.ts` (street ribbons, polygons)
   - scene: `CityCanvas` (camera, MapControls, bloom and vignette), `Ground`, `Streets`, `Buildings` (instanced, window-light shader), `Landmarks` (per venue kind, neon sign = dominant scene, health = brightness), `Crowd` (instanced agents eased between ticks)
 - **`app/api/world/[slug]`** — serves a built World via `world/store.ts`: `.cache/worlds` locally, else the **private** Vercel Blob store (`worlds/<slug>.world.json`, read with `BLOB_READ_WRITE_TOKEN`); 404 if unknown or not built.
-- **`ui/`** — `useCityWorld` (Qloo world first, then synthetic over OSM, then Synthville), `useSimulation` (worker lifecycle, pushed frames in a ref plus state, actions, rewind), `GameShell` (composition and tools), `Hud`, `Toolbar`, `TimelineBar`, `VenuePanel`; `ClientGame` loads it client-only (`next/dynamic` with `ssr: false`)
+- **`ui/`** — `useCityWorld` (Qloo world first, then synthetic over OSM, then Synthville), `useSimulation` (worker lifecycle, pushed frames in a ref plus state, warm-up, race start/end/completion), `FlowShell` (the app: header, city, `VenueRace` panel), `VenueRace` (artist → venues → race → result → tweak), `venue-race.ts` (start night, result summary), `venue-agent-client.ts` (calls the scout agent); `ClientGame` loads `FlowShell` client-only. `GameShell`, `LabChat`, the planner, calendar, toolbar and panels are earlier UIs, still in source but unmounted.
+- **Venue race** — `sim/events.ts` `PairedEventRun` (baseline plus one fork per candidate venue, stepped together from one seed); worker `startRace`/`endRace` and `play` on `RACE_TIMELINE` push race frames (`Frame.race`: hosts, tonight's `group`, cumulative `seen`, tallies) and a `race-complete` message. `render/focus.ts` `RaceFocus` with `RACE_RGB`; `Crowd` and `Landmarks` colour by candidate; `RacePins` badges, and `RaceWalkers` adds a walker per extra visit so each venue's dots equal its count (`race.went`). Venue candidates: `ui/event-planning.ts` `rankRaceVenues` (stored Qloo affinity, then fans nearby from the worker's `venueFans` / `sim/scout.ts` `fansNearVenues`). The camera frames them with `render/camera-fit.ts` `fitView` (via `FlyTo.fit`). The scout agent is `agents/venue-agent.ts` behind `app/api/venue-agent`: `pick` (tools `artist_taste`, `qloo_rank_venues` (live Qloo `places` in the city, venue genres only), `inspect_venue`, `choose_venues`; picks validated against the shortlist, with top-fit fallback) and `explain` (uses `race-helper.ts` instructions).
 - **`agents/`** — LLM features on the Vercel AI SDK v7 (decision 0003):
-  - `providers.ts` — provider chain (DeepSeek → Groq → Cerebras → OpenRouter → Gemini; only those with keys), `fallbackModel` (next provider if a call fails before streaming), `modelFor(tier)`; DeepSeek thinking is off
+  - `providers.ts` — configured chat chain Gemini Flash-Lite → Groq; `fallbackModel` advances on failures/empty streams before text/tool activity. Other vendors remain registered for explicit probes only. `LabChat` falls back to the bounded deterministic parser after AI failure, or immediately when AI is disabled/cooling down.
   - `tools.ts` — co-pilot tool and action schemas shared by server and browser (`city_summary`, `find`, `venues`, `venue`, `scene`, `what_if`, `apply`)
   - `city.ts` — the co-pilot's view of the city, computed in the browser from World + frame + digest: summaries, fuzzy find, venue ranking, area resolution, action mapping, named what-if results, interview personas
-  - `run-tool.ts` — runs city tools in the browser against the worker; never throws
+  - `run-tool.ts` — runs city tools in the browser against the worker; successful what-if calls capture a shared resolved-action record for one explicit local apply. Epoch/timeline/venue-identity guards prevent stale replay; only accepted actions trigger playback/focus callbacks.
   - `copilot.ts` — instructions, server-side Qloo tools (`qloo_search`, `qloo_taste`, capped per question, budget floor ≥ 1000), `copilotStream`
   - `naming.ts` — plain scene names from Qloo tastes (structured output, small tier)
   - `interview.ts` — persona schema and grounded first-person chat
@@ -71,8 +82,8 @@ Transient planning and naming state is tied to simulation timeline identity. Pla
 ## Boundaries
 
 - Qloo response data must **never** be committed to the repo (Qloo terms). Fixtures in the repo are synthetic.
-- Secrets live in environment variables only: `QLOO_API_KEY`, `DEEPSEEK_API_KEY`, and optional fallbacks `GROQ_API_KEY`, `CEREBRAS_API_KEY`, `OPENROUTER_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY` (models overridable with `<PROVIDER>_MODEL` / `<PROVIDER>_SMALL_MODEL`).
-- The co-pilot only changes the live city through `apply`, which it is told to use only when the user asks.
+- Secrets live in environment variables only: `QLOO_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY`, `GROQ_API_KEY` (models overridable with `<PROVIDER>_MODEL` / `<PROVIDER>_SMALL_MODEL`). Other registered provider keys are for explicit probes, not automatic chat fallback.
+- The AI guide has no advertised live `apply` tool. Explicit local live commands invoke the validated dispatcher; provider retries cannot replay these writes. Questions use AI first, with deterministic interpretation after exhaustion.
 - Sim ticks make zero API calls; the server is stateless apart from caches.
 
 ## Deployment (M7)

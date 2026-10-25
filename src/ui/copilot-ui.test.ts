@@ -1,9 +1,21 @@
 import type { UIMessage } from "ai";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { friendlyError, toolLabel } from "@/ui/CopilotPanel";
+import { friendlyError, Message, toolLabel } from "@/ui/CopilotPanel";
 import { overTurnLimit, recentMessages, TURN_LIMITS, toolCallsThisTurn } from "@/ui/useCopilot";
 
 const msg = (i: number, role: "user" | "assistant"): UIMessage => ({ id: String(i), role, parts: [] });
+
+it("renders recommendations only as input data while preserving user-authored text", () => {
+  const text = "There are 600 residents.\nSuggested next prompt: How do tastes evolve?";
+  const assistant = renderToStaticMarkup(createElement(Message, { message: { id: "a", role: "assistant", parts: [{ type: "text", text }] } }));
+  expect(assistant).toContain("600 residents");
+  expect(assistant).not.toContain("Suggested next prompt");
+  expect(assistant).not.toContain("How do tastes evolve?");
+  const user = renderToStaticMarkup(createElement(Message, { message: { id: "u", role: "user", parts: [{ type: "text", text }] } }));
+  expect(user).toContain("Suggested next prompt");
+});
 
 describe("recentMessages", () => {
   it("keeps short conversations whole and cuts long ones at a user turn", () => {
@@ -39,7 +51,7 @@ describe("toolCallsThisTurn", () => {
 
 describe("co-pilot panel words", () => {
   it("labels tool steps in plain English", () => {
-    expect(toolLabel({ type: "tool-what_if", state: "output-available", input: { weeks: 12 } })).toBe("Simulated 12 weeks, with and without the change");
+    expect(toolLabel({ type: "tool-what_if", state: "output-available", input: { weeks: 12 } })).toBe("Prepared a case against an unchanged future");
     expect(toolLabel({ type: "tool-find", input: { query: "Fabric" } })).toBe("Looked up “Fabric”");
     expect(toolLabel({ type: "tool-qloo_taste", input: { name: "Ghetts" } })).toBe("Asked Qloo what “Ghetts” fans like");
   });
@@ -48,4 +60,20 @@ describe("co-pilot panel words", () => {
     expect(friendlyError(new Error(JSON.stringify({ error: "The co-pilot is offline" })))).toBe("The co-pilot is offline");
     expect(friendlyError(new Error("network down"))).toBe("network down");
   });
+});
+
+it("keeps the current user turn intact even when it exceeds the message-count cap", () => {
+  const messages: UIMessage[] = [msg(0, "user"), ...Array.from({ length: 8 }, (_, i) => msg(i + 1, "assistant"))];
+  expect(recentMessages(messages, 4)).toEqual(messages);
+});
+
+it("reuses a tool execution while its result is pending and after completion", async () => {
+  const { runToolOnce } = await import("@/ui/useCopilot");
+  const ledger = new Map<string, Promise<unknown>>();
+  let applies = 0;
+  const execute = async () => { applies++; return { applied: ["done"] }; };
+  const results = await Promise.all([runToolOnce(ledger, "apply-1", execute), runToolOnce(ledger, "apply-1", execute)]);
+  expect(results).toEqual([{ applied: ["done"] }, { applied: ["done"] }]);
+  await runToolOnce(ledger, "apply-1", execute);
+  expect(applies).toBe(1);
 });

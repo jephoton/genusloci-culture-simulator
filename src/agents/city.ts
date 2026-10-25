@@ -1,4 +1,5 @@
 import type { Persona } from "@/agents/interview";
+import { recentVenueVisitors } from "@/render/focus";
 import type { OutsideAct } from "@/agents/outside-act";
 import type { Area, CopilotAction } from "@/agents/tools";
 import { chooseVenueEntity } from "@/render/placement";
@@ -182,6 +183,7 @@ export function venueInfo(ctx: CityContext, v: number) {
     health: round(frame.venueHealth[v]),
     visitorsTonight: frame.venueAttendance[v],
     weeklyVisits: frame.venueWeekVisits?.[v] ?? null,
+      recentVisitors: recentVenueVisitors(frame, new Set([v])).size,
     capacity: frame.venueCapacity?.[v] ?? e.capacity ?? null,
     rent: frame.venueRent?.[v] ?? null,
     effectiveCapacity: frame.venueCapacity && frame.venueRent ? round(frame.venueCapacity[v] * frame.venueRent[v]) : null,

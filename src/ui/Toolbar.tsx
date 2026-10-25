@@ -118,11 +118,9 @@ function HeadlinerPicker({ groups, selected, onPick }: { groups: Group[]; select
 }
 
 export function Toolbar({
-  world, digest, tool, onTool, sceneTitle = defaultSceneTitle, mobileOpen = false,
+  world, digest, tool, onTool, sceneTitle = defaultSceneTitle,
 }: {
   world: World;
-  /** On phones the toolbar is a panel opened from the tab row; always shown from the `sm` breakpoint. */
-  mobileOpen?: boolean;
   /** A scene's display name (its field-guide name once named). */
   sceneTitle?: (id: number) => string;
   digest: SimDigest | null;
@@ -149,9 +147,12 @@ export function Toolbar({
   return (
     <aside
       aria-label="Tools"
-      className={`panel pointer-events-auto absolute left-2 right-2 top-28 ${mobileOpen ? "flex" : "hidden"} max-h-[calc(100dvh-13rem)] flex-col gap-2 overflow-y-auto p-3 sm:left-4 sm:right-auto sm:top-24 sm:flex sm:max-h-[calc(100dvh-16.5rem)] sm:w-64`}
+      className="space-y-3"
     >
-      <ToolButton active={tool.kind === "select"} label="Select" hint="Click a venue to see how it is doing." onClick={() => onTool({ kind: "select" })} />
+      <p className="text-sm text-zinc-400">Explore changes to the city. For an existing venue, use Venues → Plan a night.</p>
+      <details className="rounded-lg border border-white/10 p-2">
+      <summary className="cursor-pointer px-1 py-2 text-sm">Open a place</summary>
+      <p className="px-3 py-2 text-xs text-zinc-400">Hypothetical openings use an existing Qloo place&apos;s name, kind and taste profile matched to this area. They do not predict that the real business will open here.</p>
       <ToolButton
         active={tool.kind === "open"}
         label="Open a venue"
@@ -172,6 +173,9 @@ export function Toolbar({
           ))}
         </div>
       )}
+      </details>
+      <details className="rounded-lg border border-white/10 p-2">
+      <summary className="cursor-pointer px-1 py-2 text-sm">Events and scouting</summary>
       <ToolButton
         active={tool.kind === "event"}
         label="Throw an event"
@@ -186,6 +190,9 @@ export function Toolbar({
         onClick={() => onTool(tool.kind === "scout" ? { kind: "select" } : { kind: "scout", entity: null })}
       />
       {tool.kind === "scout" && <HeadlinerPicker groups={groups} selected={tool.entity} onPick={(entity) => onTool({ kind: "scout", entity })} />}
+      </details>
+      <details className="rounded-lg border border-white/10 p-2">
+      <summary className="cursor-pointer px-1 py-2 text-sm">Neighbourhood changes</summary>
       <ToolButton
         active={tool.kind === "migrate"}
         label="Bring in newcomers"
@@ -220,6 +227,8 @@ export function Toolbar({
           ))}
         </div>
       )}
+      </details>
+      {tool.kind !== "select" && <button type="button" className="rounded px-2 py-1 text-xs text-zinc-400 hover:bg-white/10" onClick={() => onTool({ kind: "select" })}>Cancel tool</button>}
       {step && (
         <p role="status" className="text-xs text-amber-200">
           {step}

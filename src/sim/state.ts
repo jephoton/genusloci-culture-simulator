@@ -29,6 +29,8 @@ export type SimState = {
   genomes: Genomes;
   /** Venue slot attended in the last tick, or -1. */
   attendance: Int32Array;
+  /** Agent slots × activity-cycle length; one venue slot per recorded outing, -1 when absent. */
+  attendanceHistory: Int32Array;
 
   // Venues: slots [0, nVenues) are in use; the table holds venueEntity.length slots.
   nVenues: number;
@@ -188,6 +190,7 @@ export function initState(world: World, config: SimConfig = DEFAULT_CONFIG, seed
     friends: new Int32Array(slots * config.friendsPerAgent).fill(-1),
     genomes,
     attendance: new Int32Array(slots).fill(-1),
+    attendanceHistory: new Int32Array(slots * config.ticksPerWeek).fill(-1),
     nVenues: 0,
     venueClosures: Array.from({ length: vSlots }, () => null),
     closureEvents: [],

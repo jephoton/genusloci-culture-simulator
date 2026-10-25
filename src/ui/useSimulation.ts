@@ -7,14 +7,22 @@ import type { Action } from "@/sim/actions/schema";
 import type { SimConfig } from "@/sim/config";
 import type { SimDigest } from "@/sim/digest";
 import type { Frame } from "@/sim/frame";
+import type { CaseSpec, CaseReport } from "@/sim/case";
 import { SimClient } from "@/sim/worker/client";
-import { type CommandResults, MAIN_TIMELINE } from "@/sim/worker/protocol";
+import { type CommandResults, MAIN_TIMELINE, RACE_TIMELINE, type RaceRequest } from "@/sim/worker/protocol";
+import type { EventOutcome } from "@/sim/events";
 import { recordSizes, type SceneHistory } from "@/ui/scene-history";
+import { CasePresentation } from "@/ui/case-presentation";
 import type { World } from "@/world/schema";
 
 export type SimStatus = "loading" | "ready" | "error";
 
 export type Simulation = {
+  activeCase: CaseSpec | null;
+  caseReports: { report: CaseReport; at: number }[];
+  caseChanges: { id: string; label: string; tick: number; status: string }[];
+  startCase(spec: CaseSpec, label: string): Promise<void>;
+  finishCase(): Promise<void>;
   status: SimStatus;
   error: string | null;
   playing: boolean;
@@ -29,9 +37,11 @@ export type Simulation = {
   setSpeed(ticksPerSecond: number): void;
   /** Resolves true once the action is accepted (queued, or applied while paused); false if it was rejected. */
   act(action: Action): Promise<boolean>;
-  rewind(tick: number): Promise<void>;
+  rewind(tick: number): Promise<boolean>;
   /** Per-cell demand for a headliner in the live city, plus up to 3 candidate cells. Rejects on failure. */
   demand(entity: number): Promise<CommandResults["demand"]>;
+  /** Per venue slot in the live city: taste-weighted residents within an event's reach. Rejects on failure. */
+  venueFans(entity: number, profile?: { entity: number; weight: number }[]): Promise<number[]>;
   /** Simulates a night for `entity` at each cell in forked futures (live city untouched). Rejects on failure. */
   scout(entity: number, cells: number[]): Promise<CommandResults["scout"]>;
   /** "What happens if…" on forked futures (live city untouched). Rejects on failure. */
@@ -43,6 +53,12 @@ export type Simulation = {
   /** The live city's digest right now (frames carry one only every few ticks). Rejects on failure. */
   latestDigest(): Promise<SimDigest>;
   dismissError(): void;
+  /** Sets up a venue race from the live city (paused; Play runs it) and returns its seeded futures. */
+  startRace(race: RaceRequest): Promise<CommandResults["startRace"]>;
+  /** Leaves the race and shows the live city again. */
+  endRace(): Promise<void>;
+  /** The played race's outcomes once its last night is drawn; null while racing or outside a race. */
+  raceOutcomes: EventOutcome[] | null;
 };
 
 /** Ticks per second; each tick (a day in the demo) is drawn as a night out, so this needs to be slow enough to follow. */
@@ -50,12 +66,12 @@ const DEFAULT_SPEED = 1;
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** Owns the simulation worker: initialises the world, streams frames, and applies user actions. */
-export function useSimulation(world: World, seed: number, config: Partial<SimConfig>): Simulation {
+export function useSimulation(world: World, seed: number, config: Partial<SimConfig>, warmupTicks = 0, initialSpeed = DEFAULT_SPEED): Simulation {
   const clientRef = useRef<SimClient | null>(null);
   const [clock] = useState(() => new SimClock());
   const frames = useRef<FrameStore>({ current: null, previous: null, receivedAt: 0, clock });
   const playingRef = useRef(false);
-  const speedRef = useRef(DEFAULT_SPEED);
+  const speedRef = useRef(initialSpeed);
   const [frame, setFrame] = useState<Frame | null>(null);
   const [digest, setDigestState] = useState<SimDigest | null>(null);
   const [sceneHistory, setSceneHistory] = useState<SceneHistory>(() => new Map());
@@ -67,7 +83,24 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
   const [status, setStatus] = useState<SimStatus>("loading");
   const [error, setError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
-  const [speed, setSpeedState] = useState(DEFAULT_SPEED);
+  const [activeCase, setActiveCase] = useState<CaseSpec | null>(null);
+  const activeCaseRef = useRef<CaseSpec | null>(null);
+  const completedCases = useRef(new Set<string>());
+  const presentation = useRef(new CasePresentation());
+  const releasingCase = useRef(false);
+  const [caseReports, setCaseReports] = useState<{ report: CaseReport; at: number }[]>([]);
+  const [caseChanges, setCaseChanges] = useState<{ id: string; label: string; tick: number; status: string }[]>([]);
+  const [speed, setSpeedState] = useState(initialSpeed);
+  /** The timeline Play and speed changes drive: the live city, or the venue race. */
+  const target = useRef(MAIN_TIMELINE);
+  const [raceOutcomes, setRaceOutcomes] = useState<EventOutcome[] | null>(null);
+
+  const publishCase = useCallback((result: CaseReport) => {
+    playingRef.current = false;
+    clock.setPlaying(false, performance.now()); setPlaying(false);
+    setCaseReports((items) => [...items, { report: result, at: Date.now() }].slice(-30));
+    setCaseChanges((items) => items.map((entry) => entry.id === result.id ? { ...entry, status: result.reason === "settled" ? "Settled (model heuristic)" : result.reason === "limit" ? "Observation complete" : result.reason } : entry));
+  }, [clock]);
 
   const accept = useCallback((f: Frame) => {
     const store = frames.current;
@@ -80,6 +113,7 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
 
   useEffect(() => {
     const client = SimClient.spawn();
+    const presentationController = presentation.current;
     clientRef.current = client;
     const off = client.onFrame(accept);
     const offStopped = client.onStopped(({ error: reason }) => {
@@ -88,12 +122,40 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
       setPlaying(false);
       setError(reason);
     });
+    let presentationFrame = 0;
+    const drainPresentation = () => {
+      const current = frames.current.current;
+      const visual = frames.current.visualComplete;
+      const result = presentation.current.take(clock.now(), !!current && visual?.epoch === current.epoch && visual.tick === current.tick);
+      if (result) publishCase(result);
+      else if (presentation.current.pending) presentationFrame = requestAnimationFrame(drainPresentation);
+    };
+    const offCase = client.onCaseComplete(({ report: result }) => {
+      if (completedCases.current.has(result.id)) return;
+      completedCases.current.add(result.id);
+      const immediate = releasingCase.current ? result : presentation.current.begin(result, clock.now(), 1000 / speedRef.current);
+      if (immediate) publishCase(immediate);
+      else presentationFrame = requestAnimationFrame(drainPresentation);
+    });
+    let raceTimer: ReturnType<typeof setTimeout> | undefined;
+    const offRace = client.onRaceComplete(({ outcomes }) => {
+      playingRef.current = false;
+      setPlaying(false);
+      // Let the last night's walk home finish before freezing the clock.
+      raceTimer = setTimeout(() => {
+        if (!playingRef.current) clock.setPlaying(false, performance.now());
+      }, 1000 / speedRef.current);
+      setRaceOutcomes(outcomes);
+    });
     let cancelled = false;
     void (async () => {
       try {
         const init = await client.init(world, seed, config);
         if (cancelled) return;
-        setDigest(init.digest);
+        // A short warm-up gives venues recent visitors before anything is shown.
+        const warmed = warmupTicks > 0 ? (await client.run(MAIN_TIMELINE, warmupTicks)).digest : init.digest;
+        if (cancelled) return;
+        setDigest(warmed);
         const { frame: first } = await client.frame(MAIN_TIMELINE);
         if (cancelled) return;
         accept(first);
@@ -108,12 +170,16 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
       cancelled = true;
       off();
       offStopped();
+      offCase();
+      offRace();
+      clearTimeout(raceTimer);
+      cancelAnimationFrame(presentationFrame); presentationController.cancel();
       client.terminate();
       clientRef.current = null;
       playingRef.current = false;
       clock.setPlaying(false, performance.now());
     };
-  }, [world, seed, config, accept, clock, setDigest]);
+  }, [world, seed, config, warmupTicks, accept, clock, setDigest, publishCase]);
 
   const report = useCallback((e: unknown) => setError(message(e)), []);
 
@@ -127,10 +193,12 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
   const play = useCallback(() => {
     const client = clientRef.current;
     if (!client) return;
+    if (activeCaseRef.current && completedCases.current.has(activeCaseRef.current.id) && !presentation.current.pending) return;
     playingRef.current = true;
     clock.setPlaying(true, performance.now());
     setPlaying(true);
-    client.play(MAIN_TIMELINE, speedRef.current).catch((e: unknown) => {
+    if (presentation.current.pending) return;
+    client.play(target.current, speedRef.current).catch((e: unknown) => {
       playingRef.current = false;
       clock.setPlaying(false, performance.now());
       setPlaying(false);
@@ -150,11 +218,12 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
 
   const setSpeed = useCallback(
     (ticksPerSecond: number) => {
+      presentation.current.rescale(clock.now(), speedRef.current / ticksPerSecond);
       speedRef.current = ticksPerSecond;
       setSpeedState(ticksPerSecond);
-      if (playingRef.current) clientRef.current?.play(MAIN_TIMELINE, ticksPerSecond).catch(report);
+      if (playingRef.current && !presentation.current.pending) clientRef.current?.play(target.current, ticksPerSecond).catch(report);
     },
-    [report],
+    [report, clock],
   );
 
   const act = useCallback(
@@ -183,18 +252,67 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
   const rewind = useCallback(
     async (tick: number) => {
       const client = clientRef.current;
-      if (!client) return;
+      if (!client) return false;
       try {
+        releasingCase.current = true;
+        presentation.current.cancel();
+        const interruptedId = activeCaseRef.current?.id;
+        if (interruptedId) setCaseChanges((items) => items.map((entry) => entry.id === interruptedId ? { ...entry, status: "Interrupted by rewind" } : entry));
+        playingRef.current = false;
+        clock.setPlaying(false, performance.now()); setPlaying(false);
+        await client.pause();
         const result = await client.rewind(MAIN_TIMELINE, tick);
+        presentation.current.cancel();
+        activeCaseRef.current = null; setActiveCase(null);
         setDigest(result.digest);
         await refresh();
+        return true;
       } catch (e) {
         report(e);
+        return false;
+      } finally {
+        releasingCase.current = false;
       }
     },
-    [refresh, report, setDigest],
+    [refresh, report, setDigest, clock],
   );
 
+  const startCase = useCallback(async (spec: CaseSpec, label: string) => {
+    const client = clientRef.current;
+    if (!client) throw new Error("The city is still loading.");
+    presentation.current.cancel();
+    activeCaseRef.current = spec; setActiveCase(spec);
+    setCaseChanges((items) => [...items, { id: spec.id, label, tick: spec.startTick, status: "Applied · ready to play" }].slice(-30));
+    playingRef.current = false; clock.setPlaying(false, performance.now()); setPlaying(false);
+    try { await client.startCase(MAIN_TIMELINE, spec, speedRef.current, false); }
+    catch (error) {
+      activeCaseRef.current = null; setActiveCase(null);
+      playingRef.current = false; clock.setPlaying(false, performance.now()); setPlaying(false);
+      setError(`The change was applied, but case playback could not start: ${message(error)}`);
+      setCaseChanges((items) => items.map((entry) => entry.id === spec.id ? { ...entry, status: "Playback failed; change applied" } : entry));
+    }
+  }, [clock]);
+
+  const finishCase = useCallback(async () => {
+    const client = clientRef.current;
+    if (!client) return;
+    releasingCase.current = true;
+    try {
+      const pending = presentation.current.flush();
+      if (pending) publishCase(pending);
+      await client.finishCase(MAIN_TIMELINE);
+      presentation.current.cancel();
+      await client.pause();
+      activeCaseRef.current = null; setActiveCase(null);
+      playingRef.current = false; clock.setPlaying(false, performance.now()); setPlaying(false);
+    } finally { releasingCase.current = false; }
+  }, [clock, publishCase]);
+
+  const venueFans = useCallback(async (entity: number, profile?: { entity: number; weight: number }[]) => {
+    const client = clientRef.current;
+    if (!client) throw new Error("the simulation isn't running");
+    return (await client.venueFans(MAIN_TIMELINE, entity, profile)).fans;
+  }, []);
   const demand = useCallback((entity: number) => {
     const client = clientRef.current;
     return client ? client.demand(MAIN_TIMELINE, entity) : Promise.reject(new Error("the simulation isn't running"));
@@ -230,7 +348,35 @@ export function useSimulation(world: World, seed: number, config: Partial<SimCon
 
   const dismissError = useCallback(() => setError(null), []);
 
+  const startRace = useCallback(async (race: RaceRequest) => {
+    const client = clientRef.current;
+    if (!client) throw new Error("the simulation isn't running");
+    playingRef.current = false;
+    clock.setPlaying(false, performance.now());
+    setPlaying(false);
+    await client.pause();
+    const started = await client.startRace(MAIN_TIMELINE, race);
+    target.current = RACE_TIMELINE;
+    setRaceOutcomes(null);
+    accept(started.frame);
+    return started;
+  }, [accept, clock]);
+
+  const endRace = useCallback(async () => {
+    const client = clientRef.current;
+    if (!client) return;
+    playingRef.current = false;
+    clock.setPlaying(false, performance.now());
+    setPlaying(false);
+    target.current = MAIN_TIMELINE;
+    setRaceOutcomes(null);
+    await client.endRace();
+    await refresh();
+  }, [clock, refresh]);
+
   return {
+    activeCase, caseReports, caseChanges, startCase, finishCase,
     status, error, playing, speed, frame, digest, frames, sceneHistory, play, pause, setSpeed, act, rewind, demand, scout, whatIf, book, resident, latestDigest, dismissError,
+    startRace, endRace, raceOutcomes, venueFans,
   };
 }
