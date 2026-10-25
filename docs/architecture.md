@@ -6,6 +6,43 @@
 
 **Current interface:** `ClientGame` mounts `FlowShell`: a header (city, Taste scenes, help), the `VenueRace` panel (artist → venues → race, with back-only step tabs) and the city. The scout agent (`agents/venue-agent.ts` behind `app/api/venue-agent`) picks the venues and explains the result; the simulation produces every number. Hovering or clicking a venue opens a `VenueCard`; Taste scenes opens `SceneLegend`. The older interface (`GameShell`, `LabChat`, planner, calendar, live cases) stays in source, unmounted; see [Earlier interface](#earlier-interface-unmounted).
 
+## Diagram
+
+```mermaid
+flowchart LR
+  subgraph Browser
+    UI["FlowShell + VenueRace<br/>artist → venues → race"]
+    Map["React Three Fiber city<br/>OSM streets, venues, residents"]
+    Worker["Simulation Web Worker<br/>live city · race forks · fans nearby"]
+    UI -- "startRace / venueFans" --> Worker
+    Worker -- "frames (crowd, race tallies)" --> Map
+    Worker -- "frames" --> UI
+  end
+
+  subgraph Vercel["Next.js on Vercel"]
+    Agent["/api/venue-agent<br/>scout agent (Vercel AI SDK)"]
+    Outside["/api/outside-act<br/>artists not in the city"]
+    WorldAPI["/api/world/[slug]"]
+  end
+
+  LLM["Gemini → Groq"]
+  Qloo["Qloo API<br/>search · insights · heatmaps"]
+  Blob[("Vercel Blob<br/>built Qloo worlds")]
+  Build["pnpm build:world<br/>(offline world builder)"]
+
+  UI -- "venue list + artist" --> Agent
+  Agent -- "picks, reasons, write-up" --> UI
+  UI --> Outside
+  Agent <--> LLM
+  Agent -- "artist taste, live venue ranking" --> Qloo
+  Outside --> Qloo
+  UI -- "load city" --> WorldAPI --> Blob
+  Build -- "places, tags, artists, heatmaps" --> Qloo
+  Build --> Blob
+```
+
+The worker owns every number: the live city, the race (a no-event baseline plus one forked future per venue, stepped together from one seed) and fans nearby. The agent only chooses venues and explains results; the browser validates its picks against the city's venues.
+
 ## Engine, worker and world builds
 
 The deferred-features batch adds simulation closure evidence (`sim/closures.ts`), snapshot-safe event scheduling (`sim/scheduling.ts`, action schema, worker, booking previews), and optional seeded residential movement/turnover (`sim/steps/ecology.ts`, clustering, config). General ecology defaults remain disabled; the demo enables turnover and the split check, while residential moves remain off after real-city fidelity measurements. Closure evidence and event labels/calendar metadata travel in frames; recent transmitted history is bounded while state retains history. Booking forecasts preserve calendar insertion order and count attendance by candidate lifetime, including final attendance when its venue slot is reused.
