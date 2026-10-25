@@ -1,5 +1,7 @@
 # Chat-first cultural ecology lab
 
+> **Superseded (2026-10-25, M8):** this describes the earlier chat-first lab, which is no longer mounted. The app is now one flow, the venue race; see [pitch and demo](pitch-and-demo.md).
+
 The separate **Plan an event** and **Event calendar** entries are restored alongside chat. Opening the planner explicitly finishes an active case and pauses. Pick an artist, find an affinity-based existing-venue shortlist and compare alternative hosts with the same event brief; optional scheduling stays paused. Return to experiment chat keeps the existing conversation. The comparison-first default workspace is being evaluated separately, not silently substituted for the current case view.
 
 <!-- generated: current implemented entry flow -->

@@ -2,6 +2,28 @@
 
 <!-- generated: maintained by agents -->
 
+## M8: one flow, the venue race (2026-10-25)
+
+**Why:** after an independent pass, the user found the lab confusing. Chat closure cases, a separate **Plan an event** and an **Event calendar** competed, and none fed one narrative. Highlighted visitors were invisible: same-size dots, mostly at home and off-screen. The user asked for location comparison as the single core flow: artist → three Qloo venues highlighted with their visitors → race in real time → result → tweak.
+
+**Now:** `ClientGame` mounts `FlowShell`, which has a header (city, ?), the `VenueRace` panel and the city. The old `GameShell`, `LabChat`, the planner and the calendar are unmounted but still in source.
+
+1. **Artist.** Suggested artists, or a typed name. An outside artist goes through the live `/api/outside-act`.
+2. **Venues.** `rankArtistVenues` gives the top 3 (up to 8 for swaps). The map gets A/B/C badges (`RacePins`), coloured beacons and each venue's regulars from the last 7 days in its colour (`raceShortlistFocus`); everyone else dims. The camera fits all three, offset right of the panel. Settings: first night (weekday) and nights (1/3/7).
+3. **Race.** The worker's `startRace` builds a `PairedEventRun` (seed `runSeed(live, 0)`) plus a 3-future forecast (`runEventCandidateRuns`). `play` on the `race` timeline steps it one night per tick. Race frames are the baseline city, with each fork's event visitors redirected to their host (`race.group`); `race.seen` keeps earlier nights' visitors. In `Crowd`, tonight's visitors are bright and 4.5× size in their venue colour, earlier visitors are at 0.45, and the rest at 0.07. Default speed is 0.5 nights/s (Slow/Normal/Fast). The live city is never changed.
+4. **Result.** `summariseRace` gives the watched winner (ties called), wins out of 3 futures, ranges, the host's usual nights versus with the event, and neighbour loss.
+5. **Tweak.** Change the setup (back to venues), Watch again (same seed, identical), or Change artist.
+
+**Guide:** "Ask about this race" is collapsed at the bottom of the panel. `/api/race-helper` streams an answer with server-side Qloo tools; the browser sends a bounded `RaceContext` with each question. It is hidden when no LLM is configured. A live check answered "Why did C win?" from the race numbers.
+
+**Engine:** `sim/events.ts` now has a stepwise `PairedEventRun` (per-candidate `hostVenue`). `runEventCandidates` uses it, so booking and Scout results are unchanged, and a test proves the stepped race equals future 1. The camera `FlyTo` takes an optional `distance`. Scene auras and effects are muted in race focus. The intro was rewritten (key bumped to v2).
+
+**Verification:** 655 tests across 118 files pass, and lint and tsc are clean. The browser run on London: Wiley gave Ain't Nothin' But, Quaglino's and Ku Bar. Ku Bar won with 34 against 24 and 17, and won 3/3 futures. The phone layout docks the panel at the bottom. **Caveat:** the in-app browser pane was hidden for part of the run, which throttles rAF to about 1 fps, so animation smoothness and timing were not judged there. Rehearse in a visible window.
+
+**Known limits:** each venue draws only about 5–15 simulated people per night (2,500 residents, 1.5 km reach), so races are small. Catchment rings were tried and dropped: 1.5 km covers most of the demo area, and fitting them pushed the camera into the fog. The production build and the public deploy have not been redone. The Next.js advisory is still open.
+
+**Next:** rehearse in a visible window. Decide whether to delete the unmounted legacy UI (`GameShell`, `LabChat`, planner, calendar, toolbar and so on). Publish the branch and rehearse on the public URL; then submit to Devpost.
+
 ## Planner restoration, judging audit and workspace evaluation (2026-10-23)
 
 The separate **Plan an event** and **Event calendar** entries are restored beside experiment chat. The existing artist-first shortlist and paired alternative-host comparison are reused. Switching to planning finishes any active case observation, pauses and clears the old focus; scheduling remains paused until the visitor clicks Play. Returning to chat preserves the conversation, and switching planner/calendar preserves the artist brief. Editable duration fields allow an empty intermediate value with bounded submission validation. Booking receipts follow cancellation/rewind instead of retaining stale success. The welcome text distinguishes Qloo cultural inputs from authored residents and explicitly identifies synthetic fallback worlds.
