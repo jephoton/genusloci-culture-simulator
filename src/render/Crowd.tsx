@@ -3,7 +3,7 @@
 import { useFrame } from "@react-three/fiber";
 import { type RefObject, useEffect, useLayoutEffect, useRef } from "react";
 import * as THREE from "three";
-import { agentInFocus, type Focus } from "@/render/focus";
+import { agentInFocus, type Focus, RACE_RGB, raceGroup } from "@/render/focus";
 import { markVisualComplete, type FrameStore } from "@/render/frame-store";
 import { agentHomePosition, type CityLayout, hash01, LANDMARK_RADIUS } from "@/render/layout";
 import { outingPhase, staggerOf } from "@/render/outing-path";
@@ -28,6 +28,11 @@ const MAX_ROUTES = 20_000;
 const UNFOCUSED_LIT = 0.025;
 /** Under a focus, agents in it are drawn this much larger. */
 const FOCUSED_SIZE = 1.3;
+/** In the venue race, the highlighted people are drawn this much larger, and everyone else this dim. */
+const RACE_SIZE = 2.6;
+const RACE_UNFOCUSED_LIT = 0.07;
+/** Race colours are pushed past the bloom threshold so the highlighted people glow. */
+const RACE_GLOW = 1.6;
 /** Time constant of the fade into and out of focus. */
 const FOCUS_S = 0.2;
 
@@ -321,12 +326,16 @@ export function Crowd({
       const since = now - m.changedAt[i];
       const pop = 1 + 1.2 * Math.exp(-since / 220);
       const flash = 1.5 * Math.exp(-since / 160);
-      const member = agentInFocus(f, frame.scene[i], frame.attendance[i], i);
-      m.lit[i] += ((member ? 1 : UNFOCUSED_LIT) - m.lit[i]) * focusBlend;
+      const group = f?.kind === "race" ? raceGroup(f, frame, i) : -1;
+      const member = f?.kind === "race" ? group >= 0 : agentInFocus(f, frame.scene[i], frame.attendance[i], i);
+      m.lit[i] += ((member ? 1 : f?.kind === "race" ? RACE_UNFOCUSED_LIT : UNFOCUSED_LIT) - m.lit[i]) * focusBlend;
       m.emphasis[i] += ((f && member ? 1 : 0) - m.emphasis[i]) * focusBlend;
       const lit = m.lit[i];
-      col?.setXYZ(i, (m.curR[i] + flash) * lit, (m.curG[i] + flash) * lit, (m.curB[i] + flash) * lit);
-      const size = pop * (1 + (FOCUSED_SIZE - 1) * m.emphasis[i]);
+      if (group >= 0) {
+        const [r, g, b] = RACE_RGB[group];
+        col?.setXYZ(i, r * RACE_GLOW * lit, g * RACE_GLOW * lit, b * RACE_GLOW * lit);
+      } else col?.setXYZ(i, (m.curR[i] + flash) * lit, (m.curG[i] + flash) * lit, (m.curB[i] + flash) * lit);
+      const size = pop * (1 + ((f?.kind === "race" ? RACE_SIZE : FOCUSED_SIZE) - 1) * m.emphasis[i]);
       arr[o] = size;
       arr[o + 5] = size;
       arr[o + 10] = size;

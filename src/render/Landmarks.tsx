@@ -3,7 +3,7 @@
 import { type ThreeEvent, useFrame } from "@react-three/fiber";
 import { type ReactNode, type RefObject, useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { type Focus, venueInFocus } from "@/render/focus";
+import { type Focus, RACE_RGB, venueInFocus } from "@/render/focus";
 import type { FrameStore } from "@/render/frame-store";
 import { type CityLayout, LANDMARK_RADIUS, LANDMARK_SCALE } from "@/render/layout";
 import { type Rgb, sceneHuesOf, sceneRgb, WARNING_RGB } from "@/render/palette";
@@ -179,7 +179,7 @@ export function Body({ kind, mats: { neon, body, band, roof = body, window = ban
 }
 
 function Landmark({
-  frames, epoch, view, hues, selected, inFocus, struggling, onSelect, emphasized = false,
+  frames, epoch, view, hues, selected, inFocus, struggling, onSelect, emphasized = false, beaconRgb,
 }: {
   /** Holds the pausable animation clock every pulse and spring runs on. */
   frames: RefObject<FrameStore>;
@@ -189,6 +189,8 @@ function Landmark({
   hues: Float32Array;
   selected: boolean;
   emphasized?: boolean;
+  /** Overrides the beacon colour (the venue race's candidate colours). */
+  beaconRgb?: Rgb;
   /** On the path to closing (see isStruggling): shows the red warning pulse. */
   struggling: boolean;
   /** False when a focus is active and this venue is outside it: it dims. */
@@ -201,7 +203,7 @@ function Landmark({
   const tonight = view.dominantScene >= 0 ? sceneRgb(hues, view.dominantScene) : NEUTRAL_SIGN;
   const identity = view.identityScene >= 0 ? sceneRgb(hues, view.identityScene) : NEUTRAL_SIGN;
   const beaconScene = venueBeaconScene(view);
-  const beaconColour = beaconScene >= 0 ? sceneRgb(hues, beaconScene) : NEUTRAL_SIGN;
+  const beaconColour = beaconRgb ?? (beaconScene >= 0 ? sceneRgb(hues, beaconScene) : NEUTRAL_SIGN);
   const [r, g, b] = tonight;
   const glow = view.open ? 0.5 + 2.2 * view.health : 0.04;
   const sign: Rgb = [r * glow, g * glow, b * glow];
@@ -426,7 +428,7 @@ export function Landmarks({
   return (
     <group>
       {views.map((v) => (
-        <Landmark key={v.slot} frames={frames} epoch={frame?.epoch ?? -1} view={v} hues={hues} selected={selected === v.slot} emphasized={focus?.kind === "experiment" && focus.targets.has(v.slot)} inFocus={venueInFocus(focus, v)} struggling={venueInFocus(focus, v) && !!frame && isStruggling(frame, v.slot, rules)} onSelect={(slot) => { if (canInspectVenue(focus, slot)) onSelect(slot); }} />
+        <Landmark key={v.slot} frames={frames} epoch={frame?.epoch ?? -1} view={v} hues={hues} selected={selected === v.slot} emphasized={(focus?.kind === "experiment" && focus.targets.has(v.slot)) || (focus?.kind === "race" && focus.hosts.includes(v.slot))} beaconRgb={focus?.kind === "race" && focus.hosts.includes(v.slot) ? RACE_RGB[focus.hosts.indexOf(v.slot)] as Rgb : undefined} inFocus={venueInFocus(focus, v)} struggling={venueInFocus(focus, v) && !!frame && isStruggling(frame, v.slot, rules)} onSelect={(slot) => { if (canInspectVenue(focus, slot)) onSelect(slot); }} />
       ))}
     </group>
   );

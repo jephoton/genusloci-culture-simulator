@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { agentInFocus, venueInFocus, experimentFocus, followExperiment, venueFocus } from "@/render/focus";
+import { agentInFocus, venueInFocus, experimentFocus, followExperiment, raceGroup, raceShortlistFocus, venueFocus } from "@/render/focus";
 import type { Frame } from "@/sim/frame";
 
 describe("focus", () => {
@@ -21,6 +21,16 @@ describe("focus", () => {
     expect(venueInFocus(focus, { slot: 2, dominantScene: 4 })).toBe(true);
     expect(venueInFocus(focus, { slot: 1, dominantScene: 4 })).toBe(false);
     expect(followExperiment(cohort, { ...next, epoch: 2 })).toBeNull();
+  });
+  it("colours each race candidate's recent visitors, then tonight's event visitors from race frames", () => {
+    const frame = { epoch: 1, ticksPerWeek: 2, nVenues: 3, venueCell: Int32Array.from([0, 1, 2]), alive: Uint8Array.from([1, 1, 1, 1]), attendance: Int32Array.from([-1, -1, -1, -1]), attendanceHistory: Int32Array.from([0, 1, 0, -1, 2, -1, -1, -1]), homeCell: Int32Array.from([0, 0, 0, 0]) } as Frame;
+    const focus = raceShortlistFocus(frame, [1, 0]);
+    expect([...focus.groups]).toEqual([0, 1, -1, -1]); // agent 0 visited both: the first candidate (venue 1) wins
+    expect(venueInFocus(focus, { slot: 0, dominantScene: -1 })).toBe(true);
+    expect(venueInFocus(focus, { slot: 2, dominantScene: -1 })).toBe(false);
+    const night = { ...frame, race: { hosts: [1, 0], group: Int8Array.from([-1, -1, -1, 1]), tonight: [0, 1], total: [0, 1], night: 1, nights: 1 } };
+    expect(raceGroup(focus, night, 3)).toBe(1);
+    expect(raceGroup(focus, night, 0)).toBe(-1);
   });
   it("keeps everyone in focus when nothing is focused", () => {
     expect(agentInFocus(null, 3, -1)).toBe(true);

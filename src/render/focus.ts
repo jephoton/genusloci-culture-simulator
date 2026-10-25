@@ -1,11 +1,36 @@
 import type { VenueView } from "@/render/venues";
 import type { Frame } from "@/sim/frame";
 import type { Action } from "@/sim/actions/schema";
+import type { Rgb } from "@/render/palette";
 
 export type ExperimentFocus = { kind: "experiment"; epoch: number; targets: ReadonlySet<number>; cells: ReadonlySet<number>; venues: ReadonlySet<number>; agents: ReadonlySet<number> };
 
+/**
+ * The venue race: the candidate host venues, and per agent slot the candidate it is highlighted for
+ * (-1 for none). Race frames carry their own groups (tonight's event visitors), which win over these.
+ */
+export type RaceFocus = { kind: "race"; hosts: readonly number[]; groups: Int8Array };
+
 /** What the player is following: one scene (from the legend) or one venue (selected on the map). */
-export type Focus = { kind: "scene"; id: number } | { kind: "venue"; slot: number; agents?: ReadonlySet<number>; epoch?: number } | ExperimentFocus | null;
+export type Focus = { kind: "scene"; id: number } | { kind: "venue"; slot: number; agents?: ReadonlySet<number>; epoch?: number } | ExperimentFocus | RaceFocus | null;
+
+/** Candidate colours A, B, C: bright enough to bloom against the night city. */
+export const RACE_RGB: readonly Rgb[] = [[1, 0.68, 0.18], [0.2, 0.85, 1], [1, 0.36, 0.78]];
+export const RACE_CSS = ["#ffad2e", "#33d9ff", "#ff5cc7"] as const;
+
+/** Before the race: each candidate's recent visitors (an agent who visited several goes to the first). */
+export function raceShortlistFocus(frame: Frame, hosts: readonly number[]): RaceFocus {
+  const groups = new Int8Array(frame.alive.length).fill(-1);
+  hosts.forEach((host, k) => {
+    for (const a of recentVenueVisitors(frame, new Set([host]))) if (groups[a] < 0) groups[a] = k;
+  });
+  return { kind: "race", hosts, groups };
+}
+
+/** The candidate an agent is highlighted for under a race focus (-1 for none). */
+export function raceGroup(focus: RaceFocus, frame: Frame, agent: number): number {
+  return frame.race ? frame.race.group[agent] ?? -1 : focus.groups[agent] ?? -1;
+}
 
 /** Recorded visitors over the same rolling activity cycle used for venue ranking. */
 export function recentVenueVisitors(frame: Frame, targets: ReadonlySet<number>): Set<number> {
@@ -53,6 +78,7 @@ export function followExperiment(focus: ExperimentFocus, frame: Frame): Experime
 export function agentInFocus(focus: Focus, scene: number, attendance: number, slot?: number): boolean {
   if (!focus) return true;
   if (focus.kind === "experiment") return slot !== undefined && focus.agents.has(slot);
+  if (focus.kind === "race") return slot !== undefined && focus.groups[slot] >= 0;
   if (focus.kind === "venue" && focus.agents) return slot !== undefined && focus.agents.has(slot);
   return focus.kind === "scene" ? scene === focus.id : attendance === focus.slot;
 }
@@ -61,5 +87,6 @@ export function agentInFocus(focus: Focus, scene: number, attendance: number, sl
 export function venueInFocus(focus: Focus, view: Pick<VenueView, "slot" | "dominantScene">): boolean {
   if (!focus) return true;
   if (focus.kind === "experiment") return focus.venues.has(view.slot);
+  if (focus.kind === "race") return focus.hosts.includes(view.slot);
   return focus.kind === "scene" ? view.dominantScene === focus.id : view.slot === focus.slot;
 }
