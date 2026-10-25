@@ -34,7 +34,7 @@
 
 **Verification:** 663 tests across 120 files pass, and lint and tsc are clean. The browser run on London: Wiley gave Ain't Nothin' But, Quaglino's and Ku Bar. Ku Bar won with 34 against 24 and 17, and won 3/3 futures. The phone layout docks the panel at the bottom. **Caveat:** the in-app browser pane was hidden for part of the run, which throttles rAF to about 1 fps, so animation smoothness and timing were not judged there. Rehearse in a visible window.
 
-**Known limits:** each venue draws only about 5–15 simulated people per night (2,500 residents, 1.5 km reach), so races are small. Catchment rings were tried and dropped: 1.5 km covers most of the demo area, and fitting them pushed the camera into the fog. The public deploy has not been redone.
+**Known limits:** each venue draws only about 5–15 simulated people per night (2,500 residents, 1.5 km reach), so races are small. Catchment rings were tried and dropped: 1.5 km covers most of the demo area, and fitting them pushed the camera into the fog. Deployed 2026-10-25: PR #1 and PR #2 merged to `main`; production serves `9f5b75f`. The user added the Gemini/Groq keys in Vercel (production previously had only `DEEPSEEK_API_KEY`, which the chat chain doesn't use, so the agent showed as offline). A live Joji run showed the full agent trace, including the live Qloo venue lookup.
 
 **Next:** rehearse in a visible window. Keep the unmounted legacy UI (`GameShell`, `LabChat`, planner, calendar, toolbar and so on) until the user has verified the new flow; they may port parts of it over before it is deleted. Publish the branch and rehearse on the public URL; then submit to Devpost.
 

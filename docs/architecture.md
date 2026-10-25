@@ -2,15 +2,48 @@
 
 <!-- generated: maintained by agents; keep in sync with the spec -->
 
-The artist-first comparison is restored as a separate **Plan an event** workspace, with an accessible event calendar and return to the same mounted chat. Its explicit entry ends any focused observation and pauses before planning; schedule/cancel actions preserve manual playback. The comparison engine is reused, including snapshot guards and host baseline accounting. [Comparison-first workspace evaluation](comparison-workspace-evaluation.md) recommends a future hierarchy change but does not implement replacement of the main case view.
+**Goal:** answer one question with a race you can watch: which venue would draw the biggest crowd for this artist? Qloo's taste graph shortlists the venues and seeds the city; parallel seeded futures race them; the result separates model behaviour from real-world forecasts. The engine keeps its wider ecosystem mechanisms (closures, rent, scenes), which the interface no longer exposes.
 
-Current rendering/playback policy: `CityCanvas` omits placeholder background buildings while retaining actual venue landmarks, roads and labels. Applied cases are armed paused through worker `startCase.autoplay=false`; the bottom Play button starts observation and Pause retains it. Chat playback/exit requests produce button guidance rather than calling controls. Case endpoint stopping and operational pauses for inspection/application/rewind remain. See the current walkthrough.
+**Current interface:** `ClientGame` mounts `FlowShell`: a header (city, Taste scenes, help), the `VenueRace` panel (artist → venues → race, with back-only step tabs) and the city. The scout agent (`agents/venue-agent.ts` behind `app/api/venue-agent`) picks the venues and explains the result; the simulation produces every number. Hovering or clicking a venue opens a `VenueCard`; Taste scenes opens `SceneLegend`. The older interface (`GameShell`, `LabChat`, planner, calendar, live cases) stays in source, unmounted; see [Earlier interface](#earlier-interface-unmounted).
 
-## Simulation scheduling and world builds
+## Diagram
 
-The visible interface now uses live applied cases and named change checkpoints instead of numbered weeks. `sim/case.ts` monitors bounded actual playback in the worker, preserving pause/resume/speed and emitting one completion report. `useSimulation` delays automatic completion presentation until the final crowd outing has animated, then pauses and publishes observed outcomes. `GameShell` preserves a relevant-only experiment focus during inspection; `LabChat` releases it explicitly through finish/resume. Bottom playback and `TimelineBar` expose session-local change history and snapshot rewind. Internal cycle cadence, scheduling and legacy tool units remain engine details. See [decision 0008](decisions/0008-live-cases-and-change-history.md).
+```mermaid
+flowchart LR
+  subgraph Browser
+    UI["FlowShell + VenueRace<br/>artist → venues → race"]
+    Map["React Three Fiber city<br/>OSM streets, venues, residents"]
+    Worker["Simulation Web Worker<br/>live city · race forks · fans nearby"]
+    UI -- "startRace / venueFans" --> Worker
+    Worker -- "frames (crowd, race tallies)" --> Map
+    Worker -- "frames" --> UI
+  end
 
-Valid replacement interventions now finish the previous monitor before refreshing/revalidating context; applied changes remain in the city. Exit case/view also releases focus and pauses. `attendanceHistory` stores one rolling activity cycle per resident in snapshot-safe typed arrays; tally writes it, resident replacement/event slot recycling clears stale attribution, and frames expose independent copies for recent-visitor highlighting. Raw expired-event attendance is preserved for final-turnout accounting, while render frames filter invalid reused lifetimes. Venue/body beacon colours use the closest live taste scene, not a fixed case colour.
+  subgraph Vercel["Next.js on Vercel"]
+    Agent["/api/venue-agent<br/>scout agent (Vercel AI SDK)"]
+    Outside["/api/outside-act<br/>artists not in the city"]
+    WorldAPI["/api/world/[slug]"]
+  end
+
+  LLM["Gemini → Groq"]
+  Qloo["Qloo API<br/>search · insights · heatmaps"]
+  Blob[("Vercel Blob<br/>built Qloo worlds")]
+  Build["pnpm build:world<br/>(offline world builder)"]
+
+  UI -- "venue list + artist" --> Agent
+  Agent -- "picks, reasons, write-up" --> UI
+  UI --> Outside
+  Agent <--> LLM
+  Agent -- "artist taste, live venue ranking" --> Qloo
+  Outside --> Qloo
+  UI -- "load city" --> WorldAPI --> Blob
+  Build -- "places, tags, artists, heatmaps" --> Qloo
+  Build --> Blob
+```
+
+The worker owns every number: the live city, the race (a no-event baseline plus one forked future per venue, stepped together from one seed) and fans nearby. The agent only chooses venues and explains results; the browser validates its picks against the city's venues.
+
+## Engine, worker and world builds
 
 The deferred-features batch adds simulation closure evidence (`sim/closures.ts`), snapshot-safe event scheduling (`sim/scheduling.ts`, action schema, worker, booking previews), and optional seeded residential movement/turnover (`sim/steps/ecology.ts`, clustering, config). General ecology defaults remain disabled; the demo enables turnover and the split check, while residential moves remain off after real-city fidelity measurements. Closure evidence and event labels/calendar metadata travel in frames; recent transmitted history is bounded while state retains history. Booking forecasts preserve calendar insertion order and count attendance by candidate lifetime, including final attendance when its venue slot is reused.
 
@@ -18,7 +51,17 @@ The operator-authenticated `/api/world-builds` route uses a private Blob compare
 
 Transient planning and naming state is tied to simulation timeline identity. Planning closes if its tick, epoch or host changes, and callbacks guard against stale comparisons. Naming prunes discarded lineages and rejects results from abandoned generations. Outside-artist HTTP responses contain stable Qloo IDs; `ui/outside-act-client.ts` matches those IDs to the caller's actual World, avoiding numeric-index mismatches after world publication.
 
-**Goal:** answer one question with a race you can watch: which venue would draw the biggest crowd for this artist? Qloo's taste graph shortlists the venues and seeds the city; parallel seeded futures race them; the result separates model behaviour from real-world forecasts. The engine keeps its wider ecosystem mechanisms (closures, rent, scenes), which the interface no longer exposes. See [pitch and demo](pitch-and-demo.md).
+## Earlier interface (unmounted)
+
+These describe the chat lab and planner, which are still in source but no longer mounted.
+
+The artist-first comparison is restored as a separate **Plan an event** workspace, with an accessible event calendar and return to the same mounted chat. Its explicit entry ends any focused observation and pauses before planning; schedule/cancel actions preserve manual playback. The comparison engine is reused, including snapshot guards and host baseline accounting. [Comparison-first workspace evaluation](comparison-workspace-evaluation.md) recommends a future hierarchy change but does not implement replacement of the main case view.
+
+Current rendering/playback policy: `CityCanvas` omits placeholder background buildings while retaining actual venue landmarks, roads and labels. Applied cases are armed paused through worker `startCase.autoplay=false`; the bottom Play button starts observation and Pause retains it. Chat playback/exit requests produce button guidance rather than calling controls. Case endpoint stopping and operational pauses for inspection/application/rewind remain. See the current walkthrough.
+
+The visible interface now uses live applied cases and named change checkpoints instead of numbered weeks. `sim/case.ts` monitors bounded actual playback in the worker, preserving pause/resume/speed and emitting one completion report. `useSimulation` delays automatic completion presentation until the final crowd outing has animated, then pauses and publishes observed outcomes. `GameShell` preserves a relevant-only experiment focus during inspection; `LabChat` releases it explicitly through finish/resume. Bottom playback and `TimelineBar` expose session-local change history and snapshot rewind. Internal cycle cadence, scheduling and legacy tool units remain engine details. See [decision 0008](decisions/0008-live-cases-and-change-history.md).
+
+Valid replacement interventions now finish the previous monitor before refreshing/revalidating context; applied changes remain in the city. Exit case/view also releases focus and pauses. `attendanceHistory` stores one rolling activity cycle per resident in snapshot-safe typed arrays; tally writes it, resident replacement/event slot recycling clears stale attribution, and frames expose independent copies for recent-visitor highlighting. Raw expired-event attendance is preserved for final-turnout accounting, while render frames filter invalid reused lifetimes. Venue/body beacon colours use the closest live taste scene, not a fixed case colour.
 
 **Current interaction boundary:** `LabChat` routes known commands through `agents/offline-chat.ts` and canonical `runCityTool`; deterministic evidence formatting is separate from interpretation. Optional LLM assistance supports inspection/comparisons and receives recent local evidence, but live actions remain explicit local commands. `useCopilot` retains cooldown/deduplication; local commands need no inference. Background naming is disabled. Former workspace components remain hidden compatibility code, not additional visible entry points.
 
