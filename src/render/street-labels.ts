@@ -1,7 +1,7 @@
 import type { CityLayout } from "@/render/layout";
 
 export type StreetLabelCandidate = { name: string; x: number; z: number; dx: number; dz: number; major: boolean };
-export type ProjectedStreetLabel = { name: string; x: number; y: number; dx: number; dy: number; major: boolean };
+export type ProjectedStreetLabel = { name: string; x: number; y: number; dx: number; dy: number; major: boolean; /** Distance fade, 0–1 (see render/fade). */ fade?: number };
 
 /** Retain several long segments per street so panning can reveal another readable position. */
 export function makeStreetLabelCandidates(roads: CityLayout["roads"]): StreetLabelCandidate[] {

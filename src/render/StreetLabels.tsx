@@ -1,6 +1,7 @@
 "use client";
 
 import { useFrame, useThree } from "@react-three/fiber";
+import { distanceFade, LABEL_FADE } from "@/render/fade";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Vector3 } from "three";
 import { CITIES } from "@/geo/cities";
@@ -63,13 +64,17 @@ export function StreetLabels({ world, layout }: { world: World; layout: CityLayo
     if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
     context.setTransform(dpr, 0, 0, dpr, 0, 0);
     context.clearRect(0, 0, size.width, size.height);
+    const citySize = Math.max(layout.bounds.maxX - layout.bounds.minX, layout.bounds.maxZ - layout.bounds.minZ);
     const projected: ProjectedStreetLabel[] = [];
     for (const candidate of candidates) {
+      // Street names fade out, then stop drawing, as the camera pulls back.
+      const fade = distanceFade(Math.hypot(camera.position.x - candidate.x, camera.position.y, camera.position.z - candidate.z), LABEL_FADE.near * citySize, LABEL_FADE.far * citySize);
+      if (fade <= 0) continue;
       const point = vectors.point.set(candidate.x, 0.2, candidate.z).project(camera);
       if (point.z < -1 || point.z > 1) continue;
       const end = vectors.end.set(candidate.x + candidate.dx / 2, 0.2, candidate.z + candidate.dz / 2).project(camera);
       if (end.z < -1 || end.z > 1) continue;
-      projected.push({ name: candidate.name, major: candidate.major, x: (point.x + 1) * size.width / 2, y: (1 - point.y) * size.height / 2, dx: (end.x - point.x) * size.width, dy: (point.y - end.y) * size.height });
+      projected.push({ name: candidate.name, major: candidate.major, x: (point.x + 1) * size.width / 2, y: (1 - point.y) * size.height / 2, dx: (end.x - point.x) * size.width, dy: (point.y - end.y) * size.height, fade });
     }
     const visible = selectStreetLabels(projected, size.width, size.height);
     canvas.dataset.labelCount = String(visible.length);
@@ -81,7 +86,7 @@ export function StreetLabels({ world, layout }: { world: World; layout: CityLayo
       context.save();
       context.translate(label.x, label.y);
       context.rotate(label.angle);
-      context.globalAlpha = label.opacity;
+      context.globalAlpha = label.opacity * (label.fade ?? 1);
       context.strokeStyle = "#20313c";
       context.lineWidth = 3;
       context.strokeText(label.name, 0, 0);

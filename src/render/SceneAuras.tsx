@@ -1,6 +1,7 @@
 "use client";
 
 import { useFrame } from "@react-three/fiber";
+import { AURA_FADE, distanceFade } from "@/render/fade";
 import { type RefObject, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Focus } from "@/render/focus";
@@ -153,7 +154,8 @@ export function SceneAuras({
     mesh.instanceMatrix.needsUpdate = true;
   }, []);
 
-  useFrame((_, delta) => {
+  useFrame(({ camera }, delta) => {
+    const citySize = Math.max(layout.bounds.maxX - layout.bounds.minX, layout.bounds.maxZ - layout.bounds.minZ);
     const realDt = Math.min(1 / 15, Math.max(0, delta));
     const now = frames.current.clock.now();
     const dt = lastRef.current === null ? 0 : Math.min(1 / 15, Math.max(0, (now - lastRef.current) / 1000));
@@ -228,7 +230,9 @@ export function SceneAuras({
       if (!mesh || !tint || i >= MAX_AURAS) continue;
       const pulse = 1 + BIRTH_PULSE * Math.exp(-(sceneAge.get(a.scene) ?? Infinity) / BIRTH_DECAY_S);
       const breath = 1 + BREATH_DEPTH * Math.sin(t * BREATH_HZ * Math.PI * 2 + a.scene * 1.7);
-      const k = focus?.kind === "experiment" || focus?.kind === "race" ? 0 : a.level * a.opacity * a.focus * pulse * breath * dim;
+      // Fade out as the camera pulls back, so the glow doesn't outlast the fogged-out map.
+      const far = distanceFade(Math.hypot(camera.position.x - a.x, camera.position.y - AURA_Y, camera.position.z - a.z), AURA_FADE.near * citySize, AURA_FADE.far * citySize);
+      const k = focus?.kind === "experiment" || focus?.kind === "race" ? 0 : a.level * a.opacity * a.focus * pulse * breath * dim * far;
       mesh.setMatrixAt(i, scratch.makeScale(a.r, 1, a.r).setPosition(a.x, AURA_Y, a.z));
       tint.setXYZ(i, a.rgb[0] * k, a.rgb[1] * k, a.rgb[2] * k);
       i++;
