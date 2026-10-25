@@ -5,7 +5,7 @@ import type { FlyTo } from "@/render/CameraDirector";
 import { CityCanvas } from "@/render/CityCanvas";
 import { RACE_CSS, raceShortlistFocus } from "@/render/focus";
 import type { CityLayout } from "@/render/layout";
-import type { RacePin } from "@/render/RacePins";
+import { BADGE_Y, type RacePin } from "@/render/RacePins";
 import { type ClosureRules, venueViewsOf } from "@/render/venues";
 import { DEFAULT_CONFIG } from "@/sim/config";
 import type { Frame } from "@/sim/frame";
@@ -42,6 +42,7 @@ function City({ world, layout, attribution, citySlug, onCityChange }: {
   const sim = useSimulation(world, DEMO_SEED, DEMO_CONFIG, WARMUP_TICKS, RACE_SPEED);
   const intro = useIntro();
   const flyRef = useRef<FlyTo | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const [hosts, setHosts] = useState<number[] | null>(null);
   // The live city's latest frame: race frames never replace it, so the shortlist always reads the real city.
   const [liveFrame, setLiveFrame] = useState<Frame | null>(null);
@@ -54,16 +55,21 @@ function City({ world, layout, attribution, citySlug, onCityChange }: {
   const highlight = useCallback((next: number[] | null) => {
     setHosts(next);
     const spots = (next ?? []).flatMap((slot) => views.filter((v) => v.slot === slot).map((v) => v.position));
-    if (spots.length) {
-      const x = spots.reduce((acc, p) => acc + p[0], 0) / spots.length;
-      const z = spots.reduce((acc, p) => acc + p[1], 0) / spots.length;
-      const spread = Math.max(...spots.map((p) => Math.hypot(p[0] - x, p[1] - z)));
-      // Far enough back that every venue (and the people walking to it) is on screen.
-      const distance = Math.max(60, spread * 2.8);
-      // On wide screens the panel covers the left, so look a little left of centre to frame the venues to its right.
-      const shift = window.innerWidth >= 640 ? distance * 0.22 : 0;
-      flyRef.current = { x: x - shift, z, at: performance.now(), distance };
-    }
+    if (!spots.length) return;
+    // Frame the venues and their badges in the part of the screen the panel leaves free: right of it,
+    // or above it on phones, where it docks at the bottom.
+    const rect = panelRef.current?.getBoundingClientRect();
+    const wide = window.innerWidth >= 640;
+    const box = {
+      left: wide && rect ? (2 * (rect.right + 12)) / window.innerWidth - 1 : -1,
+      right: 1,
+      bottom: !wide && rect ? 1 - (2 * rect.top) / window.innerHeight : -1,
+      top: 1,
+    };
+    const points = spots.flatMap(([x, z]): [number, number, number][] => [[x, 0, z], [x, BADGE_Y, z]]);
+    const x = spots.reduce((a, p) => a + p[0], 0) / spots.length;
+    const z = spots.reduce((a, p) => a + p[1], 0) / spots.length;
+    flyRef.current = { x, z, at: performance.now(), fit: { points, box } };
   }, [views]);
 
   const race = raceFrame?.race;
@@ -94,7 +100,7 @@ function City({ world, layout, attribution, citySlug, onCityChange }: {
         rules={CLOSURE_RULES}
         racePins={pins}
       />
-      <div className="pointer-events-none absolute inset-x-2 bottom-2 top-auto flex max-h-[58dvh] flex-col gap-2 sm:inset-x-auto sm:bottom-auto sm:left-3 sm:top-3 sm:max-h-[calc(100dvh-1.5rem)] sm:w-[23rem]">
+      <div ref={panelRef} className="pointer-events-none absolute inset-x-2 bottom-2 top-auto flex max-h-[58dvh] flex-col gap-2 sm:inset-x-auto sm:bottom-auto sm:left-3 sm:top-3 sm:max-h-[calc(100dvh-1.5rem)] sm:w-[23rem]">
         <header className="panel pointer-events-auto flex items-center gap-3 px-4 py-2.5">
           <div className="min-w-0 flex-1">
             <h1 className="text-sm font-medium text-zinc-50">Genus Loci</h1>

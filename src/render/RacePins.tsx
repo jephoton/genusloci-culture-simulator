@@ -5,7 +5,7 @@ import { Html } from "@react-three/drei";
 /** A race candidate's badge over its venue: letter, colour and an optional live count. */
 export type RacePin = { x: number; z: number; letter: string; colour: string; label?: string; leading?: boolean };
 
-const BADGE_Y = 16;
+export const BADGE_Y = 16;
 
 /** Lettered badges over the race venues, in each candidate's colour. */
 export function RacePins({ pins }: { pins: RacePin[] }) {

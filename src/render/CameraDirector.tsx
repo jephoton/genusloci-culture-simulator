@@ -3,13 +3,15 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { type RefObject, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import { fitView, type ScreenBox } from "@/render/camera-fit";
 import { prefersReducedMotion } from "@/render/motion";
 
 /**
- * A camera flight request: look at (x, 0, z), optionally from `distance` away (same viewing angle).
+ * A camera flight request: look at (x, 0, z), optionally from `distance` away (same viewing angle),
+ * or, with `fit`, from wherever frames those points inside that part of the screen.
  * `at` (performance.now ms) identifies the request.
  */
-export type FlyTo = { x: number; z: number; at: number; distance?: number };
+export type FlyTo = { x: number; z: number; at: number; distance?: number; fit?: { points: [number, number, number][]; box: ScreenBox } };
 
 /** The parts of drei's MapControls this needs (it is the default controls, so `useThree` has it). */
 type Controls = THREE.EventDispatcher<{ start: object }> & { target: THREE.Vector3 };
@@ -47,15 +49,23 @@ export function CameraDirector({ flyTo }: { flyTo: RefObject<FlyTo | null> }) {
     if (req && req.at !== handled.current) {
       handled.current = req.at;
       const t = controls.target;
+      const offset = camera.position.clone().sub(t).normalize();
+      let { x, z } = req;
+      let to = req.distance ?? camera.position.distanceTo(t);
+      if (req.fit?.points.length && camera instanceof THREE.PerspectiveCamera) {
+        const view = fitView(camera, offset, req.fit.points.map(([px, py, pz]) => new THREE.Vector3(px, py, pz)), req.fit.box);
+        ({ x, z } = view);
+        to = view.distance;
+      }
       flight.current = {
         at: performance.now(),
         fromX: t.x,
         fromZ: t.z,
-        dx: req.x - t.x,
-        dz: req.z - t.z,
-        offset: camera.position.clone().sub(t).normalize(),
+        dx: x - t.x,
+        dz: z - t.z,
+        offset,
         from: camera.position.distanceTo(t),
-        to: req.distance ?? camera.position.distanceTo(t),
+        to,
         target: t.y,
       };
     }
