@@ -52,5 +52,5 @@ Keep judge access free and unrestricted through the published judging period. Cu
 - Publish this branch; verify the public URL shows the venue race (not the older sandbox or chat lab).
 - Confirm a Qloo world loads (no "synthetic stand-in" notice) and the suggested artists produce three venues.
 - Run a full race and the result on the public URL, in a visible window. Check the agent's picks and write-up appear.
-- Resolve the installed Next.js security advisories and reverify the patched build before publishing (see [judging alignment](judging-alignment.md)).
+- Next.js is patched to 16.4.3 (advisories resolved, production build verified locally on 2026-10-25); rebuild on Vercel when publishing.
 - Keep the README, Devpost draft and hosted UI consistent. No raw Qloo cache or world files, credentials or secret-bearing logs in Git or submission artifacts.

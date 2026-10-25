@@ -55,6 +55,8 @@ Deadline: 31 October 2026, 11:45 am Singapore time. Current rules list judging 2
 3. Ensure the public repository and hosted UI match the submission description. Confirm world storage and provider settings in the deployment without exposing keys.
 4. Submit the project description and links through Devpost. User completes any binding submission agreement and confirms finalist availability if applicable.
 
+**Resolved 2026-10-25:** upgraded to Next.js 16.4.3 (first patched release 16.4.1); `pnpm audit --prod` reports no known vulnerabilities and `next build` passes. The original finding follows.
+
 Verification also surfaced an existing framework release risk: Next.js 16.4.0 reports advisories, confirmed through the npm registry's security endpoint. Reported affected ranges include the installed version for [Server Actions denial of service](https://github.com/advisories/GHSA-p3m5-59mp-jv5r), [image optimisation/SVG remote execution](https://github.com/advisories/GHSA-2464-fhr4-w9xw) and [cached typed-array remote execution](https://github.com/advisories/GHSA-673q-mjm6-r5xr). This audit did not establish exploitability in this app or upgrade dependencies. Review/apply a patched framework release and verify it before publishing. A successful local build after the framework warning is not a security fix.
 
 No major new domains or speculative features are needed for alignment. The outstanding product evidence is real audience usefulness; the immediate release problem is making the latest coherent experience the one judges actually receive.
