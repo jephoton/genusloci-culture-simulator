@@ -1,7 +1,8 @@
 import { expect, it } from "vitest";
 import { applyAction } from "@/sim/actions/apply";
 import { DEFAULT_CONFIG } from "@/sim/config";
-import { runEventCandidates } from "@/sim/events";
+import { PairedEventRun, runEventCandidateRuns, runEventCandidates } from "@/sim/events";
+import { runSeed } from "@/sim/whatif";
 import { createRng } from "@/sim/rng";
 import { initState } from "@/sim/state";
 import { step } from "@/sim/step";
@@ -50,4 +51,23 @@ it("retains final attendance when auto-opening a permanent venue reuses the slot
   const [withReuse] = runEventCandidates(s, [candidate], { ...options, duration: 1, weeks: 1 });
   expect(withoutReuse.turnout).toBeGreaterThan(0);
   expect(withReuse.turnout).toBe(withoutReuse.turnout);
+});
+
+it("steps a paired run whose totals equal the first seeded future, with per-candidate hosts", () => {
+  const s = fresh();
+  step(s);
+  const candidates = [{ ...candidate, hostVenue: 0 }, { entity: 5, cell: s.venueCell[1], hostVenue: 1 }];
+  const o = { ...options, weeks: 1, duration: 1, runs: 3 };
+  const runs = runEventCandidateRuns(s, candidates, o);
+  const race = new PairedEventRun(s, candidates, o, runSeed(s, 0));
+  const totals: number[][] = [];
+  while (!race.done) {
+    race.step();
+    totals.push(race.tallies().total);
+  }
+  expect(totals.length).toBe(race.ticks);
+  expect(race.outcomes()).toEqual(runs[0]);
+  expect(race.tallies().total).toEqual(runs[0].map((r) => r.turnout));
+  expect(runs[0][1].hostBaseline).toBeGreaterThanOrEqual(0);
+  expect(s.scheduledEvents).toHaveLength(0);
 });
